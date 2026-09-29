@@ -131,6 +131,9 @@ struct Config {
     bool diar_native  = true;
     // VoxSumDroid: split a single-speaker run after a sentence end once it is this long (0 = never).
     double max_segment_s = 0;
+    // VoxSumDroid live view: a segment stops changing once it ends this far behind the audio fed
+    // (diarizer chunk 4 s + lookahead ~1 s + margin).
+    double live_settle_s = 8.0;
 };
 
 struct Segment {
@@ -188,12 +191,14 @@ public:
 
     // Push-based streaming (VoxSumDroid): the same loop body as run(), fed by the caller instead of a WAV.
     // begin() once, push() any number of 16 kHz mono pieces (any size; split into piece_ms internally),
-    // finish() once. snapshot() re-attributes everything so far against the current turn timeline;
-    // labels near the frontier are provisional until the diarizer commits the turn covering them.
+    // finish() once. live() gives a cheap provisional view in between.
     void begin();
     bool push(const float* pcm, size_t n, std::string& err);
     bool finish(const std::function<void(const Segment&)>& on_segment, std::string& err);
-    void snapshot(const std::function<void(const Segment&)>& on_segment) { attribute(on_segment, false); }
+    // VoxSumDroid live view: re-attribute only the unsettled tail (inferred placement, O(tail)).
+    // Segments that can no longer change during the live view are appended to [newly_frozen] exactly once;
+    // [tail] is everything after them. finish() still re-attributes the whole timeline from scratch.
+    void live(std::vector<Segment>& newly_frozen, std::vector<Segment>& tail);
     double fed_s() const { return double(fed_) / 16000.0; }
     // Audio time up to which the diarizer has committed turns (the attribution-stable frontier).
     double committed_turns_s() const;
@@ -222,6 +227,10 @@ private:
     std::vector<double> piece_ms_;
     bool push_piece(const float* pcm, size_t n, bool last, std::string& err);
     std::vector<float> pending_;        // < one piece, carried to the next push()
+    size_t live_chars_ = 0, live_bytes_ = 0;   // Fusion timeline position the live view has frozen up to
+    struct SegCounts { size_t segments = 0, pieces = 0, unattributed = 0, snapped_chars = 0; };
+    SegCounts build_segments(std::vector<TaggedPiece> pieces, size_t char_base, size_t byte_base,
+                             const std::function<void(const Segment&, size_t, size_t)>& emit);
     int64_t fed_ = 0, charged_upto_ = 0;
     size_t turns_seen_ = 0;
     double t0_ = 0;

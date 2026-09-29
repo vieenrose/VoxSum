@@ -10,7 +10,13 @@ git submodule update --init
 tools/nemo-eval/build_host.sh                       # -> tools/nemo-eval/build/nemo_eval
 # models: the two GGUFs pinned in ModelManager.kt (NEMO_FILES)
 tools/nemo-eval/build/nemo_eval x-asr-zh-en-q8_0.gguf nemotron-3-diarization-q8_0.gguf in.wav out.json 4
+# as the app records: 10 s line splits + the live view every 0.5 s of audio
+tools/nemo-eval/build/nemo_eval ... in.wav out.json 4 --max-seg 10 --live
 ```
+
+`--live` prints the live view's per-call cost (and whether it grows over the recording), checks that
+frozen segments + tail always reproduce the transcript, and reports how much of the live (frozen)
+speaker labelling the final pass agrees with.
 
 ## Meeting diarization (2026-09-29)
 

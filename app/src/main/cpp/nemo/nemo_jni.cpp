@@ -9,6 +9,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <vector>
 
 #include "engine.h"
 
@@ -84,14 +85,19 @@ Java_studio_voxsum_core_asr_NemoNative_nativePush(JNIEnv* env, jclass, jlong ptr
     return ok;
 }
 
+// Live view: newly frozen segments, GS (0x1d), then the provisional tail.
 JNIEXPORT jstring JNICALL
-Java_studio_voxsum_core_asr_NemoNative_nativeSnapshot(JNIEnv* env, jclass, jlong ptr) {
+Java_studio_voxsum_core_asr_NemoNative_nativeLive(JNIEnv* env, jclass, jlong ptr) {
     auto* h = reinterpret_cast<Handle*>(ptr);
-    std::string out;
+    std::vector<nemo::Segment> frozen, tail;
     {
         std::lock_guard<std::mutex> lk(h->mu);
-        h->engine->snapshot([&](const nemo::Segment& s) { out += encode_segment(s); });
+        h->engine->live(frozen, tail);
     }
+    std::string out;
+    for (const auto& s : frozen) out += encode_segment(s);
+    out += "\x1d";
+    for (const auto& s : tail) out += encode_segment(s);
     return to_jstring(env, out);
 }
 

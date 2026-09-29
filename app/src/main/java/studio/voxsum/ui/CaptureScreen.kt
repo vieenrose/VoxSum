@@ -43,12 +43,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import studio.voxsum.R
+import studio.voxsum.data.speakerColorOn
+import studio.voxsum.data.speakerLabel
 import studio.voxsum.core.events.TranscriptEvent
 import studio.voxsum.ui.theme.LocalVoxSumPalette
 import studio.voxsum.ui.theme.VoxSumPalette
@@ -68,6 +71,8 @@ fun CaptureScreen(
     sessionName: String,
     onSessionName: (String) -> Unit,
     utterances: List<TranscriptEvent.Utterance>,
+    /** Leading [utterances] that are settled; the rest are provisional (speaker may still change). */
+    stable: Int = 0,
     onNextTalk: () -> Unit,
     onStop: () -> Unit,
     onBack: () -> Unit,
@@ -110,7 +115,7 @@ fun CaptureScreen(
                 Spacer(Modifier.width(24.dp))
                 Column(Modifier.weight(1.2f).fillMaxHeight()) {
                     LiveHeader(showLive, pal) { showLive = !showLive }
-                    LivePanel(showLive, utterances)
+                    LivePanel(showLive, utterances, stable)
                 }
             }
             Spacer(Modifier.height(12.dp))
@@ -122,7 +127,7 @@ fun CaptureScreen(
             // Live transcript: a first-class panel filling everything between the name field and
             // the buttons — the full running transcript, auto-following the newest line.
             LiveHeader(showLive, pal) { showLive = !showLive }
-            LivePanel(showLive, utterances)
+            LivePanel(showLive, utterances, stable)
             Spacer(Modifier.height(16.dp))
             CaptureButtons(isRecording, onNextTalk, onStop, buttonHeight = 96.dp)
             Spacer(Modifier.height(16.dp))
@@ -193,6 +198,7 @@ private fun LiveHeader(showLive: Boolean, pal: studio.voxsum.ui.theme.VoxSumColo
 private fun androidx.compose.foundation.layout.ColumnScope.LivePanel(
     showLive: Boolean,
     utterances: List<TranscriptEvent.Utterance>,
+    stable: Int,
 ) {
     val pal = LocalVoxSumPalette.current
     if (!showLive) {
@@ -214,21 +220,36 @@ private fun androidx.compose.foundation.layout.ColumnScope.LivePanel(
         }
     } else {
         val listState = rememberLazyListState()
-        // Follow the newest line. Instant jump, not animate: e-ink hates animated scrolls.
-        LaunchedEffect(utterances.size) {
-            listState.scrollToItem(utterances.lastIndex)
+        // Follow the newest words. The last line grows in place (a line closes only on a speaker change
+        // or after ~10 s), so key on its length too. Instant jump, not animate: e-ink hates animated
+        // scrolls. The large offset pins the BOTTOM of a tall last line into view.
+        LaunchedEffect(utterances.size, utterances.lastOrNull()?.text?.length) {
+            listState.scrollToItem(utterances.lastIndex, scrollOffset = Int.MAX_VALUE / 2)
         }
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 4.dp, vertical = 8.dp),
         ) {
             items(utterances.size) { i ->
-                Text(
-                    utterances[i].text,
-                    color = pal.Slate200,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(vertical = 2.dp),
-                )
+                val u = utterances[i]
+                // Tag only where the speaker changes; a speaker the diarizer has not reached yet
+                // (the newest ~5 s) has no tag at all rather than a guess.
+                val showTag = u.speaker != null && (i == 0 || utterances[i - 1].speaker != u.speaker)
+                Column(Modifier.padding(top = if (showTag && i > 0) 8.dp else 2.dp, bottom = 2.dp)) {
+                    if (showTag) {
+                        // Provisional (not yet settled) lines draw their tag dimmed — same 0.55 alpha
+                        // the session screen uses for de-emphasis; no animation (e-ink).
+                        val color = Color(speakerColorOn(u.speaker, pal.isDark))
+                            .copy(alpha = if (i < stable) 1f else 0.55f)
+                        Text(
+                            speakerLabel(u.speaker, emptyMap()).orEmpty(),
+                            color = color,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                    Text(u.text, color = pal.Slate200, style = MaterialTheme.typography.bodyMedium)
+                }
             }
         }
     }

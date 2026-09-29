@@ -4,8 +4,10 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 import studio.voxsum.core.asr.NemoStreamEngine
+import studio.voxsum.core.asr.SnapshotConverter
 import studio.voxsum.core.asr.SpeakerTransfer
 import studio.voxsum.core.events.TranscriptEvent.Utterance
+import studio.voxsum.core.events.TranscriptEvent.UtteranceSnapshot
 
 class NemoSegmentsTest {
 
@@ -41,5 +43,40 @@ class NemoSegmentsTest {
         val out = SpeakerTransfer.transfer(target, tagged)
         assertEquals(listOf(0, 0, 7), out.map { it.speaker })
         assertEquals("edited a", out[0].text)
+    }
+
+    @Test
+    fun parsesLiveFrozenAndTail() {
+        val raw = rec(0, 0.0, 2.0, "a") + rec(1, 2.0, 3.0, "b") + "\u001d" + rec(1, 3.0, 4.0, "c")
+        val (frozen, tail) = NemoStreamEngine.parseLive(raw, firstIndex = 5)
+        assertEquals(listOf("a", "b"), frozen.map { it.text })
+        assertEquals(listOf(5, 6), frozen.map { it.index })   // continues after what is already frozen
+        assertEquals(listOf("c"), tail.map { it.text })
+        val (none, onlyTail) = NemoStreamEngine.parseLive("\u001d" + rec(0, 0.0, 1.0, "x"), 0)
+        assertEquals(0, none.size)
+        assertEquals(1, onlyTail.size)
+    }
+
+    @Test
+    fun converterConvertsOnlyWhatChanged() {
+        val calls = ArrayList<String>()
+        val conv = SnapshotConverter({ t -> calls += t; t.uppercase() }, keepSpeakers = true)
+        val a = Utterance(0, "a", 0.0, 1.0, speaker = 0)
+        val b = Utterance(1, "b", 1.0, 2.0, speaker = 1)
+        val first = conv.apply(UtteranceSnapshot(listOf(a, b), stable = 1))
+        assertEquals(listOf("A", "B"), first.utterances.map { it.text })
+        assertEquals(1, first.stable)
+        calls.clear()
+        val b2 = b.copy(text = "bc")
+        val second = conv.apply(UtteranceSnapshot(listOf(a, b2), stable = 1))
+        assertEquals(listOf("bc"), calls)             // the unchanged first line was not re-converted
+        assertEquals(listOf("A", "BC"), second.utterances.map { it.text })
+    }
+
+    @Test
+    fun converterDropsSpeakersWhenDisabled() {
+        val conv = SnapshotConverter(null, keepSpeakers = false)
+        val out = conv.apply(UtteranceSnapshot(listOf(Utterance(0, "a", 0.0, 1.0, speaker = 3))))
+        assertNull(out.utterances[0].speaker)
     }
 }

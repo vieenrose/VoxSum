@@ -14,8 +14,8 @@ data class NemoModelFiles(val xasr: File, val diar: File)
  * one audio timeline, each word tagged with the speaker whose turn covers it.
  *
  * Words appear ~0.4 s after they are spoken; speaker turns are committed ~5 s behind the audio, so
- * labels near the live edge are provisional. Every emission is therefore a replace-all
- * [TranscriptEvent.UtteranceSnapshot]; the last one (after end of input) is final.
+ * labels near the live edge are provisional. Every emission is a replace-all
+ * [TranscriptEvent.UtteranceSnapshot] whose `stable` prefix will not change until the final one.
  */
 class NemoStreamEngine(files: NemoModelFiles, threads: Int) : AutoCloseable {
 
@@ -27,26 +27,32 @@ class NemoStreamEngine(files: NemoModelFiles, threads: Int) : AutoCloseable {
         private set
 
     /**
-     * Feed [chunks] (16 kHz mono float) and emit transcript snapshots as they change. Snapshots are
-     * spaced by at least [SNAPSHOT_MIN_SEC] of audio and by 1/[SNAPSHOT_FRACTION] of what has been
-     * fed so far: re-attribution walks the whole timeline, so a fixed period would make a long
-     * meeting quadratic.
+     * Feed [chunks] (16 kHz mono float) and emit a transcript snapshot every [LIVE_EVERY_SEC] of audio.
+     * Each update re-attributes only the unsettled tail (native `Engine::live`), so its cost stays flat
+     * however long the recording runs; segments that can no longer change are frozen once and reused.
+     * The last snapshot, after end of input, is the full final attribution.
      */
     fun transcribeLive(chunks: Flow<FloatArray>): Flow<TranscriptEvent> = flow {
-        var lastSnapAt = 0.0
-        var lastText: List<TranscriptEvent.Utterance> = emptyList()
+        val frozen = ArrayList<TranscriptEvent.Utterance>()
+        var lastTail: List<TranscriptEvent.Utterance> = emptyList()
+        var nextAt = LIVE_EVERY_SEC
         chunks.collect { c ->
             check(NemoNative.nativePush(handle, c, c.size)) { "nemo push failed" }
             val fed = NemoNative.nativeFedSec(handle)
-            if (fed - lastSnapAt >= maxOf(SNAPSHOT_MIN_SEC, fed / SNAPSHOT_FRACTION)) {
-                lastSnapAt = fed
-                val snap = parseSegments(NemoNative.nativeSnapshot(handle))
-                if (snap != lastText) { lastText = snap; emit(TranscriptEvent.UtteranceSnapshot(snap)) }
+            if (fed >= nextAt) {
+                nextAt = fed + LIVE_EVERY_SEC
+                val (newlyFrozen, tail) = parseLive(NemoNative.nativeLive(handle), firstIndex = frozen.size)
+                frozen += newlyFrozen
+                val reTail = tail.mapIndexed { i, u -> u.copy(index = frozen.size + i) }
+                if (newlyFrozen.isNotEmpty() || reTail != lastTail) {
+                    lastTail = reTail
+                    emit(TranscriptEvent.UtteranceSnapshot(frozen + reTail, stable = frozen.size))
+                }
             }
         }
         val final = parseSegments(NemoNative.nativeFinish(handle) ?: error("nemo finish failed"))
         speakerCount = final.mapNotNull { it.speaker }.distinct().size.takeIf { it > 0 }
-        emit(TranscriptEvent.UtteranceSnapshot(final))
+        emit(TranscriptEvent.UtteranceSnapshot(final, stable = final.size))
     }
 
     override fun close() {
@@ -54,11 +60,20 @@ class NemoStreamEngine(files: NemoModelFiles, threads: Int) : AutoCloseable {
     }
 
     companion object {
-        const val SNAPSHOT_MIN_SEC = 1.0
-        const val SNAPSHOT_FRACTION = 60.0
+        /** Audio between live updates. */
+        const val LIVE_EVERY_SEC = 0.5
+
+        /** Split a `nativeLive` result (newly frozen segments, GS, tail) and parse both halves;
+         *  indices of the frozen ones continue from [firstIndex]. */
+        fun parseLive(raw: String, firstIndex: Int): Pair<List<TranscriptEvent.Utterance>, List<TranscriptEvent.Utterance>> {
+            val gs = raw.indexOf('\u001d')
+            val frozen = parseSegments(if (gs < 0) raw else raw.substring(0, gs), firstIndex)
+            val tail = if (gs < 0) emptyList() else parseSegments(raw.substring(gs + 1))
+            return frozen to tail
+        }
 
         /** Decode the JNI segment encoding (see nemo_jni.cpp) into utterances. */
-        fun parseSegments(raw: String): List<TranscriptEvent.Utterance> {
+        fun parseSegments(raw: String, firstIndex: Int = 0): List<TranscriptEvent.Utterance> {
             val out = ArrayList<TranscriptEvent.Utterance>()
             for (rec in raw.split('\u001e')) {
                 if (rec.isEmpty()) continue
@@ -67,7 +82,7 @@ class NemoStreamEngine(files: NemoModelFiles, threads: Int) : AutoCloseable {
                 val text = AsrEngine.cleanTranscript(f[3]).trim()
                 if (text.isEmpty()) continue
                 out += TranscriptEvent.Utterance(
-                    index = out.size,
+                    index = firstIndex + out.size,
                     text = text,
                     startSec = f[1].toDouble(),
                     endSec = f[2].toDouble(),
@@ -85,7 +100,7 @@ internal object NemoNative {
 
     @JvmStatic external fun nativeCreate(xasr: String, diar: String, threads: Int): Long
     @JvmStatic external fun nativePush(handle: Long, pcm: FloatArray, n: Int): Boolean
-    @JvmStatic external fun nativeSnapshot(handle: Long): String
+    @JvmStatic external fun nativeLive(handle: Long): String
     @JvmStatic external fun nativeFinish(handle: Long): String?
     @JvmStatic external fun nativeFedSec(handle: Long): Double
     @JvmStatic external fun nativeFree(handle: Long)

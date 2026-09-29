@@ -180,19 +180,21 @@ void Fusion::append_placed(const std::string& text, int64_t span_start, int64_t 
     }
 }
 
-std::vector<TaggedPiece> Fusion::attribute_all() const {
-    const auto cps = codepoints(text_);
+std::vector<TaggedPiece> Fusion::attribute_from(size_t char_from, size_t byte_from) const {
+    const std::string tail = byte_from ? text_.substr(byte_from) : text_;
+    const auto cps = codepoints(tail);
     std::vector<const Turn*> mark(cps.size(), nullptr);
     std::vector<char> snap(cps.size(), 0);      // vector<bool> has no addressable elements
-    for (size_t i = 0; i < cps.size() && i < spans_.size(); i++) {
+    for (size_t i = 0; i < cps.size() && char_from + i < spans_.size(); i++) {
         bool sn = false;
-        mark[i] = covering(spans_[i].start, spans_[i].end - spans_[i].start, &sn);
+        const CharSpan& sp = spans_[char_from + i];
+        mark[i] = covering(sp.start, sp.end - sp.start, &sn);
         snap[i] = sn ? 1 : 0;
     }
-    auto pieces = tag_sequence(text_, mark, snap);
+    auto pieces = tag_sequence(tail, mark, snap);
     // Recover the time range each piece covers from the character spans (tag_sequence groups by word,
     // so times cannot travel with the text there).
-    size_t pos = 0;
+    size_t pos = char_from;
     for (auto& p : pieces) {
         const size_t n = codepoints(p.text).size();
         if (pos < spans_.size()) p.start_s = double(spans_[pos].start) / rate_;

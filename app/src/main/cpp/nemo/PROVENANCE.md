@@ -6,9 +6,13 @@
 `native/crispasr` 657bc15, `native/crispasr-ggml` 512a020, `native/audiocpp` 8344bbe.
 
 Modified for VoxSumDroid (marked "VoxSumDroid" in the source):
-- `Engine::run` split into a push API — `begin()`, `push()`, `finish()`, `snapshot()` — so microphone
-  and file audio stream through the same loop. Output is byte-identical to upstream's `run()` on the
+- `Engine::run` split into a push API — `begin()`, `push()`, `finish()` — so microphone and file
+  audio stream through the same loop. Output is byte-identical to upstream's `run()` on the
   reference clip (checked with `tools/nemo-eval`).
+- Live view: `Engine::live()` + `Fusion::attribute_from()` re-attribute only the unsettled tail and
+  freeze segments once they are `Config::live_settle_s` behind the audio and covered by committed
+  turns; the segment builder is shared with the final pass (`build_segments`), whose output is
+  unchanged (byte-identical on three reference clips).
 - `attribute()`: punctuation the ASR emits at a turn start is handed back to the previous speaker, and
   a long single-speaker run is split after a sentence end (`Config::max_segment_s`, off by default).
 

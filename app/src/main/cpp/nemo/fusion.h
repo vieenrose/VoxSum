@@ -88,7 +88,10 @@ public:
     // Keep the turn timeline, drop the text and its spans. Needed because token times are queried as a
     // whole-timeline snapshot, so each attribution pass rebuilds the character timeline from tokens.
     void clear_text() { text_.clear(); spans_.clear(); }
-    std::vector<TaggedPiece> attribute_all() const;
+    std::vector<TaggedPiece> attribute_all() const { return attribute_from(0, 0); }
+    // VoxSumDroid: attribute only the timeline from char [char_from] (at byte [byte_from]) on. The start
+    // must be a piece boundary (the live view only resumes at segment ends).
+    std::vector<TaggedPiece> attribute_from(size_t char_from, size_t byte_from) const;
     size_t chars() const { return spans_.size(); }
     const std::string& text() const { return text_; }
     const std::vector<CharSpan>& spans() const { return spans_; }

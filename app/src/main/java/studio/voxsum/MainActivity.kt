@@ -225,6 +225,18 @@ private const val NORMALIZE_MAX_GAIN = 16.0     // ≈ +24 dB ceiling
  * 0 for non-WAV sources (compressed podcast/YouTube audio) or on any error, so they're untouched.
  * eg. a quiet recording at -34 dBFS RMS → ~+16 dB; an already-loud one → ~0.
  */
+/** Replace-all from a live snapshot without churning the unchanged prefix: only items from the first
+ *  difference on are replaced, so a long live transcript updates in O(tail) state writes. */
+private fun androidx.compose.runtime.snapshots.SnapshotStateList<TranscriptEvent.Utterance>.replaceChanged(
+    next: List<TranscriptEvent.Utterance>,
+) {
+    val common = minOf(size, next.size)
+    var keep = 0
+    while (keep < common && this[keep] == next[keep]) keep++
+    if (keep < size) removeRange(keep, size)
+    if (keep < next.size) addAll(next.subList(keep, next.size))
+}
+
 private fun computeNormalizeGainMb(context: android.content.Context, uri: Uri): Int = runCatching {
     context.contentResolver.openInputStream(uri)?.use { ins ->
         val header = ByteArray(44)
@@ -516,6 +528,9 @@ private fun TranscribeScreen(
     var showYouTubeSheet by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val utterances = remember { mutableStateListOf<TranscriptEvent.Utterance>() }
+    // Leading utterances of the live transcript that won't change until the final snapshot (the rest
+    // are provisional; the recording booth de-emphasises their speaker tags).
+    var liveStable by remember { mutableIntStateOf(0) }
 
     // --- Update notifier: once/day GitHub release check → dismissible banner → download+install. ---
     var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
@@ -948,6 +963,7 @@ private fun TranscribeScreen(
         persistSessionEdits()   // don't drop edits when another session/recording takes over
         SessionAutosave.clear(context)
         utterances.clear(); speakerNames.clear(); editingIndex = -1; editingSpeakerId = null
+        liveStable = 0
         diarizeOnlyRun = false
         editingTitle = false; editingSummary = false; editingActions = false
         // Also PAUSE the hoisted player, not just the flag: when the next run reuses the SAME
@@ -1498,7 +1514,7 @@ private fun TranscribeScreen(
                     is TranscriptEvent.Progress -> queueFraction = e.fraction
                     is TranscriptEvent.DownloadProgress -> { queueLabel = e.label; queueFraction = e.fraction }
                     is TranscriptEvent.Utterance -> queueUtterances.add(e)
-                    is TranscriptEvent.UtteranceSnapshot -> { queueUtterances.clear(); queueUtterances.addAll(e.utterances) }
+                    is TranscriptEvent.UtteranceSnapshot -> queueUtterances.replaceChanged(e.utterances)
                     is TranscriptEvent.Title -> queueTitle = e.title
                     is TranscriptEvent.Partial ->
                         queueSummary = if (e.reset) "" else (queueSummary ?: "") + e.chunk
@@ -1517,7 +1533,7 @@ private fun TranscribeScreen(
             when (e) {
                 is TranscriptEvent.Status -> status = e.message
                 is TranscriptEvent.Utterance -> utterances.add(e)
-                is TranscriptEvent.UtteranceSnapshot -> { utterances.clear(); utterances.addAll(e.utterances) }
+                is TranscriptEvent.UtteranceSnapshot -> { utterances.replaceChanged(e.utterances); liveStable = e.stable }
                 // Progress drives the BAR only; each phase sets its own status (Transcribing /
                 // Identifying speakers / Summarizing), so we no longer overwrite it with "Transcribing %"
                 // (which also mislabeled the summary phase). running guards a late event after completion.
@@ -2181,6 +2197,7 @@ private fun TranscribeScreen(
             sessionName = captureName,
             onSessionName = { captureName = it },
             utterances = utterances,
+            stable = liveStable,
             onNextTalk = { nextTalk() },
             onStop = { handleStop() },
             onBack = { screen = Screen.Studio },

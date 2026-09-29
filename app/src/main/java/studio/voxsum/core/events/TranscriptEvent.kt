@@ -31,12 +31,11 @@ sealed interface TranscriptEvent {
     ) : TranscriptEvent
 
     /**
-     * Replace-all transcript snapshot. MOSS-TD re-links speakers over ALL
-     * segments after every decoded window (earlier utterances' speaker ids and
-     * indices may change), so incremental MOSS rendering replaces the list
-     * instead of appending like the per-utterance backends.
+     * Replace-all transcript snapshot from the streaming engine. The first [stable] utterances will
+     * not change again until the final snapshot (which re-attributes everything and has
+     * stable == size); the rest are provisional — speaker tags near the live edge settle ~5 s behind.
      */
-    data class UtteranceSnapshot(val utterances: List<Utterance>) : TranscriptEvent
+    data class UtteranceSnapshot(val utterances: List<Utterance>, val stable: Int = 0) : TranscriptEvent
 
     /** 0.0..1.0 progress over the audio (mirrors "progress"). */
     data class Progress(val fraction: Float) : TranscriptEvent

@@ -37,6 +37,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import studio.voxsum.core.asr.AsrEngine
 import studio.voxsum.core.asr.NemoStreamEngine
+import studio.voxsum.core.asr.SnapshotConverter
 import studio.voxsum.core.asr.SpeakerTransfer
 import studio.voxsum.core.audio.AudioDecoder
 import studio.voxsum.core.audio.AudioRecorder
@@ -814,6 +815,7 @@ class TranscriptionService : LifecycleService() {
         // always converts to Traditional (conservative s2t) — see [transcriptConverter].
         val converter = outputConverter(cfg)
         val txtConverter = transcriptConverter()
+        val snapConv = SnapshotConverter(txtConverter?.let { c -> c::convert }, cfg.diarizationEnabled)
 
         // Our own 16 kHz work WAVs (library captures, prior decode outputs) are streamed directly —
         // same policy as runDiarizeOnly; routing them through the MediaCodec decode path is both
@@ -910,7 +912,7 @@ class TranscriptionService : LifecycleService() {
                 .collect { e ->
                     when (e) {
                         is TranscriptEvent.UtteranceSnapshot -> {
-                            val snap = convertSnapshot(e, txtConverter, cfg)
+                            val snap = snapConv.apply(e)
                             utterances.clear(); utterances += snap.utterances
                             emitEvent(snap)
                             // Recognition progress: how far the transcript reaches through the audio.
@@ -1154,6 +1156,7 @@ class TranscriptionService : LifecycleService() {
         ensureEngineModels(models)
         val converter = outputConverter(cfg)
         val txtConverter = transcriptConverter()
+        val snapConv = SnapshotConverter(txtConverter?.let { c -> c::convert }, cfg.diarizationEnabled)
         val recorder = AudioRecorder()
         val wav = File(File(filesDir, "audio").apply { mkdirs() }, "recording_${System.currentTimeMillis()}.wav")
         val utterances = ArrayList<TranscriptEvent.Utterance>()
@@ -1230,7 +1233,7 @@ class TranscriptionService : LifecycleService() {
                 .collect { e ->
                     when (e) {
                         is TranscriptEvent.UtteranceSnapshot -> {
-                            val snap = convertSnapshot(e, txtConverter, cfg)
+                            val snap = snapConv.apply(e)
                             utterances.clear(); utterances += snap.utterances
                             emitEvent(snap)
                         }
@@ -1313,21 +1316,6 @@ class TranscriptionService : LifecycleService() {
 
     /** The streaming ASR + diarization engine (nemo-x-asr-diarizer). */
     private fun createEngine(models: ModelManager) = NemoStreamEngine(models.asrFiles(), asrThreads())
-
-    /** s2tw the snapshot's text (after cleanTranscript joined spaced CJK, so OpenCC sees contiguous
-     *  text), and drop the speaker tags when the user turned diarization off. */
-    private fun convertSnapshot(
-        e: TranscriptEvent.UtteranceSnapshot,
-        converter: OpenCcConverter?,
-        cfg: TranscriptionConfig,
-    ): TranscriptEvent.UtteranceSnapshot = TranscriptEvent.UtteranceSnapshot(
-        e.utterances.map { u ->
-            u.copy(
-                text = converter?.convert(u.text) ?: u.text,
-                speaker = u.speaker.takeIf { cfg.diarizationEnabled },
-            )
-        },
-    )
 
     /**
      * Standalone re-diarize: re-run the engine over the audio and move its speaker tags onto the

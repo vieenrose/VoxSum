@@ -336,41 +336,37 @@ static bool ends_sentence(const std::string& t) {
     return false;
 }
 
-void Engine::attribute(const std::function<void(const Segment&)>& on_segment, bool final_pass) {
-    const Fusion* use = &fusion_;
-    Fusion timed = fusion_;
-    // The two paths are both live at runtime (not compile-time), because the useful comparison is the same
-    // model, same audio, same turns, with only the character timeline coming from a different place.
-    bool want_tokens = cfg_.timing != 2;
-#ifdef NEMO_HAVE_TOKEN_TIMES
-    if (want_tokens && asr_stream_ &&
-        push_timed_tokens(timed, (xasr_context*)asr_ctx_, (xasr_stream*)asr_stream_, asr_text_,
-                          cfg_.token_offset_ms)) {
-        use = &timed;
-        stats_.timing_mode = 1;
-    } else
-#endif
-    {
-        stats_.timing_mode = 0;
-    }
-
+// Pieces -> segments: the one builder behind the final pass and the live view. [char_base]/[byte_base]
+// locate the first piece in the Fusion timeline; every segment is reported with the char and byte index
+// just past its last character, so the live view can resume attribution exactly at a segment boundary.
+Engine::SegCounts Engine::build_segments(
+        std::vector<TaggedPiece> pieces, size_t char_base, size_t byte_base,
+        const std::function<void(const Segment&, size_t, size_t)>& emit) {
     std::map<std::string, int>& spk_id = spk_id_;
+    SegCounts n;
     Segment open;
     int idx = 0;
-    size_t unattributed = 0, pieces = 0, snapped_chars = 0;
+    size_t cur_c = char_base, cur_b = byte_base;       // next char/byte of the piece stream
+    size_t open_c = cur_c, open_b = cur_b;             // just past the open segment's last char
 
     auto close = [&](const Segment& s) {
         Segment done = s;
         done.index = ++idx;
-        on_segment(done);
+        emit(done, open_c, open_b);
     };
-    {
-        for (TaggedPiece p : use->attribute_all()) {
+    auto take = [&](const std::string& t) {            // text appended to the open segment
+        open.text += t;
+        cur_c += codepoints(t).size();
+        cur_b += t.size();
+        open_c = cur_c;
+        open_b = cur_b;
+    };
+    for (TaggedPiece& p : pieces) {
         // VoxSumDroid: punctuation the ASR emitted at a turn start ends the PREVIOUS speaker's
         // sentence ("？ 你有那么好抓吗") - hand it back before the speaker change closes that segment.
         if (!open.text.empty() && !p.speaker.empty() && p.speaker != open.speaker_id) {
             const size_t k = leading_punct_bytes(p.text);
-            if (k) { open.text += p.text.substr(0, k); p.text.erase(0, k); }
+            if (k) { take(p.text.substr(0, k)); p.text.erase(0, k); }
             if (p.text.empty()) continue;
         }
         // VoxSumDroid: a long single-speaker run becomes several segments, cut after a sentence end once
@@ -392,52 +388,77 @@ void Engine::attribute(const std::function<void(const Segment&)>& on_segment, bo
         // (0.1765 -> 0.2235 on the bilingual gate with an identical character stream). The count is still
         // reported as unattributed_chars, so the honesty lives in the telemetry, not in the layout.
         if (p.speaker.empty() && !open.text.empty()) {
-            unattributed += codepoints(p.text).size();
-            open.text += p.text;
+            n.unattributed += codepoints(p.text).size();
+            take(p.text);
             open.end_s = std::max(open.end_s, p.end_s);
             continue;
         }
-            pieces++;
-            snapped_chars += p.snapped ? codepoints(p.text).size() : 0;
-            const std::string& want = p.speaker;
-            if (open.text.empty()) {
-                if (!want.empty()) {
-                    auto it = spk_id.find(want);
-                    if (it == spk_id.end()) it = spk_id.emplace(want, (int)spk_id.size()).first;
-                    open.speaker = it->second;
-                    open.speaker_id = want;
-                } else {
-                    open.speaker = -1;
-                    open.speaker_id.clear();
-                    unattributed += codepoints(p.text).size();
-                }
-                open.text.clear();
-                open.start_s = p.start_s;
-                open.end_s = p.end_s;
-                open.min_confidence = p.min_confidence;
-            } else if (want != open.speaker_id) {
-                close(open);
-                if (!want.empty()) {
-                    auto it = spk_id.find(want);
-                    if (it == spk_id.end()) it = spk_id.emplace(want, (int)spk_id.size()).first;
-                    open.speaker = it->second;
-                    open.speaker_id = want;
-                } else {
-                    open.speaker = -1;
-                    open.speaker_id.clear();
-                    unattributed += codepoints(p.text).size();
-                }
-                open.text.clear();
-                open.start_s = p.start_s;
-                open.end_s = p.end_s;
-                open.min_confidence = p.min_confidence;
+        n.pieces++;
+        n.snapped_chars += p.snapped ? codepoints(p.text).size() : 0;
+        const std::string& want = p.speaker;
+        if (open.text.empty() || want != open.speaker_id) {
+            if (!open.text.empty()) close(open);
+            if (!want.empty()) {
+                auto it = spk_id.find(want);
+                if (it == spk_id.end()) it = spk_id.emplace(want, (int)spk_id.size()).first;
+                open.speaker = it->second;
+                open.speaker_id = want;
+            } else {
+                open.speaker = -1;
+                open.speaker_id.clear();
+                n.unattributed += codepoints(p.text).size();
             }
-            open.text += p.text;
-            open.end_s = std::max(open.end_s, p.end_s);
-            open.min_confidence = std::min(open.min_confidence, p.min_confidence);
+            open.text.clear();
+            open.start_s = p.start_s;
+            open.end_s = p.end_s;
+            open.min_confidence = p.min_confidence;
         }
+        take(p.text);
+        open.end_s = std::max(open.end_s, p.end_s);
+        open.min_confidence = std::min(open.min_confidence, p.min_confidence);
     }
     if (!open.text.empty()) close(open);
+    n.segments = idx;
+    return n;
+}
+
+void Engine::live(std::vector<Segment>& newly_frozen, std::vector<Segment>& tail) {
+    struct Built { Segment seg; size_t end_c, end_b; };
+    std::vector<Built> segs;
+    build_segments(fusion_.attribute_from(live_chars_, live_bytes_), live_chars_, live_bytes_,
+                   [&](const Segment& seg, size_t c, size_t b) { segs.push_back({seg, c, b}); });
+    // A segment freezes once the diarizer has committed turns past it AND it is live_settle_s behind
+    // the audio fed; the last segment never freezes (it may still grow).
+    const double horizon = std::min(fed_s() - cfg_.live_settle_s, committed_turns_s());
+    size_t k = 0;
+    for (; k + 1 < segs.size() && segs[k].seg.end_s <= horizon; k++) {
+        newly_frozen.push_back(segs[k].seg);
+        live_chars_ = segs[k].end_c;
+        live_bytes_ = segs[k].end_b;
+    }
+    for (; k < segs.size(); k++) tail.push_back(segs[k].seg);
+}
+
+void Engine::attribute(const std::function<void(const Segment&)>& on_segment, bool final_pass) {
+    const Fusion* use = &fusion_;
+    Fusion timed = fusion_;
+    // The two paths are both live at runtime (not compile-time), because the useful comparison is the same
+    // model, same audio, same turns, with only the character timeline coming from a different place.
+    bool want_tokens = cfg_.timing != 2;
+#ifdef NEMO_HAVE_TOKEN_TIMES
+    if (want_tokens && asr_stream_ &&
+        push_timed_tokens(timed, (xasr_context*)asr_ctx_, (xasr_stream*)asr_stream_, asr_text_,
+                          cfg_.token_offset_ms)) {
+        use = &timed;
+        stats_.timing_mode = 1;
+    } else
+#endif
+    {
+        stats_.timing_mode = 0;
+    }
+
+    const SegCounts n = build_segments(use->attribute_all(), 0, 0,
+                                       [&](const Segment& seg, size_t, size_t) { on_segment(seg); });
 
     if (final_pass) {
         if (const char* dump = getenv("NEMO_DUMP_TIMELINE")) {
@@ -455,12 +476,12 @@ void Engine::attribute(const std::function<void(const Segment&)>& on_segment, bo
             }
         }
     }
-    stats_.segments = idx;
-    stats_.unattributed_chars = unattributed;
-    stats_.snapped_chars = snapped_chars;
-    stats_.speakers = spk_id.size();
+    stats_.segments = n.segments;
+    stats_.unattributed_chars = n.unattributed;
+    stats_.snapped_chars = n.snapped_chars;
+    stats_.speakers = spk_id_.size();
     if (final_pass && getenv("NEMO_DEBUG_ATTR")) {
-        std::fprintf(stderr, "[attrib] %zu pieces, %zu turns, %zu chars, timing=%s\n", pieces,
+        std::fprintf(stderr, "[attrib] %zu pieces, %zu turns, %zu chars, timing=%s\n", n.pieces,
                      use->turns().size(), use->chars(), stats_.timing_mode ? "tokens" : "inferred");
     }
 }

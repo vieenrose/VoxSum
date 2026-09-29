@@ -131,9 +131,10 @@ struct Config {
     bool diar_native  = true;
     // VoxSumDroid: split a single-speaker run after a sentence end once it is this long (0 = never).
     double max_segment_s = 0;
-    // VoxSumDroid live view: a segment stops changing once it ends this far behind the audio fed
-    // (diarizer chunk 4 s + lookahead ~1 s + margin).
-    double live_settle_s = 8.0;
+    // VoxSumDroid live view: a segment stops changing once it ends this far behind the audio fed.
+    // The diarizer revises recent labels for tens of seconds; live-vs-final agreement on 4 meetings is
+    // 93.0% at 8 s, 94.7% at 15 s, 95.8% at 30 s. The app passes the user's setting (default 15).
+    double live_settle_s = 15.0;
 };
 
 struct Segment {

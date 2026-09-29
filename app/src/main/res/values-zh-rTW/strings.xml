@@ -57,6 +57,9 @@
     <string name="settings_itn">反向文字正規化</string>
     <string name="settings_diarization">語者分段</string>
     <string name="settings_identify_speakers">辨識語者</string>
+    <string name="settings_speaker_delay">即時語者標註延遲</string>
+    <string name="settings_seconds">%1$d 秒</string>
+    <string name="settings_speaker_delay_hint">錄音時文字會立即顯示；語者標註則在此延遲後才出現。延遲越長，語者標註越準確。不影響最後儲存的逐字稿。</string>
     <string name="settings_summary_options">摘要選項</string>
     <string name="settings_summary_language">中文字形</string>
     <string name="summary_language_auto">與逐字稿相同</string>

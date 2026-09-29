@@ -59,3 +59,20 @@ for the ARMv8.0 floor, so expect slower on dotprod-capable phones — measure on
 4/6 either way, but the failure mode flips: the old pipeline merged speakers on podcasts, while this
 one over-splits meetings into small extra speakers, which *Merge speaker into…* in the app fixes. A
 minimum-share filter would likely recover both; it has not been tried.
+
+## Live speaker delay (2026-09-29)
+
+The live view freezes a line's speaker once it is `--settle` seconds behind the audio. Agreement of
+those live tags with the final pass (share of frozen speech time), `--max-seg 10 --live`:
+
+| meeting | 8 s | 15 s (app default) | 30 s |
+|---|---:|---:|---:|
+| AISHELL-4 L_R003S01C02 | 80.9 % | 86.3 % | 87.4 % |
+| AISHELL-4 L_R004S02C01 | 93.5 % | 94.7 % | 97.9 % |
+| AISHELL-4 M_R003S05C01 | 99.6 % | 99.8 % | 99.8 % |
+| AMI ES2004a | 97.9 % | 97.9 % | 98.0 % |
+| mean | 93.0 % | 94.7 % | 95.8 % |
+
+The gap is the diarizer revising recent labels, not the live view's inferred character timing:
+re-running the final pass with the same inferred timing (`--timing 2`) moves agreement at 8 s by
++0.8, +0.9, +0.2 and +2.1 points only. Users can set 5–30 s in Settings → Speakers.

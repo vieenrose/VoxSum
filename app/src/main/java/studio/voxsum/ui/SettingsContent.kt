@@ -58,6 +58,7 @@ import studio.voxsum.core.config.SummaryScript
 import studio.voxsum.core.config.SummaryStyle
 import studio.voxsum.core.config.ThemeMode
 import studio.voxsum.core.config.TranscriptionConfig
+import kotlin.math.roundToInt
 import studio.voxsum.core.models.LlmRegistry
 import studio.voxsum.core.update.UpdateChecker
 import studio.voxsum.core.update.UpdateInfo
@@ -119,6 +120,22 @@ fun SettingsContent(
         Section(stringResource(R.string.settings_diarization))
         SwitchRow(stringResource(R.string.settings_identify_speakers), config.diarizationEnabled, enabled) {
             onChange(config.copy(diarizationEnabled = it))
+        }
+        if (config.diarizationEnabled) {
+            // 5..30 s in 5 s steps (steps = 4 intermediate stops).
+            SliderRow(
+                stringResource(R.string.settings_speaker_delay),
+                config.speakerDelaySec.toFloat(),
+                TranscriptionConfig.SPEAKER_DELAY_MIN.toFloat(), TranscriptionConfig.SPEAKER_DELAY_MAX.toFloat(),
+                enabled,
+                steps = 4,
+                format = { stringResource(R.string.settings_seconds, it.roundToInt()) },
+            ) { onChange(config.copy(speakerDelaySec = it.roundToInt())) }
+            Text(
+                stringResource(R.string.settings_speaker_delay_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = pal.Slate400,
+            )
         }
 
         // (5) Summary options.
@@ -444,17 +461,20 @@ private fun SwitchRow(label: String, checked: Boolean, enabled: Boolean, onChang
 
 @Composable
 private fun SliderRow(
-    label: String, value: Float, from: Float, to: Float, enabled: Boolean, onChange: (Float) -> Unit,
+    label: String, value: Float, from: Float, to: Float, enabled: Boolean,
+    steps: Int = 0,
+    format: @Composable (Float) -> String = { "%.2f".format(it) },
+    onChange: (Float) -> Unit,
 ) {
     val pal = LocalVoxSumPalette.current
     Column(Modifier.padding(vertical = 4.dp)) {
         Text(
-            "$label: ${"%.2f".format(value)}",
+            "$label: ${format(value)}",
             style = MaterialTheme.typography.bodyMedium,
             color = pal.Slate200,
             modifier = Modifier.wrapContentWidth(),
         )
-        Slider(value = value, onValueChange = onChange, valueRange = from..to, enabled = enabled,
+        Slider(value = value, onValueChange = onChange, valueRange = from..to, enabled = enabled, steps = steps,
             colors = voxSumSliderColors())
     }
 }

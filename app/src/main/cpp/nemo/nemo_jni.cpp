@@ -53,12 +53,14 @@ std::string from_jstring(JNIEnv* env, jstring s) {
 extern "C" {
 
 JNIEXPORT jlong JNICALL
-Java_studio_voxsum_core_asr_NemoNative_nativeCreate(JNIEnv* env, jclass, jstring xasr, jstring diar, jint threads) {
+Java_studio_voxsum_core_asr_NemoNative_nativeCreate(JNIEnv* env, jclass, jstring xasr, jstring diar, jint threads,
+                                                      jdouble settle_s) {
     nemo::Config cfg;
     cfg.xasr_model = from_jstring(env, xasr);
     cfg.diar_model = from_jstring(env, diar);
     cfg.threads = threads;
     cfg.max_segment_s = 10.0;   // one transcript line per ~10 s sentence group
+    cfg.live_settle_s = settle_s;
     auto h = std::make_unique<Handle>();
     h->engine = std::make_unique<nemo::Engine>(cfg);
     std::string err;

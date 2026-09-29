@@ -15,6 +15,12 @@ data class TranscriptionConfig(
 
     // --- Diarization ---
     val diarizationEnabled: Boolean = true,
+    // Live view (recording booth): seconds a line waits before its speaker tag is shown. The
+    // diarizer revises recent labels for tens of seconds, so waiting longer trades latency for
+    // precision — live-vs-final speaker agreement on 4 meetings: 93.0% at 8 s, 94.7% at 15 s,
+    // 95.8% at 30 s (tools/nemo-eval). Text itself is always shown immediately. The final
+    // transcript does not depend on this.
+    val speakerDelaySec: Int = 15,
 
     // --- Summarization ---
     // The actually-used summary model. MUST track LlmRegistry.DEFAULT_ID — hardcoding it here (it was
@@ -33,6 +39,11 @@ data class TranscriptionConfig(
     // Format of the summary (a [SummaryStyle] id): bullet (default) | executive | narrative.
     val summaryStyle: String = "executive",
 ) {
+    companion object {
+        const val SPEAKER_DELAY_MIN = 5
+        const val SPEAKER_DELAY_MAX = 30
+    }
+
     object Holder {
         @Volatile var config: TranscriptionConfig = TranscriptionConfig()
     }

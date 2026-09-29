@@ -1315,7 +1315,9 @@ class TranscriptionService : LifecycleService() {
     }
 
     /** The streaming ASR + diarization engine (nemo-x-asr-diarizer). */
-    private fun createEngine(models: ModelManager) = NemoStreamEngine(models.asrFiles(), asrThreads())
+    private fun createEngine(models: ModelManager) = NemoStreamEngine(
+        models.asrFiles(), asrThreads(), TranscriptionConfig.Holder.config.speakerDelaySec,
+    )
 
     /**
      * Standalone re-diarize: re-run the engine over the audio and move its speaker tags onto the

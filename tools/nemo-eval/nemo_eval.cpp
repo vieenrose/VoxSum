@@ -4,11 +4,14 @@
 // and the diarizer's own turns beside it as <out>.turns.json.
 //
 //   nemo_eval <xasr.gguf> <diar.gguf> <in.wav> <out.json> [threads] [--max-seg S] [--live]
+//             [--settle S] [--timing 0|1|2]
 //
 // --max-seg S  split single-speaker runs after a sentence end at S seconds (the app uses 10).
 // --live       also call Engine::live() every 0.5 s of audio, as the app does while recording, and
 //              report its per-call cost, that frozen + tail always reproduces the transcript, and how
 //              much of the frozen (live) speaker labelling the final pass agrees with.
+// --settle S   live-view speaker delay (Config::live_settle_s; the app's setting, default 15).
+// --timing N   final-pass character timeline: 0 auto (model token times), 2 inferred placement.
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
@@ -35,6 +38,8 @@ int main(int argc, char** argv) {
     for (int i = 5; i < argc; i++) {
         if (!std::strcmp(argv[i], "--live")) live = true;
         else if (!std::strcmp(argv[i], "--max-seg") && i + 1 < argc) cfg.max_segment_s = std::atof(argv[++i]);
+        else if (!std::strcmp(argv[i], "--settle") && i + 1 < argc) cfg.live_settle_s = std::atof(argv[++i]);
+        else if (!std::strcmp(argv[i], "--timing") && i + 1 < argc) cfg.timing = std::atoi(argv[++i]);
     }
     nemo::Wav wav;
     std::string err;

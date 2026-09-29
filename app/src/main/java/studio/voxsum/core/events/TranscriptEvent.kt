@@ -33,7 +33,8 @@ sealed interface TranscriptEvent {
     /**
      * Replace-all transcript snapshot from the streaming engine. The first [stable] utterances will
      * not change again until the final snapshot (which re-attributes everything and has
-     * stable == size); the rest are provisional — speaker tags near the live edge settle ~5 s behind.
+     * stable == size); the rest are provisional and settle after the configured speaker delay
+     * (TranscriptionConfig.speakerDelaySec).
      */
     data class UtteranceSnapshot(val utterances: List<Utterance>, val stable: Int = 0) : TranscriptEvent
 

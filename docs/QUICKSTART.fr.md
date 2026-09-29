@@ -121,7 +121,9 @@ Chaque session vit dans la liste de l'accueil — rouvrez une session **Terminé
 - **Apparence** — **Clair**, **Sombre**, ou **E-ink** (un thème plat à fort contraste pour les liseuses comme Boox). **Auto** — le réglage par défaut — suit le mode clair/sombre du système.
 - **Langue du résumé** — gardez la langue de la transcription, ou choisissez English · Français · 繁體中文 · 简体中文 · 日本語 · 한국어.
 - **Style du résumé** — Puces / Synthèse / Récit.
-- **Intervenants** — activez/désactivez la séparation des locuteurs, ou indiquez leur nombre.
+- **Intervenants** — activez/désactivez la séparation des locuteurs, et réglez le **délai des locuteurs en direct**
+  (5–30 s, 15 par défaut) : pendant l'enregistrement, les mots s'affichent aussitôt et l'étiquette du locuteur suit
+  après ce délai — plus long = plus juste. La transcription enregistrée n'est pas concernée.
 - **Stockage** — voyez l'espace disque utilisé par chaque modèle et supprimez-en pour récupérer de la place (il se retéléchargera à la prochaine utilisation).
 
 ---

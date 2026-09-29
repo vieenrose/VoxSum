@@ -20,4 +20,10 @@ class ConfigDefaultsTest {
     @Test fun defaultModelExistsInRegistry() {
         assertEquals(LlmRegistry.DEFAULT_ID, LlmRegistry.byId(TranscriptionConfig().llmModelId).id)
     }
+
+    @Test fun liveSpeakerDelayDefaultsTo15sWithinRange() {
+        val d = TranscriptionConfig().speakerDelaySec
+        assertEquals(15, d)
+        assert(d in TranscriptionConfig.SPEAKER_DELAY_MIN..TranscriptionConfig.SPEAKER_DELAY_MAX)
+    }
 }

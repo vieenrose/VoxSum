@@ -165,7 +165,9 @@ delete button) and <b>About</b> (version, license, open-source components).</i><
 - **Summary language** — keep the transcript's language, or pick English · Français · 繁體中文 ·
   简体中文 · 日本語 · 한국어.
 - **Summary style** — Bullets / Executive / Narrative.
-- **Speakers** — turn speaker identification on or off.
+- **Speakers** — turn speaker identification on or off, and set the **live speaker delay** (5–30 s,
+  default 15): while recording, words appear at once and speaker tags follow after this delay —
+  longer is more accurate. The saved transcript is not affected.
 - **Storage** — see how much disk each model uses and delete any to reclaim space (it re-downloads on
   next use).
 

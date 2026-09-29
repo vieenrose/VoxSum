@@ -232,15 +232,15 @@ private fun androidx.compose.foundation.layout.ColumnScope.LivePanel(
         ) {
             items(utterances.size) { i ->
                 val u = utterances[i]
-                // Tag only where the speaker changes; a speaker the diarizer has not reached yet
-                // (the newest ~5 s) has no tag at all rather than a guess.
-                val showTag = u.speaker != null && (i == 0 || utterances[i - 1].speaker != u.speaker)
+                // Text is live; a speaker tag appears only once the line is settled (i < stable, i.e.
+                // the configured speaker delay has passed) — never a guess that may still flip. Tag
+                // only where the speaker changes.
+                val settled = i < stable
+                val showTag = settled && u.speaker != null &&
+                    (i == 0 || utterances[i - 1].speaker != u.speaker)
                 Column(Modifier.padding(top = if (showTag && i > 0) 8.dp else 2.dp, bottom = 2.dp)) {
                     if (showTag) {
-                        // Provisional (not yet settled) lines draw their tag dimmed — same 0.55 alpha
-                        // the session screen uses for de-emphasis; no animation (e-ink).
                         val color = Color(speakerColorOn(u.speaker, pal.isDark))
-                            .copy(alpha = if (i < stable) 1f else 0.55f)
                         Text(
                             speakerLabel(u.speaker, emptyMap()).orEmpty(),
                             color = color,

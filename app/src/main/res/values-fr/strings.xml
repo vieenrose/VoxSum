@@ -57,6 +57,9 @@
     <string name="settings_itn">Normalisation inverse du texte</string>
     <string name="settings_diarization">Diarisation</string>
     <string name="settings_identify_speakers">Identifier les locuteurs</string>
+    <string name="settings_speaker_delay">Délai des locuteurs en direct</string>
+    <string name="settings_seconds">%1$d s</string>
+    <string name="settings_speaker_delay_hint">Pendant l\'enregistrement, les mots s\'affichent aussitôt ; le nom du locuteur suit après ce délai. Plus long = attribution plus juste. La transcription enregistrée n\'est pas concernée.</string>
     <string name="settings_summary_options">Options de résumé</string>
     <string name="settings_summary_language">Écriture chinoise</string>
     <string name="summary_language_auto">Comme la transcription</string>

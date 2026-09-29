@@ -17,9 +17,11 @@ data class NemoModelFiles(val xasr: File, val diar: File)
  * labels near the live edge are provisional. Every emission is a replace-all
  * [TranscriptEvent.UtteranceSnapshot] whose `stable` prefix will not change until the final one.
  */
-class NemoStreamEngine(files: NemoModelFiles, threads: Int) : AutoCloseable {
+/** [speakerDelaySec]: how far behind the audio a line must be before the live view freezes it with
+ *  its speaker (TranscriptionConfig.speakerDelaySec). Longer = more precise live speaker tags. */
+class NemoStreamEngine(files: NemoModelFiles, threads: Int, speakerDelaySec: Int = 15) : AutoCloseable {
 
-    private var handle: Long = NemoNative.nativeCreate(files.xasr.path, files.diar.path, threads)
+    private var handle: Long = NemoNative.nativeCreate(files.xasr.path, files.diar.path, threads, speakerDelaySec.toDouble())
         .also { check(it != 0L) { "nemo engine failed to load ${files.xasr.name} / ${files.diar.name}" } }
 
     /** Distinct speakers in the final snapshot; null until the stream has finished. */
@@ -98,7 +100,7 @@ class NemoStreamEngine(files: NemoModelFiles, threads: Int) : AutoCloseable {
 internal object NemoNative {
     init { System.loadLibrary("voxsum-nemo") }
 
-    @JvmStatic external fun nativeCreate(xasr: String, diar: String, threads: Int): Long
+    @JvmStatic external fun nativeCreate(xasr: String, diar: String, threads: Int, settleSec: Double): Long
     @JvmStatic external fun nativePush(handle: Long, pcm: FloatArray, n: Int): Boolean
     @JvmStatic external fun nativeLive(handle: Long): String
     @JvmStatic external fun nativeFinish(handle: Long): String?

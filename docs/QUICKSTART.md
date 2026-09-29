@@ -6,7 +6,7 @@
 
 <p align="center"><i>Turn any audio into a speaker-labelled transcript and a short summary — entirely on your phone, offline.</i></p>
 
-<p align="center"><b>Quick Start in:</b> English · <a href="QUICKSTART.zh-TW.md">繁體中文</a> · <a href="QUICKSTART.fr.md">Français</a></p>
+<p align="center"><b>Quick Start in:</b> English · <a href="QUICKSTART.zh-TW.md">繁體中文</a></p>
 <p align="center"><a href="../README.md">← Back to README</a></p>
 
 ---
@@ -162,8 +162,8 @@ delete button) and <b>About</b> (version, license, open-source components).</i><
 
 - **Appearance** — **Light**, **Dark**, or **E-ink** (a flat, high-contrast theme for e-paper
   readers like Boox). **Auto** — the default — follows your system's light/dark setting.
-- **Summary language** — keep the transcript's language, or pick English · Français · 繁體中文 ·
-  简体中文 · 日本語 · 한국어.
+- **Chinese script** — show Chinese text (summary, title, transcript) in 繁體中文 or 简体中文; the summary
+  itself is always written in the recording's language.
 - **Summary style** — Bullets / Executive / Narrative.
 - **Speakers** — turn speaker identification on or off, and set the **live speaker delay** (5–30 s,
   default 15): while recording, words appear at once and speaker tags follow after this delay —

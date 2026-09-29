@@ -32,4 +32,4 @@ scripts/test-on-device.sh [serial]   # instrumented tests on a device — use th
 
 - NDK is pinned (`27.2.12479018`) for F-Droid reproducibility; minSdk 26. Native deps are submodules: `native/llama.cpp`, `native/audiocpp`, `native/crispasr`, `native/crispasr-ggml` (CrispASR's own nested ggml is replaced by the last via `nemo/crispasr_ggml.cmake`).
 - Releases: bump `versionCode`/`versionName` in `app/build.gradle.kts`, push a `v*` tag; `.github/workflows/fdroid.yml` builds a signed APK and publishes a self-hosted F-Droid repo to GitHub Pages. See `RELEASING.md`.
-- READMEs exist in English, 繁體中文 and French — keep user-facing feature changes in sync across `README*.md`.
+- The app and its docs support English and 繁體中文 only (`values/`, `values-zh-rTW/`, `README.md`, `README.zh-TW.md`, `docs/QUICKSTART*.md`) — keep user-facing changes in sync across both.

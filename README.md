@@ -15,7 +15,7 @@
   <img alt="Offline" src="https://img.shields.io/badge/network-not%20required-success">
 </p>
 
-<p align="center"><a href="README.zh-TW.md">繁體中文說明 →</a> · <a href="README.fr.md">Français →</a></p>
+<p align="center"><a href="README.zh-TW.md">繁體中文說明 →</a></p>
 
 ---
 
@@ -69,7 +69,7 @@ them one by one while you watch each session's live status.
 **📝 Read and understand**
 - **Live transcript** — lines show up as soon as you speak; you can start reading (and playing) before it finishes.
 - **Who spoke when, live** — speakers are identified *while* the words are transcribed, in the same pass: each line is tagged and colour-coded by speaker as you record, with an automatic speaker count (up to 8 speakers). Benchmarked on the AMI and AISHELL-4 meeting corpora at **95.4% / 92.3%** time-weighted attribution while labelling **99%** of the speech ([details](tools/nemo-eval/README.md)). VoxSum can even **guess speakers' real names** from what they say.
-- **A summary in your language, your way** — a short title and a **concise** summary (a handful of points, never a wall of text) as **bullets, an executive brief, or a narrative**. Keep it in the transcript's language, or pick **English · Français · 繁體中文 · 简体中文 · 日本語 · 한국어**. (It defaults to your phone's language.)
+- **A summary in your language, your way** — a short title and a **concise** summary (a handful of points, never a wall of text) as **bullets, an executive brief, or a narrative**. It is written in the recording's language; Chinese can be shown in **繁體中文** or **简体中文** (defaulting from your phone's region).
 - **Action items & decisions** — pull a draft checklist of who-does-what and the key decisions out of a meeting, ready to edit.
 - **Search the transcript** — find any word in a long recording; matches highlight and you can step through them.
 - **A built-in player, in sync** — docked at the bottom like a music app: tap any line to jump there, and the current line highlights as it plays.
@@ -86,8 +86,8 @@ them one by one while you watch each session's live status.
 ## Languages
 
 - **Transcription** handles English, Chinese, and speech that mixes the two.
-- **Summaries** can be written in any of seven languages, or matched to the transcript.
-- **The app itself** is available in **English, 繁體中文, and Français**.
+- **Summaries** are written in the recording's language, in Traditional or Simplified Chinese script for Chinese.
+- **The app itself** is available in **English and 繁體中文**.
 
 ## Install
 

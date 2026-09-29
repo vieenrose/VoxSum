@@ -23,7 +23,6 @@ object ConfigStore {
             asrBackend = p.getString("asrBackend", d.asrBackend) ?: d.asrBackend,
             asrModelId = p.getString("asrModelId", d.asrModelId) ?: d.asrModelId,
             useItn = p.getBoolean("useItn", d.useItn),
-            asrContext = p.getString("asrContext", d.asrContext) ?: d.asrContext,
             diarizationEnabled = p.getBoolean("diarizationEnabled", d.diarizationEnabled),
             llmModelId = p.getString("llmModelId", d.llmModelId) ?: d.llmModelId,
             llmBackend = p.getString("llmBackend", d.llmBackend) ?: d.llmBackend,
@@ -38,14 +37,20 @@ object ConfigStore {
             putString("asrBackend", c.asrBackend)
             putString("asrModelId", c.asrModelId)
             putBoolean("useItn", c.useItn)
-            putString("asrContext", c.asrContext)
             putBoolean("diarizationEnabled", c.diarizationEnabled)
             putString("llmModelId", c.llmModelId)
             putString("llmBackend", c.llmBackend)
             putString("summaryPrompt", c.summaryPrompt)
             putString("summaryScript", c.summaryScript)
             putString("summaryStyle", c.summaryStyle)
+            // Settings of retired engines (hotwords, VAD, speaker-count hint, precise diarization, ASR
+            // hardware) — nothing reads them any more.
+            RETIRED_KEYS.forEach(::remove)
             apply()
         }
     }
+
+    private val RETIRED_KEYS = listOf(
+        "asrContext", "vadThreshold", "numSpeakers", "preciseDiarization", "asrHardware",
+    )
 }

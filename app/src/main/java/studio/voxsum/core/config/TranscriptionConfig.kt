@@ -12,9 +12,6 @@ data class TranscriptionConfig(
     val asrBackend: String = "nemo",   // provenance id (AsrBackend); nemo is the only engine
     val asrModelId: String = "x-asr-zh-en-q8_0+nemotron-3-diarization-q8_0",
     val useItn: Boolean = true,               // inverse text normalization
-    // Hotword / context biasing (names, jargon). Kept for stored configs; the streaming
-    // transducer has no prompt, so the engine does not use it.
-    val asrContext: String = "",
 
     // --- Diarization ---
     val diarizationEnabled: Boolean = true,

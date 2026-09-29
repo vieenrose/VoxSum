@@ -60,7 +60,7 @@
     <string name="settings_identify_speakers">Identify speakers</string>
     <string name="settings_speaker_delay">Live speaker delay</string>
     <string name="settings_seconds">%1$d s</string>
-    <string name="settings_speaker_delay_hint">While recording, words appear at once; speaker names follow after this delay. Longer = more accurate names. The saved transcript is not affected.</string>
+    <string name="settings_speaker_delay_hint">While recording, words appear at once; speaker names follow at least this long after. Longer = more accurate names. The saved transcript is not affected.</string>
     <string name="settings_summary_options">Summary Options</string>
     <string name="settings_summary_language">Chinese script</string>
     <string name="summary_language_auto">Match transcript</string>

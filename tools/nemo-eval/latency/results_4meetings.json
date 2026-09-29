@@ -1,0 +1,1542 @@
+[
+ {
+  "geo": "low",
+  "rule": "frozen",
+  "settle": 0,
+  "n": 4,
+  "latency": 12.6225,
+  "attr": 87.5395178207782,
+  "final_attr": 90.58961567677703,
+  "host_rtf": 6.88875
+ },
+ {
+  "geo": "low",
+  "rule": "frozen",
+  "settle": 1,
+  "n": 4,
+  "latency": 12.8,
+  "attr": 87.60577912475844,
+  "final_attr": 90.58961567677703,
+  "host_rtf": 6.88875
+ },
+ {
+  "geo": "low",
+  "rule": "frozen",
+  "settle": 2,
+  "n": 4,
+  "latency": 13.355,
+  "attr": 87.89736276185995,
+  "final_attr": 90.58961567677703,
+  "host_rtf": 6.88875
+ },
+ {
+  "geo": "low",
+  "rule": "frozen",
+  "settle": 3,
+  "n": 4,
+  "latency": 14.3375,
+  "attr": 88.12461293303376,
+  "final_attr": 90.58961567677703,
+  "host_rtf": 6.88875
+ },
+ {
+  "geo": "low",
+  "rule": "frozen",
+  "settle": 5,
+  "n": 4,
+  "latency": 16.2175,
+  "attr": 88.65160080400533,
+  "final_attr": 90.58961567677703,
+  "host_rtf": 6.88875
+ },
+ {
+  "geo": "low",
+  "rule": "frozen",
+  "settle": 8,
+  "n": 4,
+  "latency": 19.8125,
+  "attr": 89.06188895496729,
+  "final_attr": 90.58961567677703,
+  "host_rtf": 6.88875
+ },
+ {
+  "geo": "low",
+  "rule": "frozen",
+  "settle": 10,
+  "n": 4,
+  "latency": 22.8375,
+  "attr": 90.63141711510353,
+  "final_attr": 90.58961567677703,
+  "host_rtf": 6.88875
+ },
+ {
+  "geo": "low",
+  "rule": "frozen",
+  "settle": 15,
+  "n": 4,
+  "latency": 30.2,
+  "attr": 90.87308465894249,
+  "final_attr": 90.58961567677703,
+  "host_rtf": 6.88875
+ },
+ {
+  "geo": "low",
+  "rule": "frozen",
+  "settle": 20,
+  "n": 4,
+  "latency": 37.3225,
+  "attr": 90.7107389646884,
+  "final_attr": 90.58961567677703,
+  "host_rtf": 6.88875
+ },
+ {
+  "geo": "low",
+  "rule": "frozen",
+  "settle": 25,
+  "n": 4,
+  "latency": 43.0075,
+  "attr": 90.71537184241988,
+  "final_attr": 90.58961567677703,
+  "host_rtf": 6.88875
+ },
+ {
+  "geo": "low",
+  "rule": "frozen",
+  "settle": 30,
+  "n": 4,
+  "latency": 48.3875,
+  "attr": 91.2081855825742,
+  "final_attr": 90.58961567677703,
+  "host_rtf": 6.88875
+ },
+ {
+  "geo": "low",
+  "rule": "linestart",
+  "settle": 0,
+  "n": 4,
+  "latency": 2.2275,
+  "attr": 66.95065248840861,
+  "final_attr": 90.58961567677703,
+  "host_rtf": 6.88875
+ },
+ {
+  "geo": "low",
+  "rule": "linestart",
+  "settle": 1,
+  "n": 4,
+  "latency": 2.3075,
+  "attr": 66.97858097360196,
+  "final_attr": 90.58961567677703,
+  "host_rtf": 6.88875
+ },
+ {
+  "geo": "low",
+  "rule": "linestart",
+  "settle": 2,
+  "n": 4,
+  "latency": 2.3675,
+  "attr": 67.50737377633396,
+  "final_attr": 90.58961567677703,
+  "host_rtf": 6.88875
+ },
+ {
+  "geo": "low",
+  "rule": "linestart",
+  "settle": 3,
+  "n": 4,
+  "latency": 2.5100000000000002,
+  "attr": 68.73136931072187,
+  "final_attr": 90.58961567677703,
+  "host_rtf": 6.88875
+ },
+ {
+  "geo": "low",
+  "rule": "linestart",
+  "settle": 5,
+  "n": 4,
+  "latency": 3.0075,
+  "attr": 71.55963178125079,
+  "final_attr": 90.58961567677703,
+  "host_rtf": 6.88875
+ },
+ {
+  "geo": "low",
+  "rule": "linestart",
+  "settle": 8,
+  "n": 4,
+  "latency": 4.4425,
+  "attr": 75.96187516510867,
+  "final_attr": 90.58961567677703,
+  "host_rtf": 6.88875
+ },
+ {
+  "geo": "low",
+  "rule": "linestart",
+  "settle": 10,
+  "n": 4,
+  "latency": 5.635,
+  "attr": 77.89691592157065,
+  "final_attr": 90.58961567677703,
+  "host_rtf": 6.88875
+ },
+ {
+  "geo": "low",
+  "rule": "linestart",
+  "settle": 15,
+  "n": 4,
+  "latency": 8.219999999999999,
+  "attr": 81.34325610963876,
+  "final_attr": 90.58961567677703,
+  "host_rtf": 6.88875
+ },
+ {
+  "geo": "low",
+  "rule": "linestart",
+  "settle": 20,
+  "n": 4,
+  "latency": 11.555,
+  "attr": 82.25800768033756,
+  "final_attr": 90.58961567677703,
+  "host_rtf": 6.88875
+ },
+ {
+  "geo": "low",
+  "rule": "linestart",
+  "settle": 25,
+  "n": 4,
+  "latency": 15.3775,
+  "attr": 85.46695167839435,
+  "final_attr": 90.58961567677703,
+  "host_rtf": 6.88875
+ },
+ {
+  "geo": "low",
+  "rule": "linestart",
+  "settle": 30,
+  "n": 4,
+  "latency": 19.0375,
+  "attr": 88.5855303972075,
+  "final_attr": 90.58961567677703,
+  "host_rtf": 6.88875
+ },
+ {
+  "geo": "c12",
+  "rule": "frozen",
+  "settle": 0,
+  "n": 4,
+  "latency": 11.9525,
+  "attr": 86.2696592858395,
+  "final_attr": 89.08852378200942,
+  "host_rtf": 3.635
+ },
+ {
+  "geo": "c12",
+  "rule": "frozen",
+  "settle": 1,
+  "n": 4,
+  "latency": 11.9625,
+  "attr": 86.26958749244969,
+  "final_attr": 89.08852378200942,
+  "host_rtf": 3.635
+ },
+ {
+  "geo": "c12",
+  "rule": "frozen",
+  "settle": 2,
+  "n": 4,
+  "latency": 12.42,
+  "attr": 86.46179648026245,
+  "final_attr": 89.08852378200942,
+  "host_rtf": 3.635
+ },
+ {
+  "geo": "c12",
+  "rule": "frozen",
+  "settle": 3,
+  "n": 4,
+  "latency": 13.0725,
+  "attr": 86.51611372619156,
+  "final_attr": 89.08852378200942,
+  "host_rtf": 3.635
+ },
+ {
+  "geo": "c12",
+  "rule": "frozen",
+  "settle": 5,
+  "n": 4,
+  "latency": 15.86,
+  "attr": 88.79532021062964,
+  "final_attr": 89.08852378200942,
+  "host_rtf": 3.635
+ },
+ {
+  "geo": "c12",
+  "rule": "frozen",
+  "settle": 8,
+  "n": 4,
+  "latency": 20.085,
+  "attr": 88.3578269350146,
+  "final_attr": 89.08852378200942,
+  "host_rtf": 3.635
+ },
+ {
+  "geo": "c12",
+  "rule": "frozen",
+  "settle": 10,
+  "n": 4,
+  "latency": 22.9575,
+  "attr": 90.01846871597196,
+  "final_attr": 89.08852378200942,
+  "host_rtf": 3.635
+ },
+ {
+  "geo": "c12",
+  "rule": "frozen",
+  "settle": 15,
+  "n": 4,
+  "latency": 32.7375,
+  "attr": 90.54639839612231,
+  "final_attr": 89.08852378200942,
+  "host_rtf": 3.635
+ },
+ {
+  "geo": "c12",
+  "rule": "frozen",
+  "settle": 20,
+  "n": 4,
+  "latency": 42.59,
+  "attr": 90.3239315547536,
+  "final_attr": 89.08852378200942,
+  "host_rtf": 3.635
+ },
+ {
+  "geo": "c12",
+  "rule": "frozen",
+  "settle": 25,
+  "n": 4,
+  "latency": 47.599999999999994,
+  "attr": 90.44785169722887,
+  "final_attr": 89.08852378200942,
+  "host_rtf": 3.635
+ },
+ {
+  "geo": "c12",
+  "rule": "frozen",
+  "settle": 30,
+  "n": 4,
+  "latency": 53.1425,
+  "attr": 90.371915219408,
+  "final_attr": 89.08852378200942,
+  "host_rtf": 3.635
+ },
+ {
+  "geo": "c12",
+  "rule": "linestart",
+  "settle": 0,
+  "n": 4,
+  "latency": 2.475,
+  "attr": 62.7296565134554,
+  "final_attr": 89.08852378200942,
+  "host_rtf": 3.635
+ },
+ {
+  "geo": "c12",
+  "rule": "linestart",
+  "settle": 1,
+  "n": 4,
+  "latency": 2.475,
+  "attr": 62.73624630338872,
+  "final_attr": 89.08852378200942,
+  "host_rtf": 3.635
+ },
+ {
+  "geo": "c12",
+  "rule": "linestart",
+  "settle": 2,
+  "n": 4,
+  "latency": 2.55,
+  "attr": 62.917645986712266,
+  "final_attr": 89.08852378200942,
+  "host_rtf": 3.635
+ },
+ {
+  "geo": "c12",
+  "rule": "linestart",
+  "settle": 3,
+  "n": 4,
+  "latency": 2.68,
+  "attr": 64.10776261332693,
+  "final_attr": 89.08852378200942,
+  "host_rtf": 3.635
+ },
+ {
+  "geo": "c12",
+  "rule": "linestart",
+  "settle": 5,
+  "n": 4,
+  "latency": 3.61,
+  "attr": 68.37952197608061,
+  "final_attr": 89.08852378200942,
+  "host_rtf": 3.635
+ },
+ {
+  "geo": "c12",
+  "rule": "linestart",
+  "settle": 8,
+  "n": 4,
+  "latency": 4.8975,
+  "attr": 72.54682357510453,
+  "final_attr": 89.08852378200942,
+  "host_rtf": 3.635
+ },
+ {
+  "geo": "c12",
+  "rule": "linestart",
+  "settle": 10,
+  "n": 4,
+  "latency": 5.725,
+  "attr": 74.82444847434206,
+  "final_attr": 89.08852378200942,
+  "host_rtf": 3.635
+ },
+ {
+  "geo": "c12",
+  "rule": "linestart",
+  "settle": 15,
+  "n": 4,
+  "latency": 8.465,
+  "attr": 78.9045541026422,
+  "final_attr": 89.08852378200942,
+  "host_rtf": 3.635
+ },
+ {
+  "geo": "c12",
+  "rule": "linestart",
+  "settle": 20,
+  "n": 4,
+  "latency": 11.77,
+  "attr": 80.95979824075079,
+  "final_attr": 89.08852378200942,
+  "host_rtf": 3.635
+ },
+ {
+  "geo": "c12",
+  "rule": "linestart",
+  "settle": 25,
+  "n": 4,
+  "latency": 15.434999999999999,
+  "attr": 83.90407881175523,
+  "final_attr": 89.08852378200942,
+  "host_rtf": 3.635
+ },
+ {
+  "geo": "c12",
+  "rule": "linestart",
+  "settle": 30,
+  "n": 4,
+  "latency": 19.145,
+  "attr": 85.94918084168637,
+  "final_attr": 89.08852378200942,
+  "host_rtf": 3.635
+ },
+ {
+  "geo": "c25",
+  "rule": "frozen",
+  "settle": 0,
+  "n": 4,
+  "latency": 14.26,
+  "attr": 84.87276950359414,
+  "final_attr": 89.47882899898956,
+  "host_rtf": 1.8932499999999999
+ },
+ {
+  "geo": "c25",
+  "rule": "frozen",
+  "settle": 1,
+  "n": 4,
+  "latency": 14.2775,
+  "attr": 84.86755421278436,
+  "final_attr": 89.47882899898956,
+  "host_rtf": 1.8932499999999999
+ },
+ {
+  "geo": "c25",
+  "rule": "frozen",
+  "settle": 2,
+  "n": 4,
+  "latency": 14.4175,
+  "attr": 84.87511331072702,
+  "final_attr": 89.47882899898956,
+  "host_rtf": 1.8932499999999999
+ },
+ {
+  "geo": "c25",
+  "rule": "frozen",
+  "settle": 3,
+  "n": 4,
+  "latency": 15.0825,
+  "attr": 85.0344375075784,
+  "final_attr": 89.47882899898956,
+  "host_rtf": 1.8932499999999999
+ },
+ {
+  "geo": "c25",
+  "rule": "frozen",
+  "settle": 5,
+  "n": 4,
+  "latency": 17.3475,
+  "attr": 85.83631777944743,
+  "final_attr": 89.47882899898956,
+  "host_rtf": 1.8932499999999999
+ },
+ {
+  "geo": "c25",
+  "rule": "frozen",
+  "settle": 8,
+  "n": 4,
+  "latency": 21.14,
+  "attr": 87.1071576486346,
+  "final_attr": 89.47882899898956,
+  "host_rtf": 1.8932499999999999
+ },
+ {
+  "geo": "c25",
+  "rule": "frozen",
+  "settle": 10,
+  "n": 4,
+  "latency": 23.2,
+  "attr": 87.07648734005028,
+  "final_attr": 89.47882899898956,
+  "host_rtf": 1.8932499999999999
+ },
+ {
+  "geo": "c25",
+  "rule": "frozen",
+  "settle": 15,
+  "n": 4,
+  "latency": 28.735,
+  "attr": 86.88903239723723,
+  "final_attr": 89.47882899898956,
+  "host_rtf": 1.8932499999999999
+ },
+ {
+  "geo": "c25",
+  "rule": "frozen",
+  "settle": 20,
+  "n": 4,
+  "latency": 35.545,
+  "attr": 86.59728319440575,
+  "final_attr": 89.47882899898956,
+  "host_rtf": 1.8932499999999999
+ },
+ {
+  "geo": "c25",
+  "rule": "frozen",
+  "settle": 25,
+  "n": 4,
+  "latency": 41.644999999999996,
+  "attr": 88.11553993300986,
+  "final_attr": 89.47882899898956,
+  "host_rtf": 1.8932499999999999
+ },
+ {
+  "geo": "c25",
+  "rule": "frozen",
+  "settle": 30,
+  "n": 4,
+  "latency": 48.93,
+  "attr": 88.00750168327994,
+  "final_attr": 89.47882899898956,
+  "host_rtf": 1.8932499999999999
+ },
+ {
+  "geo": "c25",
+  "rule": "linestart",
+  "settle": 0,
+  "n": 4,
+  "latency": 2.415,
+  "attr": 64.03614418046159,
+  "final_attr": 89.47882899898956,
+  "host_rtf": 1.8932499999999999
+ },
+ {
+  "geo": "c25",
+  "rule": "linestart",
+  "settle": 1,
+  "n": 4,
+  "latency": 2.4175,
+  "attr": 64.03439996720813,
+  "final_attr": 89.47882899898956,
+  "host_rtf": 1.8932499999999999
+ },
+ {
+  "geo": "c25",
+  "rule": "linestart",
+  "settle": 2,
+  "n": 4,
+  "latency": 2.4450000000000003,
+  "attr": 64.03788701539226,
+  "final_attr": 89.47882899898956,
+  "host_rtf": 1.8932499999999999
+ },
+ {
+  "geo": "c25",
+  "rule": "linestart",
+  "settle": 3,
+  "n": 4,
+  "latency": 2.8375,
+  "attr": 64.68890842649928,
+  "final_attr": 89.47882899898956,
+  "host_rtf": 1.8932499999999999
+ },
+ {
+  "geo": "c25",
+  "rule": "linestart",
+  "settle": 5,
+  "n": 4,
+  "latency": 3.3274999999999997,
+  "attr": 69.21907141907586,
+  "final_attr": 89.47882899898956,
+  "host_rtf": 1.8932499999999999
+ },
+ {
+  "geo": "c25",
+  "rule": "linestart",
+  "settle": 8,
+  "n": 4,
+  "latency": 4.405,
+  "attr": 72.67538692995443,
+  "final_attr": 89.47882899898956,
+  "host_rtf": 1.8932499999999999
+ },
+ {
+  "geo": "c25",
+  "rule": "linestart",
+  "settle": 10,
+  "n": 4,
+  "latency": 5.327500000000001,
+  "attr": 74.71531468277887,
+  "final_attr": 89.47882899898956,
+  "host_rtf": 1.8932499999999999
+ },
+ {
+  "geo": "c25",
+  "rule": "linestart",
+  "settle": 15,
+  "n": 4,
+  "latency": 8.315,
+  "attr": 77.09999267075958,
+  "final_attr": 89.47882899898956,
+  "host_rtf": 1.8932499999999999
+ },
+ {
+  "geo": "c25",
+  "rule": "linestart",
+  "settle": 20,
+  "n": 4,
+  "latency": 11.907499999999999,
+  "attr": 78.45559747796021,
+  "final_attr": 89.47882899898956,
+  "host_rtf": 1.8932499999999999
+ },
+ {
+  "geo": "c25",
+  "rule": "linestart",
+  "settle": 25,
+  "n": 4,
+  "latency": 15.785,
+  "attr": 82.08287420650555,
+  "final_attr": 89.47882899898956,
+  "host_rtf": 1.8932499999999999
+ },
+ {
+  "geo": "c25",
+  "rule": "linestart",
+  "settle": 30,
+  "n": 4,
+  "latency": 19.57,
+  "attr": 83.30001554515697,
+  "final_attr": 89.47882899898956,
+  "host_rtf": 1.8932499999999999
+ },
+ {
+  "geo": "c50",
+  "rule": "frozen",
+  "settle": 0,
+  "n": 4,
+  "latency": 15.835,
+  "attr": 86.4117241791931,
+  "final_attr": 89.99734387750834,
+  "host_rtf": 1.62675
+ },
+ {
+  "geo": "c50",
+  "rule": "frozen",
+  "settle": 1,
+  "n": 4,
+  "latency": 15.835,
+  "attr": 86.4117241791931,
+  "final_attr": 89.99734387750834,
+  "host_rtf": 1.62675
+ },
+ {
+  "geo": "c50",
+  "rule": "frozen",
+  "settle": 2,
+  "n": 4,
+  "latency": 15.85,
+  "attr": 86.4117241791931,
+  "final_attr": 89.99734387750834,
+  "host_rtf": 1.62675
+ },
+ {
+  "geo": "c50",
+  "rule": "frozen",
+  "settle": 3,
+  "n": 4,
+  "latency": 16.0325,
+  "attr": 86.42298348632687,
+  "final_attr": 89.99734387750834,
+  "host_rtf": 1.62675
+ },
+ {
+  "geo": "c50",
+  "rule": "frozen",
+  "settle": 5,
+  "n": 4,
+  "latency": 16.995,
+  "attr": 86.43741357145764,
+  "final_attr": 89.99734387750834,
+  "host_rtf": 1.62675
+ },
+ {
+  "geo": "c50",
+  "rule": "frozen",
+  "settle": 8,
+  "n": 4,
+  "latency": 20.06,
+  "attr": 86.63068572603724,
+  "final_attr": 89.99734387750834,
+  "host_rtf": 1.62675
+ },
+ {
+  "geo": "c50",
+  "rule": "frozen",
+  "settle": 10,
+  "n": 4,
+  "latency": 23.05,
+  "attr": 87.94492863822285,
+  "final_attr": 89.99734387750834,
+  "host_rtf": 1.62675
+ },
+ {
+  "geo": "c50",
+  "rule": "frozen",
+  "settle": 15,
+  "n": 4,
+  "latency": 28.880000000000003,
+  "attr": 87.89785273621193,
+  "final_attr": 89.99734387750834,
+  "host_rtf": 1.62675
+ },
+ {
+  "geo": "c50",
+  "rule": "frozen",
+  "settle": 20,
+  "n": 4,
+  "latency": 35.99,
+  "attr": 87.7379052654712,
+  "final_attr": 89.99734387750834,
+  "host_rtf": 1.62675
+ },
+ {
+  "geo": "c50",
+  "rule": "frozen",
+  "settle": 25,
+  "n": 4,
+  "latency": 42.832499999999996,
+  "attr": 87.78609065045427,
+  "final_attr": 89.99734387750834,
+  "host_rtf": 1.62675
+ },
+ {
+  "geo": "c50",
+  "rule": "frozen",
+  "settle": 30,
+  "n": 4,
+  "latency": 48.11,
+  "attr": 87.93121038381967,
+  "final_attr": 89.99734387750834,
+  "host_rtf": 1.62675
+ },
+ {
+  "geo": "c50",
+  "rule": "linestart",
+  "settle": 0,
+  "n": 4,
+  "latency": 3.05,
+  "attr": 63.69334231235191,
+  "final_attr": 89.99734387750834,
+  "host_rtf": 1.62675
+ },
+ {
+  "geo": "c50",
+  "rule": "linestart",
+  "settle": 1,
+  "n": 4,
+  "latency": 3.05,
+  "attr": 63.69334231235191,
+  "final_attr": 89.99734387750834,
+  "host_rtf": 1.62675
+ },
+ {
+  "geo": "c50",
+  "rule": "linestart",
+  "settle": 2,
+  "n": 4,
+  "latency": 3.05,
+  "attr": 63.69334231235191,
+  "final_attr": 89.99734387750834,
+  "host_rtf": 1.62675
+ },
+ {
+  "geo": "c50",
+  "rule": "linestart",
+  "settle": 3,
+  "n": 4,
+  "latency": 3.065,
+  "attr": 63.69334231235191,
+  "final_attr": 89.99734387750834,
+  "host_rtf": 1.62675
+ },
+ {
+  "geo": "c50",
+  "rule": "linestart",
+  "settle": 5,
+  "n": 4,
+  "latency": 3.235,
+  "attr": 63.950383449903626,
+  "final_attr": 89.99734387750834,
+  "host_rtf": 1.62675
+ },
+ {
+  "geo": "c50",
+  "rule": "linestart",
+  "settle": 8,
+  "n": 4,
+  "latency": 4.58,
+  "attr": 70.97277657526047,
+  "final_attr": 89.99734387750834,
+  "host_rtf": 1.62675
+ },
+ {
+  "geo": "c50",
+  "rule": "linestart",
+  "settle": 10,
+  "n": 4,
+  "latency": 5.4925,
+  "attr": 72.76282244518472,
+  "final_attr": 89.99734387750834,
+  "host_rtf": 1.62675
+ },
+ {
+  "geo": "c50",
+  "rule": "linestart",
+  "settle": 15,
+  "n": 4,
+  "latency": 8.58,
+  "attr": 76.05923118268664,
+  "final_attr": 89.99734387750834,
+  "host_rtf": 1.62675
+ },
+ {
+  "geo": "c50",
+  "rule": "linestart",
+  "settle": 20,
+  "n": 4,
+  "latency": 11.94,
+  "attr": 76.3842574852072,
+  "final_attr": 89.99734387750834,
+  "host_rtf": 1.62675
+ },
+ {
+  "geo": "c50",
+  "rule": "linestart",
+  "settle": 25,
+  "n": 4,
+  "latency": 15.9925,
+  "attr": 78.3104131410049,
+  "final_attr": 89.99734387750834,
+  "host_rtf": 1.62675
+ },
+ {
+  "geo": "c50",
+  "rule": "linestart",
+  "settle": 30,
+  "n": 4,
+  "latency": 19.7925,
+  "attr": 81.62430185401112,
+  "final_attr": 89.99734387750834,
+  "host_rtf": 1.62675
+ },
+ {
+  "geo": "c100",
+  "rule": "frozen",
+  "settle": 0,
+  "n": 4,
+  "latency": 17.9175,
+  "attr": 86.57829560488346,
+  "final_attr": 89.38972459952838,
+  "host_rtf": 1.94
+ },
+ {
+  "geo": "c100",
+  "rule": "frozen",
+  "settle": 1,
+  "n": 4,
+  "latency": 17.9175,
+  "attr": 86.57829560488346,
+  "final_attr": 89.38972459952838,
+  "host_rtf": 1.94
+ },
+ {
+  "geo": "c100",
+  "rule": "frozen",
+  "settle": 2,
+  "n": 4,
+  "latency": 17.9375,
+  "attr": 86.57751411544501,
+  "final_attr": 89.38972459952838,
+  "host_rtf": 1.94
+ },
+ {
+  "geo": "c100",
+  "rule": "frozen",
+  "settle": 3,
+  "n": 4,
+  "latency": 18.0675,
+  "attr": 86.57900939289597,
+  "final_attr": 89.38972459952838,
+  "host_rtf": 1.94
+ },
+ {
+  "geo": "c100",
+  "rule": "frozen",
+  "settle": 5,
+  "n": 4,
+  "latency": 18.6625,
+  "attr": 86.60449273038088,
+  "final_attr": 89.38972459952838,
+  "host_rtf": 1.94
+ },
+ {
+  "geo": "c100",
+  "rule": "frozen",
+  "settle": 8,
+  "n": 4,
+  "latency": 20.3975,
+  "attr": 86.6129494320594,
+  "final_attr": 89.38972459952838,
+  "host_rtf": 1.94
+ },
+ {
+  "geo": "c100",
+  "rule": "frozen",
+  "settle": 10,
+  "n": 4,
+  "latency": 22.21,
+  "attr": 86.64513394665599,
+  "final_attr": 89.38972459952838,
+  "host_rtf": 1.94
+ },
+ {
+  "geo": "c100",
+  "rule": "frozen",
+  "settle": 15,
+  "n": 4,
+  "latency": 28.622500000000002,
+  "attr": 87.84122530399415,
+  "final_attr": 89.38972459952838,
+  "host_rtf": 1.94
+ },
+ {
+  "geo": "c100",
+  "rule": "frozen",
+  "settle": 20,
+  "n": 4,
+  "latency": 36.3375,
+  "attr": 88.75568951035622,
+  "final_attr": 89.38972459952838,
+  "host_rtf": 1.94
+ },
+ {
+  "geo": "c100",
+  "rule": "frozen",
+  "settle": 25,
+  "n": 4,
+  "latency": 43.7,
+  "attr": 89.00552366283374,
+  "final_attr": 89.38972459952838,
+  "host_rtf": 1.94
+ },
+ {
+  "geo": "c100",
+  "rule": "frozen",
+  "settle": 30,
+  "n": 4,
+  "latency": 51.9925,
+  "attr": 88.8880802022328,
+  "final_attr": 89.38972459952838,
+  "host_rtf": 1.94
+ },
+ {
+  "geo": "c100",
+  "rule": "linestart",
+  "settle": 0,
+  "n": 4,
+  "latency": 3.16,
+  "attr": 59.75427699528551,
+  "final_attr": 89.38972459952838,
+  "host_rtf": 1.94
+ },
+ {
+  "geo": "c100",
+  "rule": "linestart",
+  "settle": 1,
+  "n": 4,
+  "latency": 3.16,
+  "attr": 59.75427699528551,
+  "final_attr": 89.38972459952838,
+  "host_rtf": 1.94
+ },
+ {
+  "geo": "c100",
+  "rule": "linestart",
+  "settle": 2,
+  "n": 4,
+  "latency": 3.16,
+  "attr": 59.75200197850323,
+  "final_attr": 89.38972459952838,
+  "host_rtf": 1.94
+ },
+ {
+  "geo": "c100",
+  "rule": "linestart",
+  "settle": 3,
+  "n": 4,
+  "latency": 3.1725000000000003,
+  "attr": 59.75200197850323,
+  "final_attr": 89.38972459952838,
+  "host_rtf": 1.94
+ },
+ {
+  "geo": "c100",
+  "rule": "linestart",
+  "settle": 5,
+  "n": 4,
+  "latency": 3.26,
+  "attr": 59.790474768243975,
+  "final_attr": 89.38972459952838,
+  "host_rtf": 1.94
+ },
+ {
+  "geo": "c100",
+  "rule": "linestart",
+  "settle": 8,
+  "n": 4,
+  "latency": 3.6525,
+  "attr": 59.790474768243975,
+  "final_attr": 89.38972459952838,
+  "host_rtf": 1.94
+ },
+ {
+  "geo": "c100",
+  "rule": "linestart",
+  "settle": 10,
+  "n": 4,
+  "latency": 4.4125,
+  "attr": 62.674764762028204,
+  "final_attr": 89.38972459952838,
+  "host_rtf": 1.94
+ },
+ {
+  "geo": "c100",
+  "rule": "linestart",
+  "settle": 15,
+  "n": 4,
+  "latency": 7.8774999999999995,
+  "attr": 70.12096121767587,
+  "final_attr": 89.38972459952838,
+  "host_rtf": 1.94
+ },
+ {
+  "geo": "c100",
+  "rule": "linestart",
+  "settle": 20,
+  "n": 4,
+  "latency": 11.3325,
+  "attr": 73.29897240210234,
+  "final_attr": 89.38972459952838,
+  "host_rtf": 1.94
+ },
+ {
+  "geo": "c100",
+  "rule": "linestart",
+  "settle": 25,
+  "n": 4,
+  "latency": 15.4,
+  "attr": 77.60923250673765,
+  "final_attr": 89.38972459952838,
+  "host_rtf": 1.94
+ },
+ {
+  "geo": "c100",
+  "rule": "linestart",
+  "settle": 30,
+  "n": 4,
+  "latency": 19.195,
+  "attr": 80.22066889973655,
+  "final_attr": 89.38972459952838,
+  "host_rtf": 1.94
+ },
+ {
+  "geo": "c200",
+  "rule": "frozen",
+  "settle": 0,
+  "n": 4,
+  "latency": 22.4625,
+  "attr": 88.35862036036033,
+  "final_attr": 89.88870734944277,
+  "host_rtf": 1.4275
+ },
+ {
+  "geo": "c200",
+  "rule": "frozen",
+  "settle": 1,
+  "n": 4,
+  "latency": 22.4625,
+  "attr": 88.35862036036033,
+  "final_attr": 89.88870734944277,
+  "host_rtf": 1.4275
+ },
+ {
+  "geo": "c200",
+  "rule": "frozen",
+  "settle": 2,
+  "n": 4,
+  "latency": 22.47,
+  "attr": 88.35862036036033,
+  "final_attr": 89.88870734944277,
+  "host_rtf": 1.4275
+ },
+ {
+  "geo": "c200",
+  "rule": "frozen",
+  "settle": 3,
+  "n": 4,
+  "latency": 22.515,
+  "attr": 88.35769343810564,
+  "final_attr": 89.88870734944277,
+  "host_rtf": 1.4275
+ },
+ {
+  "geo": "c200",
+  "rule": "frozen",
+  "settle": 5,
+  "n": 4,
+  "latency": 22.895,
+  "attr": 88.39220728537627,
+  "final_attr": 89.88870734944277,
+  "host_rtf": 1.4275
+ },
+ {
+  "geo": "c200",
+  "rule": "frozen",
+  "settle": 8,
+  "n": 4,
+  "latency": 23.9525,
+  "attr": 88.41343858960818,
+  "final_attr": 89.88870734944277,
+  "host_rtf": 1.4275
+ },
+ {
+  "geo": "c200",
+  "rule": "frozen",
+  "settle": 10,
+  "n": 4,
+  "latency": 24.935,
+  "attr": 88.4304653309978,
+  "final_attr": 89.88870734944277,
+  "host_rtf": 1.4275
+ },
+ {
+  "geo": "c200",
+  "rule": "frozen",
+  "settle": 15,
+  "n": 4,
+  "latency": 28.49,
+  "attr": 88.45486901311882,
+  "final_attr": 89.88870734944277,
+  "host_rtf": 1.4275
+ },
+ {
+  "geo": "c200",
+  "rule": "frozen",
+  "settle": 20,
+  "n": 4,
+  "latency": 33.905,
+  "attr": 88.51947950421302,
+  "final_attr": 89.88870734944277,
+  "host_rtf": 1.4275
+ },
+ {
+  "geo": "c200",
+  "rule": "frozen",
+  "settle": 25,
+  "n": 4,
+  "latency": 40.55,
+  "attr": 88.78940922058504,
+  "final_attr": 89.88870734944277,
+  "host_rtf": 1.4275
+ },
+ {
+  "geo": "c200",
+  "rule": "frozen",
+  "settle": 30,
+  "n": 4,
+  "latency": 48.885,
+  "attr": 89.43015371667511,
+  "final_attr": 89.88870734944277,
+  "host_rtf": 1.4275
+ },
+ {
+  "geo": "c200",
+  "rule": "linestart",
+  "settle": 0,
+  "n": 4,
+  "latency": 5.7525,
+  "attr": 65.60373113955086,
+  "final_attr": 89.88870734944277,
+  "host_rtf": 1.4275
+ },
+ {
+  "geo": "c200",
+  "rule": "linestart",
+  "settle": 1,
+  "n": 4,
+  "latency": 5.7525,
+  "attr": 65.60373113955086,
+  "final_attr": 89.88870734944277,
+  "host_rtf": 1.4275
+ },
+ {
+  "geo": "c200",
+  "rule": "linestart",
+  "settle": 2,
+  "n": 4,
+  "latency": 5.7525,
+  "attr": 65.60373113955086,
+  "final_attr": 89.88870734944277,
+  "host_rtf": 1.4275
+ },
+ {
+  "geo": "c200",
+  "rule": "linestart",
+  "settle": 3,
+  "n": 4,
+  "latency": 5.755,
+  "attr": 65.60373113955086,
+  "final_attr": 89.88870734944277,
+  "host_rtf": 1.4275
+ },
+ {
+  "geo": "c200",
+  "rule": "linestart",
+  "settle": 5,
+  "n": 4,
+  "latency": 5.7825,
+  "attr": 65.6057081443952,
+  "final_attr": 89.88870734944277,
+  "host_rtf": 1.4275
+ },
+ {
+  "geo": "c200",
+  "rule": "linestart",
+  "settle": 8,
+  "n": 4,
+  "latency": 5.925,
+  "attr": 65.61755868399123,
+  "final_attr": 89.88870734944277,
+  "host_rtf": 1.4275
+ },
+ {
+  "geo": "c200",
+  "rule": "linestart",
+  "settle": 10,
+  "n": 4,
+  "latency": 6.1274999999999995,
+  "attr": 65.62086633282306,
+  "final_attr": 89.88870734944277,
+  "host_rtf": 1.4275
+ },
+ {
+  "geo": "c200",
+  "rule": "linestart",
+  "settle": 15,
+  "n": 4,
+  "latency": 7.074999999999999,
+  "attr": 65.67394946361937,
+  "final_attr": 89.88870734944277,
+  "host_rtf": 1.4275
+ },
+ {
+  "geo": "c200",
+  "rule": "linestart",
+  "settle": 20,
+  "n": 4,
+  "latency": 9.53,
+  "attr": 72.63904795181175,
+  "final_attr": 89.88870734944277,
+  "host_rtf": 1.4275
+ },
+ {
+  "geo": "c200",
+  "rule": "linestart",
+  "settle": 25,
+  "n": 4,
+  "latency": 14.684999999999999,
+  "attr": 77.69146501441787,
+  "final_attr": 89.88870734944277,
+  "host_rtf": 1.4275
+ },
+ {
+  "geo": "c200",
+  "rule": "linestart",
+  "settle": 30,
+  "n": 4,
+  "latency": 19.2975,
+  "attr": 83.52358618594054,
+  "final_attr": 89.88870734944277,
+  "host_rtf": 1.4275
+ },
+ {
+  "geo": "c340",
+  "rule": "frozen",
+  "settle": 0,
+  "n": 4,
+  "latency": 28.9825,
+  "attr": 89.1198084858214,
+  "final_attr": 91.38140622008763,
+  "host_rtf": 1.2175
+ },
+ {
+  "geo": "c340",
+  "rule": "frozen",
+  "settle": 1,
+  "n": 4,
+  "latency": 28.9825,
+  "attr": 89.1198084858214,
+  "final_attr": 91.38140622008763,
+  "host_rtf": 1.2175
+ },
+ {
+  "geo": "c340",
+  "rule": "frozen",
+  "settle": 2,
+  "n": 4,
+  "latency": 28.9825,
+  "attr": 89.1198084858214,
+  "final_attr": 91.38140622008763,
+  "host_rtf": 1.2175
+ },
+ {
+  "geo": "c340",
+  "rule": "frozen",
+  "settle": 3,
+  "n": 4,
+  "latency": 28.9825,
+  "attr": 89.1198084858214,
+  "final_attr": 91.38140622008763,
+  "host_rtf": 1.2175
+ },
+ {
+  "geo": "c340",
+  "rule": "frozen",
+  "settle": 5,
+  "n": 4,
+  "latency": 29.057499999999997,
+  "attr": 89.14036791476622,
+  "final_attr": 91.38140622008763,
+  "host_rtf": 1.2175
+ },
+ {
+  "geo": "c340",
+  "rule": "frozen",
+  "settle": 8,
+  "n": 4,
+  "latency": 29.4625,
+  "attr": 89.14906784495602,
+  "final_attr": 91.38140622008763,
+  "host_rtf": 1.2175
+ },
+ {
+  "geo": "c340",
+  "rule": "frozen",
+  "settle": 10,
+  "n": 4,
+  "latency": 30.045,
+  "attr": 89.15895490058358,
+  "final_attr": 91.38140622008763,
+  "host_rtf": 1.2175
+ },
+ {
+  "geo": "c340",
+  "rule": "frozen",
+  "settle": 15,
+  "n": 4,
+  "latency": 32.4525,
+  "attr": 89.17113401173964,
+  "final_attr": 91.38140622008763,
+  "host_rtf": 1.2175
+ },
+ {
+  "geo": "c340",
+  "rule": "frozen",
+  "settle": 20,
+  "n": 4,
+  "latency": 35.5425,
+  "attr": 89.20082089081468,
+  "final_attr": 91.38140622008763,
+  "host_rtf": 1.2175
+ },
+ {
+  "geo": "c340",
+  "rule": "frozen",
+  "settle": 25,
+  "n": 4,
+  "latency": 39.5025,
+  "attr": 89.21607862202214,
+  "final_attr": 91.38140622008763,
+  "host_rtf": 1.2175
+ },
+ {
+  "geo": "c340",
+  "rule": "frozen",
+  "settle": 30,
+  "n": 4,
+  "latency": 44.0225,
+  "attr": 89.20971827514312,
+  "final_attr": 91.38140622008763,
+  "host_rtf": 1.2175
+ },
+ {
+  "geo": "c340",
+  "rule": "linestart",
+  "settle": 0,
+  "n": 4,
+  "latency": 8.6725,
+  "attr": 65.49788193262333,
+  "final_attr": 91.38140622008763,
+  "host_rtf": 1.2175
+ },
+ {
+  "geo": "c340",
+  "rule": "linestart",
+  "settle": 1,
+  "n": 4,
+  "latency": 8.6725,
+  "attr": 65.49788193262333,
+  "final_attr": 91.38140622008763,
+  "host_rtf": 1.2175
+ },
+ {
+  "geo": "c340",
+  "rule": "linestart",
+  "settle": 2,
+  "n": 4,
+  "latency": 8.6725,
+  "attr": 65.49788193262333,
+  "final_attr": 91.38140622008763,
+  "host_rtf": 1.2175
+ },
+ {
+  "geo": "c340",
+  "rule": "linestart",
+  "settle": 3,
+  "n": 4,
+  "latency": 8.6725,
+  "attr": 65.49788193262333,
+  "final_attr": 91.38140622008763,
+  "host_rtf": 1.2175
+ },
+ {
+  "geo": "c340",
+  "rule": "linestart",
+  "settle": 5,
+  "n": 4,
+  "latency": 8.68,
+  "attr": 65.49089825684509,
+  "final_attr": 91.38140622008763,
+  "host_rtf": 1.2175
+ },
+ {
+  "geo": "c340",
+  "rule": "linestart",
+  "settle": 8,
+  "n": 4,
+  "latency": 8.78,
+  "attr": 65.52651891161926,
+  "final_attr": 91.38140622008763,
+  "host_rtf": 1.2175
+ },
+ {
+  "geo": "c340",
+  "rule": "linestart",
+  "settle": 10,
+  "n": 4,
+  "latency": 8.91,
+  "attr": 65.52916261999997,
+  "final_attr": 91.38140622008763,
+  "host_rtf": 1.2175
+ },
+ {
+  "geo": "c340",
+  "rule": "linestart",
+  "settle": 15,
+  "n": 4,
+  "latency": 9.59,
+  "attr": 65.52916261999997,
+  "final_attr": 91.38140622008763,
+  "host_rtf": 1.2175
+ },
+ {
+  "geo": "c340",
+  "rule": "linestart",
+  "settle": 20,
+  "n": 4,
+  "latency": 10.7575,
+  "attr": 65.53256312929082,
+  "final_attr": 91.38140622008763,
+  "host_rtf": 1.2175
+ },
+ {
+  "geo": "c340",
+  "rule": "linestart",
+  "settle": 25,
+  "n": 4,
+  "latency": 12.545,
+  "attr": 65.52412599072032,
+  "final_attr": 91.38140622008763,
+  "host_rtf": 1.2175
+ },
+ {
+  "geo": "c340",
+  "rule": "linestart",
+  "settle": 30,
+  "n": 4,
+  "latency": 15.0125,
+  "attr": 65.53054780018456,
+  "final_attr": 91.38140622008763,
+  "host_rtf": 1.2175
+ }
+]

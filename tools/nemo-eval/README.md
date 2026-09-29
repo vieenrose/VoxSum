@@ -76,3 +76,11 @@ those live tags with the final pass (share of frozen speech time), `--max-seg 10
 The gap is the diarizer revising recent labels, not the live view's inferred character timing:
 re-running the final pass with the same inferred timing (`--timing 2`) moves agreement at 8 s by
 +0.8, +0.9, +0.2 and +2.1 points only. Users can set 5–30 s in Settings → Speakers.
+
+## Live speaker accuracy vs latency (2026-09-29)
+
+`--sweep-settle 0,1,2,3,5,8,10,15,20,25,30` with `--diar-opt` geometries from the ~1 s `low` profile to
+27 s chunks, 4 meetings (ES2004a, IS1009a, L_R003S01C02, M_R003S05C01). Word-level latency and the
+accuracy of the displayed tags are in `latency/results_4meetings.json`; `latency/plot.py` draws
+`docs/figures/latency_accuracy.png` (shown in the root README). Phone RTF per geometry:
+`bench_on_device.sh <serial> <x-asr.gguf> <nemotron.gguf> <clip.wav>`.

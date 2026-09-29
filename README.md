@@ -145,6 +145,29 @@ and every setting that only applied to it is gone.
   the same engine code. On meetings it can also split off a small extra speaker; *Merge speaker into…*
   fixes that in one tap.
 
+**Live speaker tags: accuracy vs latency.** While recording, words appear in ~0.4 s, but a speaker
+tag has to wait for the diarizer to settle. We measured that trade-off end to end — every diarizer
+chunk size (~1 s to 27 s) × every display delay (0–30 s), scored against the ground-truth speakers of
+4 meetings, with the latency measured word by word:
+
+<p align="center"><img src="docs/figures/latency_accuracy.png" width="820" alt="Live speaker accuracy vs latency"></p>
+
+- **Today's live view is accurate but slow.** A line's tag appears only once the whole line (up to
+  ~10 s) is frozen, so a word waits ~12–30 s for its tag even though the diarizer itself commits
+  turns ~5 s behind; accuracy is 86–91 %, close to the saved transcript's 90 %.
+- **Tagging a line as soon as its first word settles is fast but wrong.** Latency drops to 2–3 s, but
+  words later in the line inherit the tag before the diarizer has seen them, and accuracy falls to
+  60–67 %; it recovers to ~81 % at ~8 s and ~88 % at ~19 s.
+- **Smaller diarizer chunks barely buy accuracy and cost a lot of compute** — the ~1 s `low` profile
+  runs 10× slower than the shipped 4 s chunks on the same PC. Phone RTF for each point is not measured
+  yet (`tools/nemo-eval/bench_on_device.sh` does it once a device is connected).
+- **The saved transcript is unaffected** by any of this: it is re-attributed in full when the
+  recording stops.
+
+The next step is word-level tagging — a tag on each *settled word* rather than per line — which should
+bring the latency close to the diarizer's own ~5 s at today's accuracy.
+Data and plotting: [`tools/nemo-eval/latency/`](tools/nemo-eval/latency).
+
 **Summarizer.** As of v0.42.0 VoxSum summarizes with an *agentic* pipeline
 rather than a single prompt. The transcript streams past the model in ~2000-token chunks, and the
 model edits **one evolving set of notes** through typed operations (add a bullet, revise a bullet,

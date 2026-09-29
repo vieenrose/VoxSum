@@ -199,7 +199,13 @@ public:
     // VoxSumDroid live view: re-attribute only the unsettled tail (inferred placement, O(tail)).
     // Segments that can no longer change during the live view are appended to [newly_frozen] exactly once;
     // [tail] is everything after them. finish() still re-attributes the whole timeline from scratch.
-    void live(std::vector<Segment>& newly_frozen, std::vector<Segment>& tail);
+    void live(std::vector<Segment>& newly_frozen, std::vector<Segment>& tail) {
+        live(live_cursor_, cfg_.live_settle_s, newly_frozen, tail);
+    }
+    // Where a live view has frozen up to in the Fusion timeline. Independent cursors let a harness
+    // (tools/nemo-eval --sweep-settle) evaluate several speaker delays in one pass.
+    struct LiveCursor { size_t chars = 0, bytes = 0; };
+    void live(LiveCursor& cur, double settle_s, std::vector<Segment>& newly_frozen, std::vector<Segment>& tail);
     double fed_s() const { return double(fed_) / 16000.0; }
     // Audio time up to which the diarizer has committed turns (the attribution-stable frontier).
     double committed_turns_s() const;
@@ -228,7 +234,7 @@ private:
     std::vector<double> piece_ms_;
     bool push_piece(const float* pcm, size_t n, bool last, std::string& err);
     std::vector<float> pending_;        // < one piece, carried to the next push()
-    size_t live_chars_ = 0, live_bytes_ = 0;   // Fusion timeline position the live view has frozen up to
+    LiveCursor live_cursor_;            // the app's live view (cfg_.live_settle_s)
     struct SegCounts { size_t segments = 0, pieces = 0, unattributed = 0, snapped_chars = 0; };
     SegCounts build_segments(std::vector<TaggedPiece> pieces, size_t char_base, size_t byte_base,
                              const std::function<void(const Segment&, size_t, size_t)>& emit);

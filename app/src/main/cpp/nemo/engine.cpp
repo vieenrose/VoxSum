@@ -422,19 +422,20 @@ Engine::SegCounts Engine::build_segments(
     return n;
 }
 
-void Engine::live(std::vector<Segment>& newly_frozen, std::vector<Segment>& tail) {
+void Engine::live(LiveCursor& cur, double settle_s, std::vector<Segment>& newly_frozen,
+                  std::vector<Segment>& tail) {
     struct Built { Segment seg; size_t end_c, end_b; };
     std::vector<Built> segs;
-    build_segments(fusion_.attribute_from(live_chars_, live_bytes_), live_chars_, live_bytes_,
+    build_segments(fusion_.attribute_from(cur.chars, cur.bytes), cur.chars, cur.bytes,
                    [&](const Segment& seg, size_t c, size_t b) { segs.push_back({seg, c, b}); });
     // A segment freezes once the diarizer has committed turns past it AND it is live_settle_s behind
     // the audio fed; the last segment never freezes (it may still grow).
-    const double horizon = std::min(fed_s() - cfg_.live_settle_s, committed_turns_s());
+    const double horizon = std::min(fed_s() - settle_s, committed_turns_s());
     size_t k = 0;
     for (; k + 1 < segs.size() && segs[k].seg.end_s <= horizon; k++) {
         newly_frozen.push_back(segs[k].seg);
-        live_chars_ = segs[k].end_c;
-        live_bytes_ = segs[k].end_b;
+        cur.chars = segs[k].end_c;
+        cur.bytes = segs[k].end_b;
     }
     for (; k < segs.size(); k++) tail.push_back(segs[k].seg);
 }

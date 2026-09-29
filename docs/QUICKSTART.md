@@ -166,7 +166,7 @@ delete button) and <b>About</b> (version, license, open-source components).</i><
   itself is always written in the recording's language.
 - **Summary style** — Bullets / Executive / Narrative.
 - **Speakers** — turn speaker identification on or off, and set the **live speaker delay** (5–30 s,
-  default 15): while recording, words appear at once and speaker tags follow after this delay —
+  default 15): while recording, words appear at once and speaker tags follow at least this long after —
   longer is more accurate. The saved transcript is not affected.
 - **Storage** — see how much disk each model uses and delete any to reclaim space (it re-downloads on
   next use).

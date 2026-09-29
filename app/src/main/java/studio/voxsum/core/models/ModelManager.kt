@@ -8,11 +8,7 @@ import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import studio.voxsum.core.asr.AsrBackend
-import studio.voxsum.core.asr.AsrModelFiles
-import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
-import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream
-import java.io.BufferedInputStream
+import studio.voxsum.core.asr.NemoModelFiles
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.SocketTimeoutException
@@ -35,231 +31,57 @@ class ModelManager(context: Context) {
     val modelsDir: File = File(context.filesDir, "models").apply { mkdirs() }
 
     init {
-        // Reclaim dropped backends' models on construction, not only on the next ASR
-        // provisioning — an existing install that never re-provisions would otherwise
-        // carry ~0.5 GB of dead SenseVoice/Qwen3 models forever.
+        // Reclaim long-dropped backends' models on construction. The engines retired by the
+        // nemo switch (LITERT_RETIRED) are reclaimed only once the new models verify, in
+        // ensureAsrModels, so a failed download never leaves the device without an engine.
+        DROPPED_BACKEND_DIRS.filterNot { it in LITERT_RETIRED }
+            .forEach { File(modelsDir, it).takeIf(File::exists)?.deleteRecursively() }
+        DROPPED_FILES.filterNot { it in LITERT_RETIRED }
+            .forEach { File(modelsDir, it).takeIf(File::exists)?.delete() }
+    }
+
+    // --- ASR + diarization: nemo-x-asr-diarizer, two revision-pinned GGUFs. -----------------------
+    //   x-asr-zh-en q8_0     — streaming Zipformer2 transducer, zh + en (Apache-2.0)
+    //   Nemotron-3 diar q8_0 — streaming Sortformer diarization, up to 8 speakers (OpenMDW-1.1)
+    val nemoDir: File get() = File(modelsDir, NEMO_DIR)
+
+    fun asrFiles(): NemoModelFiles =
+        NemoModelFiles(xasr = File(nemoDir, XASR_FILE), diar = File(nemoDir, DIAR_FILE))
+
+    /** Both GGUFs present at their pinned size and stamped with the pinned revision set. Cheap (no
+     *  hashing): the SHA-256 check happens once, at download. */
+    fun asrReady(): Boolean =
+        NEMO_FILES.all { (name, meta) -> File(nemoDir, name).length() == meta.bytes } &&
+            runCatching { File(nemoDir, REVISION_MARKER).readText().trim() }.getOrNull() == NEMO_REVISION
+
+    /** Remove the model directory so the next run re-downloads a clean copy (load failure recovery). */
+    fun deleteAsr() {
+        nemoDir.takeIf(File::exists)?.deleteRecursively()
+    }
+
+    /** Download both GGUFs if missing or from a different pinned revision. */
+    suspend fun ensureAsrModels(onProgress: (Float) -> Unit) = withContext(Dispatchers.IO) {
+        if (asrReady()) { onProgress(1f); return@withContext }
+        nemoDir.mkdirs()
+        val marked = runCatching { File(nemoDir, REVISION_MARKER).readText().trim() }.getOrNull() == NEMO_REVISION
+        val total = NEMO_FILES.values.sumOf { it.bytes }
+        var done = 0L
+        NEMO_FILES.forEach { (name, meta) ->
+            val dest = File(nemoDir, name)
+            if (dest.length() != meta.bytes || !marked) {
+                dest.delete()
+                download(meta.url, dest, meta.sha256) { frac ->
+                    onProgress((done + (frac * meta.bytes).toLong()).toFloat() / total)
+                }
+            }
+            done += meta.bytes
+            onProgress(done.toFloat() / total)
+        }
+        runCatching { File(nemoDir, REVISION_MARKER).writeText(NEMO_REVISION) }
+        check(asrReady()) { "ASR model files missing after provisioning" }
+        // Only after the new models verify: reclaim every retired engine's files.
         DROPPED_BACKEND_DIRS.forEach { File(modelsDir, it).takeIf(File::exists)?.deleteRecursively() }
         DROPPED_FILES.forEach { File(modelsDir, it).takeIf(File::exists)?.delete() }
-    }
-
-    // Silero VAD: the ONNX serves the sherpa X-ASR path; the tflite serves the
-    // LiteRT engines (X-ASR once its LiteRT port lands).
-    val vadModel: File get() = File(modelsDir, "silero_vad.onnx")
-    val vadLiteModel: File get() = File(modelsDir, "silero-vad.tflite")
-
-    // CAM++ zh+en (3D-Speaker), fp16 — replaced eres2net_base after on-device benchmarking on a
-    // Pixel 6: fp16 was the fastest (~70 ms/utt, ~1.5x faster than CAM++ fp32, ~3.5x faster than
-    // eres2net), half the size of fp32, with accuracy indistinguishable from fp32 (int8 was both
-    // slower and less accurate on this ARM CPU). Hosted on HF since it is a custom conversion.
-    // New filename forces a fresh download on existing installs (the downloader skips if present).
-    // (the zh_en ONNX variant retired with ONNX Runtime's removal path; an en-heavy quality
-    // A/B may motivate converting the zh_en checkpoint later).
-    val embeddingModel: File get() = campplusEmbedModel
-
-    /** pyannote segmentation-3.0 (MIT, ~6 MB) — the speaker-aware local segmenter that drives
-     *  DiarizationEngine's segmentation-first path (boundaries where the VOICE changes, not
-     *  where silence falls). */
-    val segmentationModel: File get() = File(modelsDir, "pyannote-segmentation.tflite")
-
-    val campplusEmbedModel: File get() = File(modelsDir, "campplus_cn_common_500f.tflite")
-    // Older embeddings to reclaim on upgrade: eres2net_base, the interim CAM++ fp32, and the
-    // abandoned fine-tuned MOSS-TD lineage (replaced by the base q4mix weights — the fine-tunes
-    // had speaker-diarization and timestamp-accuracy regressions).
-    private val legacyEmbeddings: List<File> get() =
-        listOf(
-            File(modelsDir, "speaker_embedding.onnx"), File(modelsDir, "campplus_zh_en.onnx"),
-            File(modelsDir, "campplus_zh_en_fp16.onnx"), File(modelsDir, "pyannote_segmentation_3_0.onnx"),
-            File(modelsDir, "wespeaker_emb_fp16.tflite"),
-            File(modelsDir, "moss-td-zhtw-v7-q4_k_m.gguf"), File(modelsDir, "moss-td-zhtw-v61-q4_k_m.gguf"),
-            // v1 LiteRT decoder, superseded by v2 (near-silence hallucination fix).
-            File(modelsDir, "moss_td_decoder_q4b32_ekv2560.tflite"),
-        )
-
-    // Diarization is per-utterance embedding + clustering, so only the speaker-embedding
-    // model is needed (no pyannote segmentation model).
-    fun diarizationReady(): Boolean =
-        embeddingModel.length() == CAMPPLUS_EMBED_BYTES && segmentationModel.length() == SEG_BYTES
-
-    fun campplusEmbedReady(): Boolean = campplusEmbedModel.length() == CAMPPLUS_EMBED_BYTES
-
-    // --- Multi-backend ASR registry. Each model extracts to its own top-level folder. ---
-    private data class AsrModelSpec(
-        val dir: String,
-        val url: String,                              // GitHub release .tar.bz2 (fallback source; "" = HF only)
-        val sha256: String,                           // checksum of the GitHub archive
-        val sentinels: List<String>,                  // "already provisioned" check (relative to dir)
-        val buildFiles: (File) -> AsrModelFiles,
-        // HuggingFace mirror (PRIMARY source — its CDN is far more reliable than GitHub's release
-        // CDN in many regions, e.g. TW/CN). [hfBase] is a `/resolve/<rev>` base; [hfFiles] are the
-        // repo-relative paths fetched individually into the model dir. When null, only GitHub is used.
-        val hfBase: String? = null,
-        val hfFiles: List<String>? = null,
-        // Optional per-file sha256 pins for [hfFiles] (revision-pinned repos make this meaningful).
-        val hfShas: Map<String, String>? = null,
-    )
-
-    private val asrSpecs: Map<AsrBackend, AsrModelSpec> = mapOf(
-        // The "punct" variant (matches the web app's xasr_models): mixed-case English +
-        // punctuation baked into the BPE vocab. The older zh-en-2023-11-22 zipformer emitted
-        // ALL-CAPS, unpunctuated English — wrong model for a readable transcript.
-        // X-ASR runs on LiteRT (Luigi/xasr-litert): OCTAV-q8 bucketed masked export,
-        // gated on host — encoder max|d| 3.1e-06 vs source ONNX; q8 CER identical to the
-        // fp32 tflite (quantization adds no measurable error). HF is the ONLY source.
-        AsrBackend.XASR to AsrModelSpec(
-            dir = "xasr-litert",
-            url = "", sha256 = "",
-            sentinels = listOf("xasr_q8_octav.tflite", "tokens.txt"),
-            buildFiles = { d ->
-                AsrModelFiles(
-                    encoder = File(d, "xasr_q8_octav.tflite").path,
-                    tokens = File(d, "tokens.txt").path,
-                )
-            },
-            hfBase = "https://huggingface.co/Luigi/xasr-litert/resolve/main",
-            hfFiles = listOf("xasr_q8_octav.tflite", "tokens.txt"),
-            hfShas = mapOf(
-                "xasr_q8_octav.tflite" to "33849c8eed0faf7f268a36d852c3557c72d10782473667f39d3483e282fe00ed",
-                "tokens.txt" to "b818a60878b9aae978cbb8ad594acbd403d76d1af2e31ef4197c84e2dbdba27c",
-            ),
-        ),
-    )
-
-    private fun specDir(spec: AsrModelSpec) = File(modelsDir, spec.dir)
-
-    /**
-     * Do the files on disk come from the revision we currently pin?
-     *
-     * Sentinels are filenames and do not change when weights are re-pinned — a same-name weight
-     * swap keeps every sentinel — so without this check an existing install silently stays on
-     * the old weights forever.
-     *
-     * Fast path is a marker file written at download time. When it is absent (every install that
-     * predates the marker) we do NOT just re-download: that would cost X-ASR users a 295 MB fetch
-     * of files they already have. Instead we hash what is on disk against the pinned SHAs and, if
-     * they already match, adopt them by writing the marker. Hashing runs at most once per model.
-     */
-    private fun revisionMatches(spec: AsrModelSpec, d: File): Boolean {
-        val want = spec.hfBase ?: return true          // no HF pin (tar.bz2 spec) — nothing to compare
-        val marker = File(d, REVISION_MARKER)
-        if (markerMatches(spec, d)) return true
-        val shas = spec.hfShas?.takeIf { it.isNotEmpty() } ?: return marker.exists()
-        val allMatch = shas.all { (rel, sha) ->
-            val f = File(d, rel)
-            f.exists() && runCatching { sha256Of(f) }.getOrNull() == sha
-        }
-        if (allMatch) runCatching { marker.writeText(want) }   // adopt: same bytes, just unstamped
-        return allMatch
-    }
-
-    fun asrReady(backend: AsrBackend): Boolean {
-        val spec = asrSpecs.getValue(backend)
-        val d = specDir(spec)
-        // The revision marker is part of "ready". Callers gate provisioning on this
-        // (`if (!asrReady(b)) ensureAsrModels(b)`), so a check that only ensureAsrModels performs
-        // is never reached when the files exist — which is how a past re-pin shipped twice
-        // without reaching a single device. Cheap on purpose: a small file read, no hashing.
-        // The expensive hash-and-adopt lives in ensureAsrModels, which runs at most once.
-        return vadLiteModel.exists() &&
-            spec.sentinels.all { File(d, it).exists() } &&
-            markerMatches(spec, d)
-    }
-
-    /** Cheap half of the revision check: does the stamp on disk name the revision we pin? */
-    private fun markerMatches(spec: AsrModelSpec, d: File): Boolean {
-        val want = spec.hfBase ?: return true
-        val marker = File(d, REVISION_MARKER)
-        return marker.exists() && runCatching { marker.readText().trim() }.getOrNull() == want
-    }
-
-    fun asrFiles(backend: AsrBackend): AsrModelFiles =
-        asrSpecs.getValue(backend).let { it.buildFiles(specDir(it)) }
-
-    /**
-     * Remove the on-disk model directory for [backend] so the next run re-downloads a clean copy.
-     * Used to recover when the recognizer fails to load — the files are present (so [asrReady] is
-     * true and [ensureAsrModels] would otherwise skip the download) but incomplete/corrupt.
-     */
-    fun deleteAsr(backend: AsrBackend) {
-        specDir(asrSpecs.getValue(backend)).takeIf(File::exists)?.deleteRecursively()
-    }
-
-    /** Download + extract the model for [backend] if missing (VAD shared across backends). */
-    suspend fun ensureAsrModels(backend: AsrBackend, onProgress: (Float) -> Unit) =
-        withContext(Dispatchers.IO) {
-            ensureVadLite { onProgress(it * 0.1f) }
-            val spec = asrSpecs.getValue(backend)
-            val d = specDir(spec)
-            // Re-provision when the files are missing OR when they came from a DIFFERENT pinned
-            // revision. Sentinels are filenames, which do not change when weights are re-pinned:
-            // without the revision check, a same-name weight upgrade silently leaves every
-            // existing install on the old weights.
-            if (!spec.sentinels.all { File(d, it).exists() } || !revisionMatches(spec, d)) {
-                provisionAsr(spec, d) { onProgress(0.1f + it * 0.9f) }
-                onProgress(1f)
-            }
-            check(asrReady(backend)) { "ASR model files missing after provisioning ($backend)" }
-            // Only after the new model verifies present (above): reclaim superseded dirs —
-            // mirrors ensureDiarizationModels' legacyEmbeddings reclaim. Gated on the check so a
-            // failed/partial download never deletes a still-working older model.
-            LEGACY_ASR_DIRS.forEach { File(modelsDir, it).takeIf(File::exists)?.deleteRecursively() }
-            // Backends dropped 2026-07: SenseVoice (LiteRT + legacy sherpa) and Qwen3.
-            DROPPED_BACKEND_DIRS.forEach { File(modelsDir, it).takeIf(File::exists)?.deleteRecursively() }
-        }
-
-    /** Fetch the shared VAD model. HuggingFace first (reliable CDN), GitHub release as fallback. */
-    private suspend fun ensureVad(onProgress: (Float) -> Unit) {
-        if (vadModel.exists()) { onProgress(1f); return }
-        try {
-            download(VAD_HF_URL, vadModel, VAD_HF_SHA, onProgress)
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-            vadModel.delete()
-            download(VAD_URL, vadModel, VAD_SHA, onProgress)
-        }
-    }
-
-    /** Silero v5 tflite (soniqo export, revision-pinned) for the LiteRT engines. */
-    private suspend fun ensureVadLite(onProgress: (Float) -> Unit) {
-        if (vadLiteModel.length() == VAD_LITE_BYTES) { onProgress(1f); return }
-        vadLiteModel.delete()
-        download(VAD_LITE_URL, vadLiteModel, VAD_LITE_SHA, onProgress)
-    }
-
-    /**
-     * Provision an ASR model into [d]. Tries the HuggingFace mirror first — fetching each file
-     * individually, which sidesteps GitHub's often-throttled release CDN and needs no extraction —
-     * and falls back to the GitHub .tar.bz2 (checksum-pinned) if the mirror is unreachable.
-     */
-    private suspend fun provisionAsr(spec: AsrModelSpec, d: File, onProgress: (Float) -> Unit) {
-        val hfBase = spec.hfBase
-        val hfFiles = spec.hfFiles
-        if (hfBase != null && hfFiles != null) {
-            try {
-                d.mkdirs()
-                hfFiles.forEachIndexed { i, rel ->
-                    val dest = File(d, rel).apply { parentFile?.mkdirs() }
-                    download("$hfBase/$rel", dest, spec.hfShas?.get(rel)) { frac ->
-                        onProgress((i + frac) / hfFiles.size)
-                    }
-                }
-                // Stamp what these files came from, so a later re-pin is detectable without
-                // hashing 600 MB on a tablet. Written only after every file landed.
-                runCatching { File(d, REVISION_MARKER).writeText(hfBase) }
-                return
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                // HF-only spec (X-ASR): there is no archive to fall back to, so surface the real
-                // error — and do it BEFORE the wipe, so a retry resumes instead of re-fetching
-                // partially-downloaded files from zero.
-                if (spec.url.isEmpty()) throw e
-                // Mirror failed mid-way — clear partial files so the GitHub fallback starts clean.
-                d.deleteRecursively()
-            }
-        }
-        val archive = File(modelsDir, "${spec.dir}.tar.bz2")
-        download(spec.url, archive, spec.sha256, onProgress)
-        extractTarBz2(archive, modelsDir)
-        archive.delete()
     }
 
     // --- LLM: a revision-pinned, multi-file artifact set under its own directory. --------------
@@ -286,7 +108,7 @@ class ModelManager(context: Context) {
 
     // --- Storage manager: enumerate + delete downloaded models (each re-downloads on next use). ---
 
-    enum class ModelKind { VAD, SPEAKER, ASR, LLM, OTHER }
+    enum class ModelKind { ASR, LLM, OTHER }
 
     /** A model artifact (file or folder) on disk. [delete] reclaims it; it re-downloads on next use. */
     data class StoredModel(val name: String, val kind: ModelKind, val bytes: Long, private val path: File) {
@@ -322,8 +144,7 @@ class ModelManager(context: Context) {
     private fun kindOf(name: String): ModelKind {
         val n = name.lowercase()
         return when {
-            n.startsWith("silero_vad") || n.contains("vad") -> ModelKind.VAD
-            n.contains("campplus") || n.contains("speaker_embedding") || n.contains("wespeaker") -> ModelKind.SPEAKER
+            n == NEMO_DIR -> ModelKind.ASR
             // MOSS-TD is an ASR model that happens to ship as a .gguf — classify it before the
             // generic gguf→LLM rule below, or Settings lists it as a summary model.
             n.startsWith("moss-td") || n.startsWith("moss-transcribe") || n.startsWith("moss_td") -> ModelKind.ASR
@@ -332,13 +153,6 @@ class ModelManager(context: Context) {
             else -> ModelKind.OTHER
         }
     }
-
-    /**
-     * Ensure the default backend's models are present, downloading what's missing.
-     * [onProgress] receives a coarse 0..1 fraction. Safe to call when already present (no-op).
-     */
-    suspend fun ensureAsrModels(onProgress: (Float) -> Unit) =
-        ensureAsrModels(AsrBackend.fromId(""), onProgress)
 
     /**
      * Ensure every file of the summarizer artifact set for [spec] is present, the right size and
@@ -371,21 +185,6 @@ class ModelManager(context: Context) {
     /** No-arg convenience over the default model. */
     suspend fun ensureLlmModel(onProgress: (Float) -> Unit) =
         ensureLlmModel(LlmRegistry.byId(LlmRegistry.DEFAULT_ID), onProgress)
-
-    /** Ensure the diarization models (CAM++ LiteRT embedding + pyannote seg-3.0 LiteRT). */
-    suspend fun ensureDiarizationModels(onProgress: (Float) -> Unit) = withContext(Dispatchers.IO) {
-        if (embeddingModel.length() != CAMPPLUS_EMBED_BYTES) {
-            if (embeddingModel.exists()) embeddingModel.delete()
-            download(CAMPPLUS_EMBED_URL, embeddingModel, CAMPPLUS_EMBED_SHA) { onProgress(it * 0.7f) }
-        }
-        if (segmentationModel.length() != SEG_BYTES) {
-            if (segmentationModel.exists()) segmentationModel.delete()
-            download(SEG_URL, segmentationModel, SEG_SHA) { onProgress(0.7f + it * 0.3f) }
-        }
-        // Reclaim superseded ONNX artifacts (eres2net, CAM++ fp32/fp16, pyannote onnx).
-        legacyEmbeddings.forEach { if (it.exists()) it.delete() }
-        check(diarizationReady()) { "Diarization model missing after provisioning" }
-    }
 
     /**
      * Download to a temp file, verify its SHA-256 (when pinned), then atomically rename into
@@ -528,27 +327,6 @@ class ModelManager(context: Context) {
         return md.digest().joinToString("") { "%02x".format(it) }
     }
 
-    private fun extractTarBz2(archive: File, outDir: File) {
-        TarArchiveInputStream(
-            BZip2CompressorInputStream(BufferedInputStream(archive.inputStream()))
-        ).use { tar ->
-            while (true) {
-                val entry = tar.nextEntry ?: break
-                val outFile = File(outDir, entry.name)
-                // Guard against path traversal (zip-slip).
-                check(outFile.canonicalPath.startsWith(outDir.canonicalPath + File.separator)) {
-                    "Unsafe path in archive: ${entry.name}"
-                }
-                if (entry.isDirectory) {
-                    outFile.mkdirs()
-                } else {
-                    outFile.parentFile?.mkdirs()
-                    outFile.outputStream().use { tar.copyTo(it) }
-                }
-            }
-        }
-    }
-
     companion object {
         /** Written next to a spec's files, recording the pinned revision they came from. */
         const val REVISION_MARKER = ".revision"
@@ -597,7 +375,6 @@ class ModelManager(context: Context) {
         /** Suffix of the temp file a download streams into before it's verified and renamed into place. */
         private const val PART_SUFFIX = ".part"
 
-        private const val REL = "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models"
         /** Dirs of backends dropped in 2026-07 (SenseVoice LiteRT + sherpa, Qwen3) and 2026-08
          *  (Nemotron — a held-out zh-TW bench showed it ~2x worse CER than X-ASR, and the app
          *  targets zh-TW meetings only, not the 25-language coverage Nemotron traded accuracy
@@ -620,6 +397,15 @@ class ModelManager(context: Context) {
             // the weight cache that had to exist because XNNPACK materialised ~800 MiB of
             // unreclaimable anonymous memory. llama.cpp mmaps a single 533 MB GGUF instead.
             "qwen35-litert",
+            // LiteRT X-ASR + Silero VAD + pyannote + CAM++, replaced 2026-09 by the streaming
+            // nemo-x-asr-diarizer (same X-ASR model family, now on ggml, plus Nemotron-3 diarization).
+            "xasr-litert",
+        )
+
+        /** Retired by the nemo switch; reclaimed only after the new models verify. */
+        private val LITERT_RETIRED = setOf(
+            "xasr-litert", "silero-vad.tflite", "pyannote-segmentation.tflite",
+            "campplus_cn_common_500f.tflite",
         )
 
         /** Single files from removed engines, reclaimed at construction — the whole
@@ -653,43 +439,29 @@ class ModelManager(context: Context) {
             // same Q4_K_M recipe, but a different FILENAME, so provisioning writes the new GGUF
             // beside the old one instead of over it — 508 MB stranded on every existing install.
             "qwen35-gguf/Qwen3.5-0.8B-Q4_K_M.gguf",
-        )
-
-        // Superseded ASR model dirs to reclaim on upgrade. The old x-asr zipformer (~160 MB)
-        // emitted ALL-CAPS, unpunctuated English and was replaced by the punct variant; since the
-        // new dir name differs, the old folder would otherwise linger forever on existing installs.
-        private val LEGACY_ASR_DIRS = listOf(
+            "silero-vad.tflite", "pyannote-segmentation.tflite", "campplus_cn_common_500f.tflite",
             "sherpa-onnx-zipformer-zh-en-2023-11-22",
             "sherpa-onnx-x-asr-zipformer-transducer-zh-en-punct-int8-2026-06-03",
         )
 
-        private const val VAD_URL =
-            "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx"
-        // HuggingFace mirror of the VAD (primary) — csukuangfj's own VAD repo (sherpa-onnx author).
-        // A distinct but equivalent silero export, so it carries its own checksum pin.
-        private const val VAD_HF_URL =
-            "https://huggingface.co/csukuangfj/vad/resolve/main/silero_vad.onnx"
-        private const val VAD_HF_SHA = "a35ebf52fd3ce5f1469b2a36158dba761bc47b973ea3382b3186ca15b1f5af28"
+        private data class Pinned(val url: String, val bytes: Long, val sha256: String)
 
-        // SHA-256 pins for the exact release artifacts above (verified after download).
-        private const val VAD_SHA = "9e2449e1087496d8d4caba907f23e0bd3f78d91fa552479bb9c23ac09cbb1fd6"
-        // Silero VAD v5 tflite (soniqo, revision-pinned) for the LiteRT engines — see LiteVad.
-        private const val VAD_LITE_URL =
-            "https://huggingface.co/soniqo/Silero-VAD-v5-LiteRT/resolve/655bff6b9a748de98c17a10f6c5d7ee3c0b53cbc/silero-vad.tflite"
-        private const val VAD_LITE_SHA = "4559669e3423afaa11b3716d01d1421c0bf52add8b6891846ca73cc9bae875d2"
-        private const val VAD_LITE_BYTES = 1_261_248L
-        // pyannote segmentation-3.0 LiteRT (soniqo streaming export: 1-s chunks, LSTM state
-        // I/O, 56x7 powerset frames — see LiteSegmenter).
-        private const val SEG_URL =
-            "https://huggingface.co/soniqo/Pyannote-Segmentation-LiteRT/resolve/8422f41c2d87cafe24be03d731b64c74eab2c126/pyannote-segmentation.tflite"
-        private const val SEG_SHA = "0232d4098c5069d012b92cb4b5d8cf148807777aa214203e4706a282e640f259"
-        private const val SEG_BYTES = 7_265_360L
-
-        // CAM++ cn-common speaker embedding (LiteRT, converted from the 3D-Speaker PyTorch
-        // checkpoint via litert-torch; parity gates in the model card).
-        private const val CAMPPLUS_EMBED_URL =
-            "https://huggingface.co/Luigi/campplus-litert/resolve/985721e598976ac8f4433e25bf41f61bec1e16df/campplus_cn_common_500f.tflite"
-        private const val CAMPPLUS_EMBED_SHA = "e7aeb9312b17a8c76af38cb772d0e291b30dd377f3dd5aeb6648383ae7da87d9"
-        private const val CAMPPLUS_EMBED_BYTES = 28_730_020L
+        private const val NEMO_DIR = "nemo"
+        private const val XASR_FILE = "x-asr-zh-en-q8_0.gguf"
+        private const val DIAR_FILE = "nemotron-3-diarization-q8_0.gguf"
+        private const val XASR_REV = "acb1a95eac809719a2c86d1048471f96fc6444ad"
+        private const val DIAR_REV = "647d39feaa0e91dca5ce355a95403837b76dff56"
+        /** Stamped into [REVISION_MARKER]: a re-pin of either file forces a fresh fetch. */
+        private const val NEMO_REVISION = "$XASR_REV+$DIAR_REV"
+        private val NEMO_FILES = linkedMapOf(
+            XASR_FILE to Pinned(
+                "https://huggingface.co/cstr/x-asr-zh-en-GGUF/resolve/$XASR_REV/$XASR_FILE",
+                168_189_920L, "1ca120084a1517cf02d96e44cdd9a9544f0c887f6d0149c9f85d151be6833a61",
+            ),
+            DIAR_FILE to Pinned(
+                "https://huggingface.co/audio-cpp/Nemotron-3-Diarization-GGUF/resolve/$DIAR_REV/$DIAR_FILE",
+                106_675_136L, "9a737455bd10123bcf1e036d9a0b07b6e8c42e7d0dd1a5ee4141dc386db46d0b",
+            ),
+        )
     }
 }

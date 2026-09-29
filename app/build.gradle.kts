@@ -125,7 +125,6 @@ dependencies {
     // YouTube source extraction (GPL-3.0, via JitPack). Pulls nanojson/jsoup/rhino transitively.
     implementation("com.github.TeamNewPipe:NewPipeExtractor:v0.26.3")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.5")
-    implementation(libs.commons.compress) // tar.bz2 model extraction (Apache-2.0)
 
     testImplementation("junit:junit:4.13.2")
     // The platform's org.json is a throw-on-call stub in local unit tests, and the MOSS

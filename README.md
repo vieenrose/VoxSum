@@ -68,7 +68,7 @@ them one by one while you watch each session's live status.
 
 **📝 Read and understand**
 - **Live transcript** — lines show up as soon as you speak; you can start reading (and playing) before it finishes.
-- **Who spoke when** — each line is tagged and colour-coded by speaker, with an automatic speaker count. Precise speaker boundaries come from a neural segmenter (benchmarked at **95.6% / 92.1%** time-weighted attribution on the AMI and AISHELL-4 meeting corpora). VoxSum can even **guess speakers' real names** from what they say, and long passes show a live **time-to-finish estimate**.
+- **Who spoke when, live** — speakers are identified *while* the words are transcribed, in the same pass: each line is tagged and colour-coded by speaker as you record, with an automatic speaker count (up to 8 speakers). Benchmarked on the AMI and AISHELL-4 meeting corpora at **95.4% / 92.3%** time-weighted attribution while labelling **99%** of the speech ([details](tools/nemo-eval/README.md)). VoxSum can even **guess speakers' real names** from what they say.
 - **A summary in your language, your way** — a short title and a **concise** summary (a handful of points, never a wall of text) as **bullets, an executive brief, or a narrative**. Keep it in the transcript's language, or pick **English · Français · 繁體中文 · 简体中文 · 日本語 · 한국어**. (It defaults to your phone's language.)
 - **Action items & decisions** — pull a draft checklist of who-does-what and the key decisions out of a meeting, ready to edit.
 - **Search the transcript** — find any word in a long recording; matches highlight and you can step through them.
@@ -85,7 +85,7 @@ them one by one while you watch each session's live status.
 
 ## Languages
 
-- **Transcription** handles English and Chinese out of the box; a multilingual engine (Chinese · English · Japanese · Korean · Cantonese) is one tap away in **Settings**.
+- **Transcription** handles English, Chinese, and speech that mixes the two.
 - **Summaries** can be written in any of seven languages, or matched to the transcript.
 - **The app itself** is available in **English, 繁體中文, and Français**.
 
@@ -113,7 +113,7 @@ after that, updates arrive automatically.
 ## Good to know
 
 - **First run downloads models.** The first time you use a feature, VoxSum fetches the model it needs
-  from **Hugging Face** (with a GitHub fallback), verifies its integrity, and caches it. After that you
+  from **Hugging Face**, verifies its integrity, and caches it. After that you
   can go fully offline. Downloads **resume where they left off** on flaky Wi-Fi, and a corrupt file is
   cleaned up automatically with a one-tap **Retry**.
 - **Quiet audio just works.** Far-field or low-volume recordings get an automatic, clip-safe volume
@@ -188,42 +188,30 @@ timestamps visible.)
 ## For developers
 
 VoxSum is an on-device port of [VoxSum Studio](https://huggingface.co/spaces/Luigi/VoxSum-bak).
-Every model runs locally, on one of two runtimes:
+Every model runs locally, and everything native is built from source:
 
-- **ASR, VAD and speaker diarization** — [LiteRT](https://ai.google.dev/edge/litert). The runtime
-  ships as the official prebuilt from Google's Maven AAR; the engine around it
-  (`app/src/main/cpp/mosslite`) is built from source (see `mosslite/PROVENANCE.md`).
-- **Summarization** — [llama.cpp](https://github.com/ggml-org/llama.cpp), built from source out of
-  the `native/llama.cpp` submodule, over a single GGUF.
+- **Speech recognition + speaker diarization, in one streaming pass** —
+  [nemo-x-asr-diarizer](https://github.com/vieenrose/nemo-x-asr-diarizer.cpp): X-ASR, a streaming
+  Zipformer2 transducer for Chinese + English (via [CrispASR](https://github.com/CrispStrobe/CrispASR)),
+  and NVIDIA's streaming Nemotron-3 Diarization (via [audio.cpp](https://github.com/0xShug0/audio.cpp)),
+  fused so every word carries the speaker whose turn covers it. Words appear ~0.4 s after they are
+  spoken; speaker turns settle ~5 s behind the audio. Two GGUFs, ~275 MB together.
+- **Summarization** — [llama.cpp](https://github.com/ggml-org/llama.cpp) over GGUF models
+  (see `LlmRegistry.kt`).
 
-sherpa-onnx and ONNX Runtime were removed in 2026-07. LiteRT-LM was removed in 2026-07 too: it had
-been adopted for Gemma 4's speed, and once Gemma 4 was dropped nothing was left to pay its costs —
-a context length baked into the bundle (so one export could not serve two window sizes), no
-runtime KV quantization, no 3-bit weights, no SSM support, and published arm64 prebuilts that
-SIGILL on ARMv8.0. llama.cpp answers each of those with a flag.
-
-**The summarizer.** [Qwen3.5-0.8B Q4_K_M](https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF)
-(~533 MB, commit-pinned and sha256-verified) — the same artifact the desktop build uses. It is a
-hybrid-attention model (18 gated-delta linear-attention layers, 6 full-attention), so its KV cache
-is small for its size; with a `q8_0` K/V cache the context can run up to 32768 tokens, about
-160 minutes of speech in a single pass. `n_ctx` is sized per transcript
-(`Summarizer.contextFor`), so a short meeting allocates a short window and decodes faster —
-something the baked-in LiteRT bundles could not do.
-
-The arm64 build is deliberately pinned to `-march=armv8-a`: the Cortex-A73/A72 targets have no
-dotprod and no fp16 arithmetic extension, and anything above the baseline SIGILLs there. The
-engine also pins itself to the big CPU cluster before the ggml thread pool is created —
-placement, not clock, is what makes throughput on these devices bimodal.
+All of it runs on ggml. The arm64 build is deliberately pinned to `-march=armv8-a`: Cortex-A73/A72
+devices have no dotprod or fp16 arithmetic, and anything above the baseline crashes there.
 
 See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the module map.
 
 ### Build from source
 
-Requires Android Studio (Ladybug+), SDK 35, NDK 27.2. No submodules, no ONNX Runtime build:
+Requires Android Studio (Ladybug+), SDK 35, NDK 27.2:
 
 ```bash
 git clone https://github.com/vieenrose/VoxSumDroid.git
 cd VoxSumDroid
+git submodule update --init           # NOT --recursive (see .gitmodules / CMakeLists.txt)
 ./gradlew :app:assembleDebug          # arm64-v8a by default
 ./gradlew :app:testDebugUnitTest      # JVM unit tests
 scripts/test-on-device.sh             # instrumented suite on a connected device
@@ -231,109 +219,13 @@ scripts/test-on-device.sh             # instrumented suite on a connected device
 
 `test-on-device.sh` installs under its own application id, so an installed release build — and its
 sessions and models — is left untouched. Set `VOXSUM_SEED_MODELS` to a directory laid out like the
-app's `files/models` to skip the multi-GB on-device download.
+app's `files/models` to skip the on-device download.
 
-See [`SPIKE.md`](SPIKE.md) for the proven recipe and [`RELEASING.md`](RELEASING.md) for how tagging
-`v*` produces a signed release APK via CI.
-
-### ASR backend performance
-
-**Nemotron was removed 2026-08-18** — this table is what justified it. It ran ~2× worse CER
-than X-ASR on zh-TW and the app targets zh-TW meetings only, not the 25-language coverage
-Nemotron traded accuracy for.
-
-**MOSS-TD was also removed 2026-08-18 — from this Android app only.** A real transcription
-on the OPPO CPH2371 reference device (Dimensity 900, 2 big + 6 little cores, all engaged —
-there was no unused core to add) measured **RTF 4.43** on a 150 s zh-TW clip: decode ran at
-2.10 tok/s, matching the engine's own "already tuned" figure, so this was the ceiling, not
-an undertuned default. A 60-minute meeting at that rate takes ~4.4 hours — impractical
-regardless of MOSS-TD's accuracy edge. Root cause: autoregressive decode reads the full
-LM-head weight matrix every token, which is memory-bandwidth-bound, not compute-bound — more
-cores cannot fix it. **MOSS-TD stays on the Linux desktop app**, where the same weights run
-well under realtime (see that repo's README) with the best accuracy of any backend; this is a
-phone-hardware limit, not a verdict on the model. Diarization survives via the separate
-pyannote+CAM++ pipeline. The rows below predate removal and are kept as the record.
-
-Measured on a **Boox Tab Mini C** (Snapdragon 662, 4×Cortex-A73 2.0 GHz + 4×A53 1.8 GHz, 3.7 GB
-RAM, Android 11) over two **5-minute** clips — English and Taiwan-accented Mandarin — against
-human references, CPU only, 4 threads, full production pipeline (`AsrFullBenchTest`, the same
-engine classes the app runs). Error rates are normalized the standard way offline (Whisper
-`EnglishTextNormalizer` for en; OpenCC script fold + digit→漢字 + CJK-only for zh). Reproduce with:
-
-```bash
-scripts/test-on-device.sh <serial> -- -e class studio.voxsum.AsrFullBenchTest -e bench 1
-```
-
-| backend | en WER | zh-TW CER | RTF en / zh | peak RssAnon |
-|---|---:|---:|---:|---:|
-| **MOSS-TD** | **4.2%** | **6.7%** | 8.7 / 10.5 | 1072 MB |
-| **X-ASR** (Zipformer) | 8.6% | 11.5% | 0.29 / 2.27 | ~1.0 GB |
-| **Nemotron** (q8) | 12.2% | 22.7% | 0.86 / 1.60 | 381 MB |
-
-**The zh-TW column is held-out**, measured on FormosaSpeech clips from a 9-clip / 16.6-minute set
-and scored as character CER after OpenCC s2t, a per-digit 漢字 fold via cn2an, and a CJK-only
-filter. Across all 9 clips of that set the same run gives MOSS-TD 7.7, X-ASR 12.3, Nemotron 21.4.
-Earlier versions of this table published zh numbers (MOSS-TD 10.6, X-ASR 14.5, Nemotron 17.5)
-measured on 120 concatenated Common Voice 19.0 **test** utterances — in-domain for Nemotron, which
-is itself a Common-Voice-zh-TW fine-tune, and so flattering to it. Those numbers are withdrawn;
-**do not cite the old 17.5**. The en column is unchanged — it was measured on independent audio.
-
-**RTF** is wall-clock ÷ audio duration; below 1.0 is faster than real time. **Peak RssAnon, not
-total RSS**: model weights are mmap'd, so anonymous memory is what the app must keep resident and
-what gets it killed — total RSS would overstate every row by roughly a gigabyte. X-ASR's ~1 GB
-reflects running its bucketed encoder with the XNNPACK weight cache **off**, which is mandatory
-for correctness: the cache keys packed weights by tensor data, so the four shared-weight encoder
-signatures collide and the larger buckets decode to nothing.
-
-**Accuracy vs speed:** MOSS-TD was in a different accuracy class (and the only backend that
-diarized while it transcribed) but ran ~9–10× slower than real time on this SoC — later
-confirmed at RTF 4.4-5.7× on the current OPPO reference device, hence its removal above.
-X-ASR is the fast default. **Nemotron's case was language coverage — 25 languages — not
-accuracy**: on Taiwanese Mandarin it was roughly 2× worse than X-ASR and 3× worse than
-MOSS-TD, and it collapsed on classical text (44.8 CER on 三國演義 against MOSS-TD's 2.2). That
-trade wasn't worth it for an app targeting zh-TW meetings, so it's gone; the row above uses
-the q8 encoder that replaced the original q4-mix at the same 599 MB before removal.
-
-**Prefill and generation apply only to MOSS-TD**, the one autoregressive backend
-(per ~90 s window, zh clip):
-
-| MOSS-TD phase | rate |
-|---|---:|
-| encoder | ~0.7× audio duration |
-| prefill | ~18.8 tok/s |
-| **generation** | **0.96 tok/s** |
-
-Generation dominates (~75% of wall time) because autoregressive decode is a sequence of batch-1
-matmuls, which XNNPACK — tuned for feed-forward throughput — handles poorly. Session peak
-`rss_hwm` for MOSS stays ≈1.4 GB, safely inside this device's budget.
-
-### Sample output (start of each clip)
-
-**English** — reference: *“When you call someone who is thousands of miles away, you are using a
-satellite. Now widely available throughout the archipelago, …”*
-
-| backend | output |
-|---|---|
-| MOSS-TD | When you call someone who is thousands of miles away, you're using a satellite. Now widely available throughout the archipelago, … |
-| X-ASR | When you call someone who is thousands of miles away. You're using a satellite. Now widely available throughout the Archipelago. |
-| Nemotron | when you call someone who is thousands of miles away you're using a satellite now widely available throughout the archipelago |
-
-**zh-TW** — reference: *「在家也可以刷卡 外交與全球性議題 我們的人口結構急速老化 新店端 則正確…」*
-
-| backend | output |
-|---|---|
-| MOSS-TD | 在家也可以刷卡。外交與全球性議題。我們的人口結構急速老化。新店端。則正確的說明了… |
-| X-ASR | 大家也可以刷卡。外交與全球性議題。我們的人口結構急速老化。心電端。則正確的說明了… |
-| Nemotron | 這家也可以刷卡 外交與全球信議題 我們的人口結構急速老化 新電端 則正確的說明了… |
-
-> Numbers are one clip per language on one device and move with thermal state; treat them as
-> relative, not absolute. Two quiet-speech bugs were found with exactly this bench: one
-> silently dropped MOSS-TD's final window (en WER 26.7% → 4.2% after the fix), and a stale
-> GainNormalizer left the −29.5 dBFS en clip un-boosted so VAD-segmented backends lost
-> utterance-initial words (x-asr en 14.7% → 8.6% once the adaptive gain landed). Reproduce
-> this bench before trusting changes to the windowing, gain, or VAD code.
+[`RELEASING.md`](RELEASING.md) covers how tagging `v*` produces a signed release APK via CI, and
+[`tools/nemo-eval`](tools/nemo-eval/README.md) the host accuracy run for the speech engine.
 
 ## License
 
-[GPL-3.0-or-later](LICENSE). Bundled source dependencies retain their own licenses; the summarization
-model is distributed under the [Gemma Terms](https://ai.google.dev/gemma/terms).
+[GPL-3.0-or-later](LICENSE). Bundled source dependencies retain their own licenses. Downloaded models
+carry theirs: X-ASR (Apache-2.0), Nemotron-3 Diarization (OpenMDW-1.1), and the summarizer models
+listed in `LlmRegistry.kt`.

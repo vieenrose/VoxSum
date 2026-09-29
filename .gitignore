@@ -19,3 +19,4 @@ local.properties
 # Linux desktop port build artifacts (live on the linux branch; keep off main)
 /desktop/
 /shared/
+tools/nemo-eval/build/

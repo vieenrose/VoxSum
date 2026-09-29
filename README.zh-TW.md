@@ -64,7 +64,7 @@ VoxSum 是一間**錄音工作室**：首頁就是你的**場次清單**，每�
 
 **📝 閱讀與理解**
 - **即時逐字稿** —— 話一說出口，句子就出現；轉錄還沒結束就能先讀、先播放。
-- **誰在何時說話** —— 每一句都依語者標註並以顏色區分，並顯示語者數量。VoxSum 還能**從談話內容推測語者的真實姓名**。
+- **誰在何時說話，即時標註** —— 語者在轉錄的同時就被辨識出來（同一次串流處理）：錄音時每一句就已依語者標註並以顏色區分，並自動偵測語者數量（最多 8 位）。VoxSum 還能**從談話內容推測語者的真實姓名**。
 - **以你想要的方式、用你的語言呈現摘要** —— 一個簡短標題，以及**條列、重點或敘述**式的摘要。可與逐字稿同語言，或自選 **English · Français · 繁體中文 · 简体中文 · 日本語 · 한국어**。（預設為你手機的語言。）
 - **行動項目與決議** —— 從會議中整理出「誰該做什麼」的待辦清單草稿與關鍵決議，可直接編輯。
 - **搜尋逐字稿** —— 在長篇錄音中一鍵找出任何字詞；符合處會高亮，並可逐一切換。
@@ -81,7 +81,7 @@ VoxSum 是一間**錄音工作室**：首頁就是你的**場次清單**，每�
 
 ## 語言
 
-- **轉錄**內建支援中文與英文；在**設定**裡一鍵即可切換到多語言引擎（中文 · 英文 · 日文 · 韓文 · 粵語）。
+- **轉錄**支援中文、英文，以及中英夾雜的語音。
 - **摘要**可用七種語言撰寫，或與逐字稿同語言。
 - **App 本身**提供 **English、繁體中文、Français** 三種介面。
 
@@ -139,12 +139,12 @@ https://vieenrose.github.io/VoxSumDroid/repo?fingerprint=c9fe46eb7d87d4fa4e2340a
 
 ## 給開發者
 
-VoxSum 是 [VoxSum Studio](https://huggingface.co/spaces/Luigi/VoxSum-bak) 的裝置端移植版，透過
-[sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) 與 [llama.cpp](https://github.com/ggml-org/llama.cpp)
-在本機執行語音辨識、語者分離與摘要模型，全部由原始碼建置。模組對應請見
+VoxSum 是 [VoxSum Studio](https://huggingface.co/spaces/Luigi/VoxSum-bak) 的裝置端移植版，語音辨識與語者分離由
+[nemo-x-asr-diarizer](https://github.com/vieenrose/nemo-x-asr-diarizer.cpp) 以單一串流流程完成（X-ASR ＋ Nemotron-3 Diarization），
+摘要由 [llama.cpp](https://github.com/ggml-org/llama.cpp) 執行，全部在本機運行、由原始碼建置。模組對應請見
 [`ARCHITECTURE.md`](ARCHITECTURE.md)；建置步驟見[英文說明](README.md#build-from-source)。
 
 ## 授權
 
-[GPL-3.0-or-later](LICENSE)。內含的原始碼相依套件各自保留其授權；摘要模型依
-[Gemma Terms](https://ai.google.dev/gemma/terms) 條款散布。
+[GPL-3.0-or-later](LICENSE)。內含的原始碼相依套件各自保留其授權；下載的模型各依其授權：
+X-ASR（Apache-2.0）、Nemotron-3 Diarization（OpenMDW-1.1），摘要模型見 `LlmRegistry.kt`。

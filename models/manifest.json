@@ -1,113 +1,21 @@
 {
-  "_comment": "On-device model registry — Android. ASR backends (all LiteRT): X-ASR zipformer (default — 7x real-time, zh-en), MOSS-TD (one-pass ASR + diarization + timestamps, zh/en/ja/ko/yue). Summarization: llama.cpp / GGUF (built from source out of the native/llama.cpp submodule). sherpa-onnx / ONNX Runtime removed 2026-07; LiteRT-LM removed 2026-07-31 when Gemma 4's departure took away the only reason for its costs. SHA-256 pins verified after download.",
+  "_comment": "On-device model registry — Android. ASR + diarization: nemo-x-asr-diarizer (streaming X-ASR + Nemotron-3 diarization, ggml, built from the native/crispasr, native/crispasr-ggml and native/audiocpp submodules). Summarization: llama.cpp / GGUF (native/llama.cpp); LLM specs live in LlmRegistry.kt. Revision-pinned; SHA-256 verified after download (ModelManager.kt).",
   "asr": [
     {
-      "id": "moss_td_encoder_q8",
+      "id": "x-asr-zh-en-q8_0",
       "kind": "ASR",
-      "url": "https://huggingface.co/Luigi/moss-transcribe-diarize-litert/resolve/1de273ca3d46c109e248a58b6db485bdb11f691f/moss_td_encoder_q8.tflite",
-      "sha256": "8880bd69c25a1c156bcd641c06541fffdd580ba4477796578584cba7d0a75915",
-      "license": "Apache-2.0",
-      "default": true
-    },
-    {
-      "id": "moss_td_embedder_q8",
-      "kind": "ASR",
-      "url": "https://huggingface.co/Luigi/moss-transcribe-diarize-litert/resolve/1de273ca3d46c109e248a58b6db485bdb11f691f/moss_td_embedder_q8.tflite",
-      "sha256": "08b68e2301b078c6c13da7d2dc0b261d4162c2ddaa18078946fad446c3fcf292",
+      "url": "https://huggingface.co/cstr/x-asr-zh-en-GGUF/resolve/acb1a95eac809719a2c86d1048471f96fc6444ad/x-asr-zh-en-q8_0.gguf",
+      "bytes": 168189920,
+      "sha256": "1ca120084a1517cf02d96e44cdd9a9544f0c887f6d0149c9f85d151be6833a61",
       "license": "Apache-2.0"
     },
     {
-      "id": "moss_td_decoder_v2_q4b32_ekv2560",
-      "kind": "ASR",
-      "url": "https://huggingface.co/Luigi/moss-transcribe-diarize-litert/resolve/1de273ca3d46c109e248a58b6db485bdb11f691f/moss_td_decoder_v2_q4b32_ekv2560.tflite",
-      "sha256": "8ddfa1e2ee2e0899e948e812ddc2ea10fc4f74c4abd290efdbdb1d626e9bb94b",
-      "license": "Apache-2.0"
-    },
-    {
-      "id": "xasr-litert-q8-octav",
-      "kind": "ASR",
-      "url": "https://huggingface.co/Luigi/xasr-litert/resolve/main/xasr_q8_octav.tflite",
-      "sha256": "33849c8eed0faf7f268a36d852c3557c72d10782473667f39d3483e282fe00ed",
-      "license": "Apache-2.0"
-    },
-    {
-      "id": "xasr-litert-tokens",
-      "kind": "ASR",
-      "url": "https://huggingface.co/Luigi/xasr-litert/resolve/main/tokens.txt",
-      "sha256": "b818a60878b9aae978cbb8ad594acbd403d76d1af2e31ef4197c84e2dbdba27c",
-      "license": "Apache-2.0"
-    },
-    {
-      "id": "nemotron-encoder-q4",
-      "kind": "ASR",
-      "url": "https://huggingface.co/Luigi/nemotron-asr-litert/resolve/75ec9fbbce099ef2630e14f6eceaf1576ec107dc/nemotron_encoder_q4.tflite",
-      "sha256": "9e817d29ab20013de9962a8c347e7f68f9a896eef1e29ffcf9b0e0a0f1ef691c",
-      "license": "nvidia-open-model-license"
-    },
-    {
-      "id": "nemotron-prompt-fuse",
-      "kind": "ASR",
-      "url": "https://huggingface.co/Luigi/nemotron-asr-litert/resolve/75ec9fbbce099ef2630e14f6eceaf1576ec107dc/nemotron_prompt_fuse_fp32.tflite",
-      "sha256": "b4dcdc802c4124b0b0b0ff5b56344705f9b15f10c9f4983aa3503176b2e9e9b9",
-      "license": "nvidia-open-model-license"
-    },
-    {
-      "id": "nemotron-decoder-fp16",
-      "kind": "ASR",
-      "url": "https://huggingface.co/Luigi/nemotron-asr-litert/resolve/75ec9fbbce099ef2630e14f6eceaf1576ec107dc/nemotron_decoder_fp16.tflite",
-      "sha256": "93a3b8d91ab604305cb5c3014c4fb389cfd7b6a7397dc2e6e22df459f3f8859f",
-      "license": "nvidia-open-model-license"
-    },
-    {
-      "id": "nemotron-joint-fp16",
-      "kind": "ASR",
-      "url": "https://huggingface.co/Luigi/nemotron-asr-litert/resolve/75ec9fbbce099ef2630e14f6eceaf1576ec107dc/nemotron_joint_fp16.tflite",
-      "sha256": "8e5f46279a288ff5c0ce11f581fcd3753308c2151559046c90ca62aa632d48f2",
-      "license": "nvidia-open-model-license"
-    },
-    {
-      "id": "nemotron-tokenizer",
-      "kind": "ASR",
-      "url": "https://huggingface.co/Luigi/nemotron-asr-litert/resolve/75ec9fbbce099ef2630e14f6eceaf1576ec107dc/tokenizer.json",
-      "sha256": "3f3d481deb073b64c2082e8c7860d487a3a62774bf4e9e4faac83007e181f246",
-      "license": "nvidia-open-model-license"
-    }
-  ],
-  "diarization": [
-    {
-      "id": "pyannote-segmentation-litert",
-      "kind": "DIARIZATION_SEG",
-      "url": "https://huggingface.co/soniqo/Pyannote-Segmentation-LiteRT/resolve/8422f41c2d87cafe24be03d731b64c74eab2c126/pyannote-segmentation.tflite",
-      "sha256": "0232d4098c5069d012b92cb4b5d8cf148807777aa214203e4706a282e640f259",
-      "license": "MIT"
-    },
-    {
-      "id": "campplus_cn_common_500f",
-      "kind": "DIARIZATION_EMB",
-      "url": "https://huggingface.co/Luigi/campplus-litert/resolve/985721e598976ac8f4433e25bf41f61bec1e16df/campplus_cn_common_500f.tflite",
-      "sha256": "e7aeb9312b17a8c76af38cb772d0e291b30dd377f3dd5aeb6648383ae7da87d9",
-      "license": "Apache-2.0"
-    }
-  ],
-  "vad": [
-    {
-      "id": "silero_vad_litert",
-      "kind": "VAD",
-      "url": "https://huggingface.co/soniqo/Silero-VAD-v5-LiteRT/resolve/655bff6b9a748de98c17a10f6c5d7ee3c0b53cbc/silero-vad.tflite",
-      "sha256": "4559669e3423afaa11b3716d01d1421c0bf52add8b6891846ca73cc9bae875d2",
-      "license": "MIT"
-    }
-  ],
-  "llm": [
-    {
-      "id": "qwen3.5-0.8b",
-      "kind": "LLM",
-      "url": "https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/6ab461498e2023f6e3c1baea90a8f0fe38ab64d0/Qwen3.5-0.8B-Q4_K_M.gguf",
-      "sha256": "bd258782e35f7f458f8aced1adc053e6e92e89bc735ba3be89d38a06121dc517",
-      "bytes": 532517120,
-      "license": "apache-2.0",
-      "default": true,
-      "_comment": "Same artifact and same pin as the desktop build. Commit-pinned, not `main`: on main the blob can be re-published under us and the sha256 would stop matching."
+      "id": "nemotron-3-diarization-q8_0",
+      "kind": "DIARIZATION",
+      "url": "https://huggingface.co/audio-cpp/Nemotron-3-Diarization-GGUF/resolve/647d39feaa0e91dca5ce355a95403837b76dff56/nemotron-3-diarization-q8_0.gguf",
+      "bytes": 106675136,
+      "sha256": "9a737455bd10123bcf1e036d9a0b07b6e8c42e7d0dd1a5ee4141dc386db46d0b",
+      "license": "OpenMDW-1.1"
     }
   ]
 }

@@ -35,15 +35,13 @@ jobs:
       - id: ks
         run: echo "has=${{ secrets.KEYSTORE_BASE64 != '' }}" >> "$GITHUB_OUTPUT"
 
-      # Everything native is LiteRT: libLiteRt/accelerator prebuilts live in jniLibs and
-      # voxsum-mosslite builds from in-repo sources — no submodules, no ORT-from-source.
-      # llama.cpp is a submodule (native/llama.cpp) and CMakeLists.txt add_subdirectory()s it, so
-      # the native build cannot configure without it. This was `false` from before the summarizer
-      # moved back to llama.cpp, which broke every release build from that migration onward — the
-      # failure only surfaced at v0.37.0 because nothing had cut a release in between.
+      # Native code builds from submodules: native/llama.cpp (summarizer) and native/audiocpp,
+      # native/crispasr, native/crispasr-ggml (ASR + diarization). NOT recursive: audio.cpp carries
+      # a nested submodule with an SSH URL a runner cannot fetch, and CrispASR's own nested ggml is
+      # replaced by the top-level native/crispasr-ggml pin (see app/src/main/cpp/CMakeLists.txt).
       - uses: actions/checkout@v4
         with:
-          submodules: recursive
+          submodules: true
 
       - name: Free disk space
         uses: jlumbroso/free-disk-space@main

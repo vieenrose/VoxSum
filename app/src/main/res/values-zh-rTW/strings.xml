@@ -47,7 +47,6 @@
     <string name="theme_dark">深色</string>
     <string name="theme_eink">電子紙</string>
     <string name="theme_eink_hint">電子紙為專為電子閱讀器設計的高對比扁平主題，請手動選用。</string>
-    <string name="settings_asr_engine">語音辨識引擎</string>
     <string name="settings_llm_backend">推理硬體</string>
     <string name="settings_backend_cpu">CPU</string>
     <string name="settings_backend_gpu">GPU（實驗性）</string>
@@ -55,15 +54,9 @@
     <string name="settings_low_ram">低記憶體</string>
     <string name="settings_needs_4gb">需要約 4 GB RAM</string>
     <string name="settings_needs_6gb">需要約 6 GB RAM</string>
-    <string name="settings_speakers">語者數（%1$s）</string>
-    <string name="settings_auto">自動</string>
-    <string name="asr_tagline_xasr">x-asr · 中英、含標點</string>
-    <string name="settings_recognition">辨識</string>
     <string name="settings_itn">反向文字正規化</string>
-    <string name="settings_vad_threshold">語音偵測門檻</string>
     <string name="settings_diarization">語者分段</string>
     <string name="settings_identify_speakers">辨識語者</string>
-    <string name="settings_precise_diarization">精確語者分界（最適合會議）</string>
     <string name="settings_summary_options">摘要選項</string>
     <string name="settings_summary_language">中文字形</string>
     <string name="summary_language_auto">與逐字稿相同</string>
@@ -72,8 +65,6 @@
     <string name="storage_total">裝置上的模型：%1$s</string>
     <string name="storage_none">尚未下載任何模型</string>
     <string name="storage_delete">刪除模型</string>
-    <string name="model_kind_vad">語音偵測</string>
-    <string name="model_kind_speaker">語者模型</string>
     <string name="model_kind_asr">轉錄模型</string>
     <string name="model_kind_llm">摘要模型</string>
     <string name="model_kind_other">其他</string>
@@ -146,15 +137,11 @@
     <!-- Foreground-service notifications -->
     <string name="svc_downloading_models">正在下載模型（首次執行）…</string>
     <string name="svc_downloading_models_pct">正在下載模型… %d%%</string>
-    <string name="svc_downloading_diarization">正在下載語者分段模型…</string>
-    <string name="svc_downloading_diarization_pct">正在下載語者模型… %d%%</string>
     <string name="svc_downloading_named">正在下載 %1$s…</string>
     <string name="svc_summarization_model_pct">摘要模型… %d%%</string>
     <string name="svc_summarizing">摘要中…</string>
     <string name="svc_summarizing_eta">摘要中… %1$s</string>
     <string name="svc_identifying_speakers">辨識語者中…</string>
-    <string name="svc_diarization_skipped">語者辨識失敗——不標記語者繼續</string>
-    <string name="svc_identifying_speakers_eta">辨識語者中… %1$s</string>
     <string name="show_more">顯示更多</string>
     <string name="show_less">顯示較少</string>
     <string name="eta_minutes">約剩 %1$d 分鐘</string>
@@ -325,9 +312,8 @@
     <string name="cd_status_processing">處理中</string>
     <string name="cd_status_done">已完成</string>
     <string name="storage_compile_cache">%1$s（編譯快取）</string>
-    <string name="settings_asr_hw">轉錄硬體</string>
     <string name="pipeline_transcript_via">使用 %1$s · %2$s · 每句附時間軸</string>
-    <string name="pipeline_diar_pyannote">語者由 pyannote + CAM++ 分離</string>
+    <string name="pipeline_diar_nemotron">語者由 Nemotron-3 即時分離</string>
     <string name="pipeline_diar_off">未區分語者</string>
     <string name="notes_decisions">決議事項</string>
     <string name="notes_open">待確認問題</string>

@@ -46,7 +46,7 @@ class SettingsContentTest {
     private fun host(cfg: TranscriptionConfig = baseCfg, enabled: Boolean = true, onChange: (TranscriptionConfig) -> Unit = {}) {
         compose.setContent {
             Column(Modifier.verticalScroll(rememberScrollState())) {
-                SettingsContent(cfg, readyAsr = setOf(cfg.asrBackend), readyLlm = setOf(cfg.llmModelId), enabled = enabled, onChange = onChange)
+                SettingsContent(cfg, readyLlm = setOf(cfg.llmModelId), enabled = enabled, onChange = onChange)
             }
         }
     }

@@ -48,7 +48,6 @@
     <string name="theme_dark">Dark</string>
     <string name="theme_eink">E-ink</string>
     <string name="theme_eink_hint">E-ink is a flat high-contrast theme for e-paper devices; select it manually.</string>
-    <string name="settings_asr_engine">ASR Engine</string>
     <string name="settings_llm_backend">Inference hardware</string>
     <string name="settings_backend_cpu">CPU</string>
     <string name="settings_backend_gpu">GPU (experimental)</string>
@@ -56,15 +55,9 @@
     <string name="settings_low_ram">low RAM</string>
     <string name="settings_needs_4gb">needs ~4 GB RAM</string>
     <string name="settings_needs_6gb">needs ~6 GB RAM</string>
-    <string name="settings_speakers">Speakers (%1$s)</string>
-    <string name="settings_auto">auto</string>
-    <string name="asr_tagline_xasr">x-asr · zh-en, punctuated</string>
-    <string name="settings_recognition">Recognition</string>
     <string name="settings_itn">Inverse text normalization</string>
-    <string name="settings_vad_threshold">VAD threshold</string>
     <string name="settings_diarization">Diarization</string>
     <string name="settings_identify_speakers">Identify speakers</string>
-    <string name="settings_precise_diarization">Precise speaker boundaries (best for meetings)</string>
     <string name="settings_summary_options">Summary Options</string>
     <string name="settings_summary_language">Chinese script</string>
     <string name="summary_language_auto">Match transcript</string>
@@ -75,8 +68,6 @@
     <string name="storage_total">Models on device: %1$s</string>
     <string name="storage_none">No models downloaded yet</string>
     <string name="storage_delete">Delete model</string>
-    <string name="model_kind_vad">Voice detection</string>
-    <string name="model_kind_speaker">Speaker model</string>
     <string name="model_kind_asr">Transcription model</string>
     <string name="model_kind_llm">Summary model</string>
     <string name="model_kind_other">Other</string>
@@ -153,15 +144,11 @@
     <!-- Foreground-service notifications -->
     <string name="svc_downloading_models">Downloading models (first run)…</string>
     <string name="svc_downloading_models_pct">Downloading models… %d%%</string>
-    <string name="svc_downloading_diarization">Downloading diarization models…</string>
-    <string name="svc_downloading_diarization_pct">Downloading speaker model… %d%%</string>
     <string name="svc_downloading_named">Downloading %1$s…</string>
     <string name="svc_summarization_model_pct">Summarization model… %d%%</string>
     <string name="svc_summarizing">Summarizing…</string>
     <string name="svc_summarizing_eta">Summarizing… %1$s</string>
     <string name="svc_identifying_speakers">Identifying speakers…</string>
-    <string name="svc_diarization_skipped">Speaker detection failed — continuing without speakers</string>
-    <string name="svc_identifying_speakers_eta">Identifying speakers… %1$s</string>
     <string name="show_more">Show more</string>
     <string name="show_less">Show less</string>
     <string name="eta_minutes">≈%1$d min left</string>
@@ -345,9 +332,8 @@
     <string name="cd_status_processing">Processing</string>
     <string name="cd_status_done">Done</string>
     <string name="storage_compile_cache">%1$s (compile cache)</string>
-    <string name="settings_asr_hw">Transcription hardware</string>
     <string name="pipeline_transcript_via">via %1$s · %2$s · timestamps per utterance</string>
-    <string name="pipeline_diar_pyannote">speakers via pyannote + CAM++</string>
+    <string name="pipeline_diar_nemotron">speakers via Nemotron-3 (live)</string>
     <string name="pipeline_diar_off">no speaker separation</string>
     <string name="notes_decisions">Decisions</string>
     <string name="notes_open">Open questions</string>

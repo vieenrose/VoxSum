@@ -1910,7 +1910,7 @@ private fun TranscribeScreen(
     val asrDisplay = AsrBackend.fromId(config.asrBackend).displayName
     val diarizationDisplay =
         if (!config.diarizationEnabled) stringResource(R.string.pipeline_diar_off)
-        else stringResource(R.string.pipeline_diar_pyannote)
+        else stringResource(R.string.pipeline_diar_nemotron)
 
     // The utterance list — shared by the portrait (single column) and landscape (right pane) layouts.
     val speakerIds = utterances.mapNotNull { it.speaker }.distinct().sorted()

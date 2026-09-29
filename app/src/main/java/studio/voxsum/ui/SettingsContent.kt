@@ -54,7 +54,6 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import studio.voxsum.BuildConfig
 import studio.voxsum.R
-import studio.voxsum.core.asr.AsrBackend
 import studio.voxsum.core.config.SummaryScript
 import studio.voxsum.core.config.SummaryStyle
 import studio.voxsum.core.config.ThemeMode
@@ -70,14 +69,13 @@ import studio.voxsum.ui.theme.voxSumSwitchColors
 /**
  * Pipeline configuration — Android counterpart of the original's ASR / Diarization /
  * Summarization sidebar. The two model pickers (ASR engine, summary model) are promoted to
- * the top as rich [ModelOptionCard]s so they are the first thing seen; [readyAsr]/[readyLlm]
+ * the top as rich [ModelOptionCard]s so they are the first thing seen; [readyLlm]
  * carry which models are already on disk (for the download badge). Edits report via [onChange].
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SettingsContent(
     config: TranscriptionConfig,
-    readyAsr: Set<String>,
     readyLlm: Set<String>,
     enabled: Boolean = true,
     onChange: (TranscriptionConfig) -> Unit,
@@ -88,24 +86,6 @@ fun SettingsContent(
         // (0) Appearance — theme selector (Auto follows the OS; E-ink is a manual e-paper theme).
         Section(stringResource(R.string.settings_appearance))
         AppearanceSelector(enabled)
-
-        // (1) ASR engine — rich selectable cards.
-        Section(stringResource(R.string.settings_asr_engine))
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            AsrBackend.entries.forEach { b ->
-                val taglineRes = when (b) {
-                    AsrBackend.XASR -> R.string.asr_tagline_xasr
-                }
-                ModelOptionCard(
-                    title = b.shortName,
-                    subtitle = stringResource(taglineRes),
-                    selected = AsrBackend.fromId(config.asrBackend) == b,
-                    downloaded = b.id in readyAsr,
-                    enabled = enabled,
-                    onClick = { onChange(config.copy(asrBackend = b.id)) },
-                )
-            }
-        }
 
         // (2) Summary model (LLM) — promoted to #2, with size + RAM hint.
         Section(stringResource(R.string.settings_summary_model))
@@ -135,44 +115,10 @@ fun SettingsContent(
             // and NPU would need per-SoC model builds that do not exist for this export.
         }
 
-        // (3) Recognition detail — VAD.
-        Section(stringResource(R.string.settings_recognition))
-        SliderRow(stringResource(R.string.settings_vad_threshold), config.vadThreshold, 0.1f, 0.9f, enabled) {
-            onChange(config.copy(vadThreshold = it))
-        }
-
         // (4) Diarization.
         Section(stringResource(R.string.settings_diarization))
         SwitchRow(stringResource(R.string.settings_identify_speakers), config.diarizationEnabled, enabled) {
             onChange(config.copy(diarizationEnabled = it))
-        }
-        if (config.diarizationEnabled) {
-            SwitchRow(stringResource(R.string.settings_precise_diarization), config.preciseDiarization, enabled) {
-                onChange(config.copy(preciseDiarization = it))
-            }
-        }
-        if (config.diarizationEnabled) {
-            val speakersVal = if (config.numSpeakers < 0) stringResource(R.string.settings_auto) else config.numSpeakers.toString()
-            LabeledRow(stringResource(R.string.settings_speakers, speakersVal)) {
-                // 48 dp buttons, not 32 dp chips — a stepper is tapped repeatedly and
-                // must meet the Android touch-target minimum.
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        enabled = enabled,
-                        onClick = { onChange(config.copy(numSpeakers = (config.numSpeakers - 1).coerceAtLeast(-1))) },
-                        modifier = Modifier.size(48.dp),
-                        contentPadding = PaddingValues(0.dp),
-                    ) { Text("–", style = MaterialTheme.typography.titleMedium) }
-                    OutlinedButton(
-                        enabled = enabled,
-                        onClick = { onChange(config.copy(numSpeakers = (config.numSpeakers + 1).coerceAtMost(10))) },
-                        modifier = Modifier.size(48.dp),
-                        contentPadding = PaddingValues(0.dp),
-                    ) { Text("+", style = MaterialTheme.typography.titleMedium) }
-                }
-            }
-            // (The cluster-threshold slider is gone: spectral clustering picks the speaker count
-            // from the eigengap, so there is no distance threshold left to hand-tune.)
         }
 
         // (5) Summary options.
@@ -321,8 +267,6 @@ private fun prettyModelName(name: String): String {
 @Composable
 private fun kindLabel(kind: ModelManager.ModelKind): String = stringResource(
     when (kind) {
-        ModelManager.ModelKind.VAD -> R.string.model_kind_vad
-        ModelManager.ModelKind.SPEAKER -> R.string.model_kind_speaker
         ModelManager.ModelKind.ASR -> R.string.model_kind_asr
         ModelManager.ModelKind.LLM -> R.string.model_kind_llm
         ModelManager.ModelKind.OTHER -> R.string.model_kind_other
@@ -443,15 +387,12 @@ private fun AboutContent(onUpdateFound: (UpdateInfo) -> Unit) {
 }
 
 private val COMPONENT_LICENSES = listOf(
-    "LiteRT (ASR · VAD · diarization runtimes)" to "Apache-2.0",
-    "LiteRT-LM (summarization runtime)" to "Apache-2.0",
-    "ONNX Runtime" to "MIT",
-    "llama.cpp (summarization)" to "MIT",
-    "Gemma models" to "Gemma Terms",
-    "SenseVoice · Zipformer ASR models" to "Apache-2.0",
-    "pyannote segmentation-3.0 (speaker boundaries)" to "MIT",
-    "CAM++ speaker embedding (3D-Speaker)" to "Apache-2.0",
-    "Silero VAD" to "MIT",
+    "nemo-x-asr-diarizer (streaming ASR + diarization)" to "Apache-2.0",
+    "CrispASR (X-ASR runtime)" to "MIT",
+    "audio.cpp (Nemotron-3 diarization runtime)" to "Apache-2.0",
+    "ggml · llama.cpp (summarization)" to "MIT",
+    "X-ASR zh-en model" to "Apache-2.0",
+    "Nemotron-3 Diarization model" to "OpenMDW-1.1",
     "OpenCC (zh-TW)" to "Apache-2.0",
     "NewPipeExtractor (YouTube)" to "GPL-3.0",
     "Jetpack Compose" to "Apache-2.0",

@@ -1,13 +1,12 @@
 # Releasing — self-hosted F-Droid repo (Route B)
 
-On every `v*` tag, `.github/workflows/fdroid.yml` builds a signed release APK (all-LiteRT
-native build — the onnxruntime-from-source step was removed in 2026-07), generates an
+On every `v*` tag, `.github/workflows/fdroid.yml` builds a signed release APK (every native
+library compiled from the pinned submodules), generates an
 F-Droid repo, and publishes it to GitHub Pages. Users add
 the repo URL in the F-Droid / Droid-ify client — no Play Store, no review gate.
 
 This is the fast delivery path while the app is in development. The official f-droid.org
-repository (Route A) is a later step; with ONNX Runtime gone the offline-build blocker is
-reduced to the committed LiteRT AAR prebuilts (see `mosslite/PROVENANCE.md`).
+repository (Route A) is a later step; no prebuilt native binaries are committed.
 
 ## One-time setup
 
@@ -53,7 +52,7 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-The workflow runs (~7 min end to end since the LiteRT-only switch).
+The workflow builds llama.cpp, CrispASR and audio.cpp from source, so allow extra time.
 When it finishes, the repo is live at:
 
 ```

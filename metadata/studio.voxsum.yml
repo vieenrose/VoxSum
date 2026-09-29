@@ -1,6 +1,5 @@
 # fdroiddata recipe for VoxSum. Copy into fdroiddata/metadata/studio.voxsum.yml when
-# submitting the Merge Request. See FDROID_SUBMISSION.md for the full playbook and the
-# onnxruntime offline-build caveat (the main packaging challenge).
+# submitting the Merge Request. See FDROID_SUBMISSION.md for the full playbook.
 Categories:
   - Multimedia
 License: GPL-3.0-or-later
@@ -15,24 +14,11 @@ Builds:
   - versionName: "0.1.0"
     versionCode: 1
     commit: v0.1.0
-    submodules: true          # native/sherpa-onnx, native/llama.cpp, native/onnxruntime
+    submodules: true          # native/llama.cpp, native/audiocpp, native/crispasr, native/crispasr-ggml
     ndk: r27c                 # == 27.2.12479018 (matches app/build.gradle.kts ndkVersion)
-    # Build onnxruntime from the pinned submodule (the build VM has network), then build the
-    # app. All in one `build:` block so the SHERPA_ONNXRUNTIME_* exports reach the gradle/NDK
-    # step. No prebuilt binaries are committed; everything compiles from source.
-    build:
-      - export ANDROID_NDK="$$NDK$$"
-      - export ORT_SRC="$$WORKDIR$$/native/onnxruntime"
-      - export PATH="$HOME/.local/bin:$PATH"
-      - pip3 install --user "cmake>=3.28" packaging
-      - ./scripts/build-onnxruntime-android.sh
-      - export SHERPA_ONNXRUNTIME_LIB_DIR="$HOME/ort-build/Release"
-      - export SHERPA_ONNXRUNTIME_INCLUDE_DIR="$HOME/ort-headers"
-      - ./gradlew :app:assembleRelease
-    # NOTE: the onnxruntime + sherpa-onnx + llama.cpp build is heavy (~40 min on a 4-core
-    # runner, several GB). This may exceed F-Droid's default build limits — raise it with
-    # maintainers early (see FDROID_SUBMISSION.md "Build is heavy"). The recipe's build-field
-    # env wiring + NDK path will likely need one iteration against `fdroid build`.
+    # Everything native compiles from the pinned submodules inside the gradle/NDK build.
+    gradle:
+      - yes
 
 AutoUpdateMode: Version v%v
 UpdateCheckMode: Tags

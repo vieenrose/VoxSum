@@ -73,7 +73,8 @@ maintainers** early about the build cost (they sometimes grant bigger runners or
 ## AntiFeatures / policy
 
 - 100% FOSS deps; native libs built from source (no committed `.so`/`.aar`).
-- Models are FOSS (Apache-2.0 / MIT), **SHA-256-pinned**, downloaded at first run from upstream
-  release pages (or side-loadable to stay network-free). No non-free models (Llama, Gemma).
+- Models are openly licensed (X-ASR Apache-2.0, Nemotron-3 Diarization OpenMDW-1.1, summarizers per
+  `LlmRegistry.kt`), **SHA-256-pinned**, downloaded at first run from Hugging Face (or side-loadable to
+  stay network-free).
 - No Google Play Services, analytics, or trackers. Default build earns no AntiFeature.
 - License: GPL-3.0-or-later. (Replace the `LICENSE` stub with the full GPL text before submitting.)

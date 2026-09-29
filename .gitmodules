@@ -1,3 +1,14 @@
 [submodule "native/llama.cpp"]
 	path = native/llama.cpp
 	url = https://github.com/ggml-org/llama.cpp.git
+[submodule "native/audiocpp"]
+	path = native/audiocpp
+	url = https://github.com/vieenrose/audio.cpp
+	branch = nemo-x-asr-diarizer
+[submodule "native/crispasr"]
+	path = native/crispasr
+	url = https://github.com/vieenrose/CrispASR
+	branch = nemo-x-asr-diarizer
+[submodule "native/crispasr-ggml"]
+	path = native/crispasr-ggml
+	url = https://github.com/vieenrose/ggml

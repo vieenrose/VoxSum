@@ -24,7 +24,6 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import studio.voxsum.R
-import studio.voxsum.core.asr.AsrBackend
 import studio.voxsum.core.config.TranscriptionConfig
 import studio.voxsum.core.models.LlmRegistry
 import studio.voxsum.core.models.ModelManager
@@ -47,17 +46,14 @@ fun ConfigSheet(
     val pal = LocalVoxSumPalette.current
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var readyAsr by remember { mutableStateOf<Set<String>>(emptySet()) }
     var readyLlm by remember { mutableStateOf<Set<String>>(emptySet()) }
 
     LaunchedEffect(Unit) {
         val res = withContext(Dispatchers.IO) {
             val m = ModelManager(context)
-            val a = AsrBackend.entries.filter { runCatching { m.asrReady(it) }.getOrDefault(false) }.map { it.id }.toSet()
-            val l = LlmRegistry.ALL.filter { runCatching { m.llmReady(it) }.getOrDefault(false) }.map { it.id }.toSet()
-            a to l
+            LlmRegistry.ALL.filter { runCatching { m.llmReady(it) }.getOrDefault(false) }.map { it.id }.toSet()
         }
-        readyAsr = res.first; readyLlm = res.second
+        readyLlm = res
     }
 
     ModalBottomSheet(
@@ -79,7 +75,7 @@ fun ConfigSheet(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 8.dp),
             )
-            SettingsContent(config, readyAsr, readyLlm, enabled, onChange, onUpdateFound)
+            SettingsContent(config, readyLlm, enabled, onChange, onUpdateFound)
         }
     }
 }

@@ -9,43 +9,15 @@ import studio.voxsum.core.models.LlmRegistry
  */
 data class TranscriptionConfig(
     // --- ASR ---
-    val asrBackend: String = "x-asr",  // default: fastest engine (7x real-time); MOSS opt-in for native diarization
-    val asrModelId: String = "sherpa-onnx-x-asr-zipformer-transducer-zh-en-punct-int8-2026-06-03",
+    val asrBackend: String = "nemo",   // provenance id (AsrBackend); nemo is the only engine
+    val asrModelId: String = "x-asr-zh-en-q8_0+nemotron-3-diarization-q8_0",
     val useItn: Boolean = true,               // inverse text normalization
-    val vadThreshold: Float = 0.5f,           // 0.1..0.9
-    // Hotword / context biasing: names, jargon and terms the recording is likely to contain.
-    // MOSS-TD ONLY — it is an autoregressive LLM ASR, so biasing is just text appended to its
-    // prompt in upstream's documented `热词提示：a, b, c` form (see MossLitePrompt.buildIds).
-    // The other backends have no equivalent and ignore this. Empty = the prompt is byte-identical
-    // to the un-biased one, so the default costs nothing.
+    // Hotword / context biasing (names, jargon). Kept for stored configs; the streaming
+    // transducer has no prompt, so the engine does not use it.
     val asrContext: String = "",
 
     // --- Diarization ---
     val diarizationEnabled: Boolean = true,
-    // -1 = auto: the speaker count comes from spectral clustering's eigengap (scale-free — no
-    // per-embedding-model distance threshold to tune; the old clusterThreshold knob was removed
-    // when it proved mistuned for CAM++ and silently merged speakers).
-    val numSpeakers: Int = -1,
-    // Segmentation-first diarization (pyannote local segmenter + CAM++ + auto-k): speaker
-    // boundaries at frame resolution instead of silence boundaries.
-    //
-    // DEFAULT TRUE, decided 2026-08-05: this app targets MEETINGS, and the split is by content
-    // type, measured on six recordings with confirmed speaker counts (~/voxsum-testdata/RESULTS.md):
-    //
-    //     meetings (2 clips):            per-utterance 1/2   segmentation-first 2/2
-    //     podcasts/interviews (4 clips): per-utterance 4/4   segmentation-first 2/4
-    //
-    // So this reconciles two results that looked contradictory: the AMI/AISHELL sweep behind the
-    // original tuning measured meetings and favoured this path (attribution 82.3->95.6% AMI,
-    // 67.1->92.1% AISHELL); the podcast clips contradict it; both are right. Turning it off would
-    // trade a measured meeting regression for podcast accuracy, which is the wrong way round for
-    // this product. Podcast-heavy users can switch it off in Settings.
-    //
-    // The known weakness is anchor starvation: SEG_ANCHOR_SOLO_SEC demands a 2 s uninterrupted
-    // solo run, which rapid two/three-way turn-taking rarely provides. An anchor-count floor was
-    // tried and REVERTED — it regressed the interview to k=1. Any real fix belongs on the
-    // AMI/AISHELL sweep, not on these clips.
-    val preciseDiarization: Boolean = true,
 
     // --- Summarization ---
     // The actually-used summary model. MUST track LlmRegistry.DEFAULT_ID — hardcoding it here (it was
@@ -55,11 +27,6 @@ data class TranscriptionConfig(
     /** Summarizer inference hardware: "cpu" (default) or "gpu" (LiteRT-LM models only —
      *  llama.cpp GGUFs and the MOSS/ASR engines always run on CPU). */
     val llmBackend: String = "auto",  // auto = GPU-first with CPU fallback
-    // LiteRT ASR hardware: "auto" (default) = per-backend policy — MOSS-TD tries the
-    // GPU first (its prefill/decode are the pain point; sticky CPU fallback if the
-    // compile fails), X-ASR/SenseVoice run CPU (already faster than real-time there).
-    // "cpu"/"gpu" force it for every backend.
-    val asrHardware: String = "auto",
     val summaryPrompt: String = "Summarize the key points of this transcript.",
     // Target language for ALL out-coming text — summary, title, transcript, and detected speaker names
     // Han script every Chinese text is normalized to (a [SummaryScript] id). Summaries are always

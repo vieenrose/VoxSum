@@ -47,7 +47,6 @@
     <string name="theme_dark">Sombre</string>
     <string name="theme_eink">E-ink</string>
     <string name="theme_eink_hint">E-ink est un thème plat à fort contraste pour les liseuses ; sélectionnez-le manuellement.</string>
-    <string name="settings_asr_engine">Moteur de reconnaissance</string>
     <string name="settings_llm_backend">Matériel d’inférence</string>
     <string name="settings_backend_cpu">CPU</string>
     <string name="settings_backend_gpu">GPU (expérimental)</string>
@@ -55,15 +54,9 @@
     <string name="settings_low_ram">faible RAM</string>
     <string name="settings_needs_4gb">~4 Go de RAM requis</string>
     <string name="settings_needs_6gb">~6 Go de RAM requis</string>
-    <string name="settings_speakers">Locuteurs (%1$s)</string>
-    <string name="settings_auto">auto</string>
-    <string name="asr_tagline_xasr">x-asr · zh-en, ponctué</string>
-    <string name="settings_recognition">Reconnaissance</string>
     <string name="settings_itn">Normalisation inverse du texte</string>
-    <string name="settings_vad_threshold">Seuil VAD</string>
     <string name="settings_diarization">Diarisation</string>
     <string name="settings_identify_speakers">Identifier les locuteurs</string>
-    <string name="settings_precise_diarization">Frontières de locuteurs précises (idéal pour les réunions)</string>
     <string name="settings_summary_options">Options de résumé</string>
     <string name="settings_summary_language">Écriture chinoise</string>
     <string name="summary_language_auto">Comme la transcription</string>
@@ -72,8 +65,6 @@
     <string name="storage_total">Modèles sur l\'appareil : %1$s</string>
     <string name="storage_none">Aucun modèle téléchargé</string>
     <string name="storage_delete">Supprimer le modèle</string>
-    <string name="model_kind_vad">Détection de voix</string>
-    <string name="model_kind_speaker">Modèle de locuteurs</string>
     <string name="model_kind_asr">Modèle de transcription</string>
     <string name="model_kind_llm">Modèle de résumé</string>
     <string name="model_kind_other">Autre</string>
@@ -147,15 +138,11 @@
     <!-- Foreground-service notifications -->
     <string name="svc_downloading_models">Téléchargement des modèles (première exécution)…</string>
     <string name="svc_downloading_models_pct">Téléchargement des modèles… %d%%</string>
-    <string name="svc_downloading_diarization">Téléchargement des modèles de diarisation…</string>
-    <string name="svc_downloading_diarization_pct">Téléchargement du modèle de locuteurs… %d%%</string>
     <string name="svc_downloading_named">Téléchargement de %1$s…</string>
     <string name="svc_summarization_model_pct">Modèle de résumé… %d%%</string>
     <string name="svc_summarizing">Résumé en cours…</string>
     <string name="svc_summarizing_eta">Résumé en cours… %1$s</string>
     <string name="svc_identifying_speakers">Identification des locuteurs…</string>
-    <string name="svc_diarization_skipped">Détection des locuteurs échouée — poursuite sans locuteurs</string>
-    <string name="svc_identifying_speakers_eta">Identification des locuteurs… %1$s</string>
     <string name="show_more">Afficher plus</string>
     <string name="show_less">Afficher moins</string>
     <string name="eta_minutes">≈%1$d min restantes</string>
@@ -326,9 +313,8 @@
     <string name="cd_status_processing">En traitement</string>
     <string name="cd_status_done">Terminée</string>
     <string name="storage_compile_cache">%1$s (cache de compilation)</string>
-    <string name="settings_asr_hw">Matériel de transcription</string>
     <string name="pipeline_transcript_via">via %1$s · %2$s · horodatage par énoncé</string>
-    <string name="pipeline_diar_pyannote">locuteurs via pyannote + CAM++</string>
+    <string name="pipeline_diar_nemotron">locuteurs via Nemotron-3 (en direct)</string>
     <string name="pipeline_diar_off">pas de séparation des locuteurs</string>
     <string name="notes_decisions">Décisions</string>
     <string name="notes_open">Questions en suspens</string>

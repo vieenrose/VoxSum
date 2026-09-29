@@ -101,7 +101,7 @@ the audio and transcribes it.
 player. Right: tap 🔍 to search — matches highlight and you step through them.</i></p>
 
 - **Who spoke when** — each line is tagged and colour-coded by speaker, with an automatic speaker
-  count (a neural segmenter draws precise speaker boundaries). VoxSum can **guess speakers' real
+  count — speakers are tagged live, while the words are transcribed. VoxSum can **guess speakers' real
   names** from what they say (top-bar ↻ menu → *Detect names*), and *Re-detect speakers* re-runs
   just the speaker analysis — no re-transcribe needed.
 - **Synced player** — docked at the bottom like a music app: tap any line to jump there; the current
@@ -165,9 +165,7 @@ delete button) and <b>About</b> (version, license, open-source components).</i><
 - **Summary language** — keep the transcript's language, or pick English · Français · 繁體中文 ·
   简体中文 · 日本語 · 한국어.
 - **Summary style** — Bullets / Executive / Narrative.
-- **Transcription engine** — Chinese + English by default; a multilingual engine (Chinese · English ·
-  Japanese · Korean · Cantonese) is one tap away.
-- **Speakers** — turn diarization on/off or hint the number of speakers.
+- **Speakers** — turn speaker identification on or off.
 - **Storage** — see how much disk each model uses and delete any to reclaim space (it re-downloads on
   next use).
 

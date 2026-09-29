@@ -69,7 +69,7 @@ pendant que vous suivez le statut de chaque session en direct.
 
 **📝 Lisez et comprenez**
 - **Transcription en direct** — les lignes apparaissent dès que vous parlez ; vous pouvez lire (et écouter) avant la fin.
-- **Qui a parlé, et quand** — chaque ligne est étiquetée et colorée par intervenant, avec leur nombre. VoxSum peut même **deviner le vrai nom des intervenants** d'après leurs propos.
+- **Qui a parlé, et quand, en direct** — les locuteurs sont identifiés pendant la transcription, dans le même passage : chaque ligne est étiquetée et colorée par intervenant dès l'enregistrement, avec leur nombre détecté automatiquement (jusqu'à 8). VoxSum peut même **deviner le vrai nom des intervenants** d'après leurs propos.
 - **Un résumé dans votre langue, à votre façon** — un titre court et un résumé **en puces, en synthèse ou en récit**. Gardez la langue de la transcription, ou choisissez **English · Français · 繁體中文 · 简体中文 · 日本語 · 한국어**. (Par défaut, la langue de votre téléphone.)
 - **Actions et décisions** — tirez d'une réunion une liste (modifiable) de qui-fait-quoi et des décisions clés.
 - **Cherchez dans la transcription** — trouvez n'importe quel mot dans un long enregistrement ; les résultats se surlignent et vous pouvez les parcourir.
@@ -86,7 +86,7 @@ pendant que vous suivez le statut de chaque session en direct.
 
 ## Langues
 
-- **La transcription** gère le chinois et l'anglais d'emblée ; un moteur multilingue (chinois · anglais · japonais · coréen · cantonais) est à un tap dans les **Réglages**.
+- **La transcription** gère le chinois, l'anglais et la parole qui mélange les deux.
 - **Les résumés** peuvent être écrits dans l'une de sept langues, ou alignés sur la transcription.
 - **L'application elle-même** est disponible en **anglais, 繁體中文 et français**.
 
@@ -156,12 +156,14 @@ sans synchro affichent simplement le texte, avec les horodatages `[mm:ss]` visib
 ## Pour les développeurs
 
 VoxSum est un portage sur appareil de [VoxSum Studio](https://huggingface.co/spaces/Luigi/VoxSum-bak).
-Il exécute la reconnaissance vocale, la séparation des locuteurs et le modèle de résumé localement via
-[sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) et [llama.cpp](https://github.com/ggml-org/llama.cpp),
-le tout compilé depuis les sources. Voir [`ARCHITECTURE.md`](ARCHITECTURE.md) pour la carte des modules ;
+Il exécute la reconnaissance vocale, la séparation des locuteurs et le modèle de résumé localement : la
+reconnaissance et la séparation des locuteurs en un seul passage en flux avec
+[nemo-x-asr-diarizer](https://github.com/vieenrose/nemo-x-asr-diarizer.cpp) (X-ASR + Nemotron-3 Diarization),
+le résumé avec [llama.cpp](https://github.com/ggml-org/llama.cpp), le tout compilé depuis les sources. Voir [`ARCHITECTURE.md`](ARCHITECTURE.md) pour la carte des modules ;
 les instructions de compilation sont dans le [README anglais](README.md#build-from-source).
 
 ## Licence
 
-[GPL-3.0-or-later](LICENSE). Les dépendances source incluses conservent leur propre licence ; le modèle
-de résumé est distribué selon les [Gemma Terms](https://ai.google.dev/gemma/terms).
+[GPL-3.0-or-later](LICENSE). Les dépendances source incluses conservent leur propre licence ; les modèles
+téléchargés gardent la leur : X-ASR (Apache-2.0), Nemotron-3 Diarization (OpenMDW-1.1), et les modèles de
+résumé listés dans `LlmRegistry.kt`.

@@ -79,7 +79,7 @@ Vous pouvez aussi **partager** une note vocale ou un fichier audio/vidéo *vers*
 </p>
 <p align="center"><i>À gauche : le titre, un résumé en puces, la transcription étiquetée par intervenant et le lecteur synchronisé. À droite : touchez 🔍 pour chercher — les résultats se surlignent et vous les parcourez.</i></p>
 
-- **Qui a parlé, et quand** — chaque ligne est étiquetée et colorée par intervenant, leur nombre est détecté automatiquement (un segmenteur neuronal trace des frontières de locuteurs précises). VoxSum peut **deviner le vrai nom des intervenants** d'après leurs propos (barre du haut, menu ↻ → *Détecter les noms*), et *Redétecter les locuteurs* ne relance que l'analyse des locuteurs — sans retranscrire.
+- **Qui a parlé, et quand** — chaque ligne est étiquetée et colorée par intervenant, leur nombre est détecté automatiquement — les locuteurs sont identifiés en direct, pendant la transcription. VoxSum peut **deviner le vrai nom des intervenants** d'après leurs propos (barre du haut, menu ↻ → *Détecter les noms*), et *Redétecter les locuteurs* ne relance que l'analyse des locuteurs — sans retranscrire.
 - **Lecteur synchronisé** — ancré en bas comme une appli musicale : touchez une ligne pour y sauter ; la ligne en cours se surligne pendant la lecture.
 - **Recherche** — touchez le 🔍 de la barre du haut pour trouver n'importe quel mot dans un long enregistrement ; les résultats se surlignent et se parcourent avec les flèches haut/bas.
 - **Un résumé à votre façon** — un titre court et un résumé en **puces, en synthèse ou en récit** (choisissez le style dans **Paramètres**), dans la langue de votre choix. (la langue du résumé est indépendante de celle de l'audio.)
@@ -121,7 +121,6 @@ Chaque session vit dans la liste de l'accueil — rouvrez une session **Terminé
 - **Apparence** — **Clair**, **Sombre**, ou **E-ink** (un thème plat à fort contraste pour les liseuses comme Boox). **Auto** — le réglage par défaut — suit le mode clair/sombre du système.
 - **Langue du résumé** — gardez la langue de la transcription, ou choisissez English · Français · 繁體中文 · 简体中文 · 日本語 · 한국어.
 - **Style du résumé** — Puces / Synthèse / Récit.
-- **Moteur de transcription** — chinois + anglais par défaut ; un moteur multilingue (chinois · anglais · japonais · coréen · cantonais) est à un toucher.
 - **Intervenants** — activez/désactivez la séparation des locuteurs, ou indiquez leur nombre.
 - **Stockage** — voyez l'espace disque utilisé par chaque modèle et supprimez-en pour récupérer de la place (il se retéléchargera à la prochaine utilisation).
 

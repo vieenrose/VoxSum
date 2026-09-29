@@ -44,7 +44,7 @@ object AudioDecoder {
      * STREAMING decode: write the decoded 16 kHz mono PCM to [dest] as a WAV and call [onChunk] with
      * each block of samples — memory scales with one block, not the recording length. Returns the
      * total sample count. This is the multi-hour-safe path (the full-buffer [decodeToPcm16k] OOMs
-     * past ~2 h); use it + a [WavSlicer] for diarization instead of holding the whole waveform.
+     * past ~2 h); stream it back instead of holding the whole waveform.
      */
     fun decodeToWav16k(context: Context, uri: Uri, dest: File, normalize: Boolean = false, onChunk: (FloatArray, Int) -> Unit): Long {
         WavWriter(dest).use { writer ->

@@ -14,7 +14,7 @@ import java.io.File
  * Microphone capture for live transcription — the source counterpart of [AudioDecoder].
  *
  * Records 16 kHz mono PCM from the mic, **streams each block straight to a WAV file** (for the synced
- * player + post-stop diarization via [WavSlicer]) AND emits it as a [Flow] of float chunks for the
+ * player and the queue re-run) AND emits it as a [Flow] of float chunks for the
  * live ASR/VAD path. Nothing is accumulated in RAM, so a multi-hour meeting records without OOM
  * (the old version held the whole waveform — ~230 MB/hour).
  *

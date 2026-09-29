@@ -11,7 +11,7 @@ import java.nio.ByteOrder
  * pipeline streams from/to, so memory scales with a chunk, not the recording length.
  *
  * [WavWriter] appends float chunks straight to a file (placeholder header up front, patched on
- * [close]); [WavSlicer] reads a [startSec, endSec) range back as floats for per-utterance diarization
+ * [close]); [WavSlicer] reads a sample range back as floats (normalization)
  * without ever holding the full waveform.
  */
 object WavIo {

@@ -64,9 +64,9 @@ echo ">> installing (alongside any release build)"
 # a 2.6 GB summarizer over a tablet's wifi does not finish inside the 20-minute test timeout — the
 # class then fails on TestTimedOutException, which looks like a product bug and is not one.
 # Point VOXSUM_SEED_MODELS at a directory laid out like the app's files/models:
-#   xasr-litert/{xasr_q8_octav.tflite,tokens.txt}
-#   nemotron-litert/{nemotron_*.tflite,tokenizer.json}
-#   silero-vad.tflite  moss_td_*.tflite  moss_td_vocab.json  gemma-4-e2b-it.litertlm
+#   nemo/{x-asr-zh-en-q8_0.gguf,nemotron-3-diarization-q8_0.gguf,.revision}
+#   qwen35-gguf/...   (the summarizer; see LlmRegistry)
+# nemo/.revision must hold ModelManager's NEMO_REVISION, or the app re-downloads over the seed.
 if [ -n "${VOXSUM_SEED_MODELS:-}" ] && [ -d "$VOXSUM_SEED_MODELS" ]; then
   echo ">> seeding models from $VOXSUM_SEED_MODELS (skips the on-device download)"
   "$ADB" -s "$SERIAL" shell "rm -rf /data/local/tmp/voxsum-seed && mkdir -p /data/local/tmp/voxsum-seed"

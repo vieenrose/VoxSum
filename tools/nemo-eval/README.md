@@ -51,5 +51,5 @@ for the ARMv8.0 floor, so expect slower on dotprod-capable phones — measure on
 | meeting_3spk_10-20min | 3 | 3 | 5 ✗ (extras hold 2.2 % and 0.5 %) |
 
 4/6 either way, but the failure mode flips: the old pipeline merged speakers on podcasts, while this
-one over-splits meetings into small extra speakers, which *Merge speakers* in the app fixes. A
+one over-splits meetings into small extra speakers, which *Merge speaker into…* in the app fixes. A
 minimum-share filter would likely recover both; it has not been tried.

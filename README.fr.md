@@ -69,7 +69,7 @@ pendant que vous suivez le statut de chaque session en direct.
 
 **📝 Lisez et comprenez**
 - **Transcription en direct** — les lignes apparaissent dès que vous parlez ; vous pouvez lire (et écouter) avant la fin.
-- **Qui a parlé, et quand, en direct** — les locuteurs sont identifiés pendant la transcription, dans le même passage : chaque ligne est étiquetée et colorée par intervenant dès l'enregistrement, avec leur nombre détecté automatiquement (jusqu'à 8). VoxSum peut même **deviner le vrai nom des intervenants** d'après leurs propos.
+- **Qui a parlé, et quand, en direct** — les locuteurs sont identifiés pendant la transcription, dans le même passage : chaque ligne est étiquetée et colorée par intervenant dès l'enregistrement, avec leur nombre détecté automatiquement (jusqu'à 8). Évalué sur les corpus de réunions AMI et AISHELL-4 : **95,4 % / 92,3 %** d'attribution pondérée dans le temps, avec **99 %** de la parole étiquetée ([détails](tools/nemo-eval/README.md)). VoxSum peut même **deviner le vrai nom des intervenants** d'après leurs propos.
 - **Un résumé dans votre langue, à votre façon** — un titre court et un résumé **en puces, en synthèse ou en récit**. Gardez la langue de la transcription, ou choisissez **English · Français · 繁體中文 · 简体中文 · 日本語 · 한국어**. (Par défaut, la langue de votre téléphone.)
 - **Actions et décisions** — tirez d'une réunion une liste (modifiable) de qui-fait-quoi et des décisions clés.
 - **Cherchez dans la transcription** — trouvez n'importe quel mot dans un long enregistrement ; les résultats se surlignent et vous pouvez les parcourir.
@@ -81,7 +81,7 @@ pendant que vous suivez le statut de chaque session en direct.
 - **Corrigez les intervenants** — déplacez une ligne mal attribuée vers la bonne personne, ou fusionnez deux intervenants.
 - **Copiez** tout le résumé d'un seul geste.
 - **Exportez le texte** — une seule feuille **Exporter et partager…**, regroupée par ce que vous obtenez : la **session VoxSum** (`.m4a`), un **document** (**PDF**, **Markdown**, texte brut) contenant le titre, le résumé, les actions à suivre et la transcription horodatée, ou des **sous-titres** (`.srt`/`.vtt`/`.lrc`) avec les étiquettes de locuteur. Tout peut être **enregistré ou partagé**, et la transcription se copie en un geste.
-- **Relancez** la transcription, le résumé ou la détection des noms quand vous voulez — et VoxSum garde le tout cohérent : changez la langue ou le style du résumé (ou modifiez la transcription) et il propose un **re-résumé** en un geste, qui rafraîchit aussi le titre (sauf si vous l'avez écrit vous-même). Un simple passage entre **繁體中文 ↔ 简体中文** convertit le titre, le résumé et la transcription **instantanément**, sans relance.
+- **Relancez** la transcription, le résumé, **la seule détection des locuteurs** (*Redétecter les locuteurs*) ou la détection des noms quand vous voulez — et VoxSum garde le tout cohérent : changez la langue ou le style du résumé (ou modifiez la transcription) et il propose un **re-résumé** en un geste, qui rafraîchit aussi le titre (sauf si vous l'avez écrit vous-même). Un simple passage entre **繁體中文 ↔ 简体中文** convertit le titre, le résumé et la transcription **instantanément**, sans relance.
 - **Enregistrez ou partagez en un seul fichier** — toute la session (audio + transcription + résumé + intervenants + une pochette) tient dans un unique **`.m4a`** qui **se lit dans n'importe quelle appli musicale** (avec le titre, la pochette, le résumé et la **transcription synchronisée** en paroles — voir [*Paroles synchronisées dans les lecteurs Android*](#paroles-synchronisées-dans-les-lecteurs-android)) et **se rouvre dans VoxSum** avec tout intact. (`.m4a` a la plus large compatibilité — iPhone, autoradios, tous les lecteurs ; les anciennes sessions `.ogg` s'ouvrent toujours.)
 
 ## Langues
@@ -114,18 +114,44 @@ l'installer (Android peut demander l'autorisation d'installer depuis votre navig
 ## Bon à savoir
 
 - **Le premier lancement télécharge des modèles.** La première fois que vous utilisez une fonction,
-  VoxSum récupère le modèle nécessaire depuis **Hugging Face** (avec GitHub en secours), vérifie son
-  intégrité et le met en cache. Ensuite, vous pouvez passer entièrement hors ligne. Si un téléchargement
-  s'interrompt ou qu'un fichier de modèle est corrompu, VoxSum le nettoie automatiquement et propose un
-  **Réessayer** en un geste.
+  VoxSum récupère le modèle nécessaire depuis **Hugging Face**, vérifie son intégrité et le met en
+  cache. Ensuite, vous pouvez passer entièrement hors ligne. Un téléchargement interrompu **reprend là
+  où il s'était arrêté**, et un fichier corrompu est nettoyé automatiquement avec un **Réessayer** en un geste.
+- **L'audio faible fonctionne.** Les enregistrements lointains ou peu sonores reçoivent un gain
+  automatique sans saturation — pour la transcription, la détection des locuteurs et la lecture.
 - **Pendant une transcription,** les exports et les réglages sont brièvement verrouillés pour éviter
   d'enregistrer une session à moitié finie — ils se déverrouillent dès la fin.
 - **La seule chose jamais envoyée** est une vérification facultative, une fois par jour, vers GitHub
   pour une nouvelle version — sans aucun pistage, et ignorée hors ligne. (Les utilisateurs F-Droid
   reçoivent les mises à jour via leur client.)
-- **Fonctionne sous Android 8.0+.** Un téléphone récent avec quelques Go d'espace libre est confortable ;
-  le modèle de résumé de meilleure qualité est optionnel et peut être désactivé dans les Réglages
-  pour les appareils plus légers.
+- **Fonctionne sous Android 8.0+.** Un téléphone récent avec quelques Go d'espace libre est confortable.
+  La première transcription télécharge les deux modèles du moteur vocal (~275 Mo), le premier résumé
+  ceux du résumeur (~880 Mio). Ils ne tournent jamais en même temps : les modèles vocaux sont libérés
+  avant le chargement du résumeur, et une passe complète transcription + résumé culmine vers 2 Go de
+  mémoire sur un téléphone de milieu de gamme.
+
+## État du projet
+
+**Moteur vocal : un seul passage en flux (à partir de la prochaine version).** La transcription et
+l'identification des locuteurs se font désormais ensemble, en direct :
+[nemo-x-asr-diarizer](https://github.com/vieenrose/nemo-x-asr-diarizer.cpp) associe le transcripteur X-ASR
+au modèle de diarisation Nemotron-3 de NVIDIA sur une même ligne temporelle, si bien que les locuteurs
+sont étiquetés pendant l'enregistrement plutôt que dans une passe séparée à la fin. Il remplace l'ancienne
+chaîne (détection d'activité vocale + X-ASR, puis regroupement des locuteurs à part), et les réglages
+propres à celle-ci ont disparu.
+
+- **Vérifié :** sur 22 réunions AMI et AISHELL-4 de dix minutes, l'attribution des locuteurs est
+  inchangée (95,4 % / 92,3 %, contre 95,6 % / 92,1 %) alors que 99 % de la parole reçoit désormais un
+  locuteur (contre 81–89 %), et le taux d'erreur de diarisation passe de 22 % à 17 % (AMI) et 12 %
+  (AISHELL-4). [Résultats complets](tools/nemo-eval/README.md).
+- **Pas encore vérifié :** vitesse et mémoire sur téléphone — les chiffres ci-dessus viennent du même
+  code exécuté sur un ordinateur. Sur des réunions, il peut aussi isoler un petit locuteur en trop ;
+  *Fusionner le locuteur dans…* le corrige en un geste.
+
+**Résumeur.** Le résumé suit une démarche *agentique* : la transcription défile par tranches et le
+modèle révise **un seul jeu de notes** par opérations typées au lieu d'écrire des résumés par tranche
+fusionnés à la fin ; chaque puce porte un horodatage vérifiable en un geste. Traitez le résumé comme un
+premier jet utile, pas comme un compte rendu — détails dans le [README anglais](README.md#project-status).
 
 ## Paroles synchronisées dans les lecteurs Android
 

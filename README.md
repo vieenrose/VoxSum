@@ -123,13 +123,29 @@ after that, updates arrive automatically.
 - **The only thing it ever sends** is an optional, once-a-day check to GitHub for a new version — no
   tracking, and skipped when you're offline. (F-Droid users get updates through their client instead.)
 - **Runs on Android 8.0+.** A recent phone with a few GB of free storage is comfortable. The
-  summarizer downloads two models totalling ~880 MiB the first time you summarize, and both stay
-  resident while it runs — a full transcribe + summarize pass peaks around 2 GB of memory on a
-  mid-range phone.
+  first transcription downloads the speech engine's two models (~275 MB); the first summary
+  downloads the summarizer's two (~880 MiB). They never run at the same time: the speech models
+  are released before the summarizer loads, and a full transcribe + summarize pass peaks around
+  2 GB of memory on a mid-range phone.
 
 ## Project status
 
-**Current focus: the summarizer.** As of v0.42.0 VoxSum summarizes with an *agentic* pipeline
+**Speech engine: one streaming pass (from the next release).** Transcription and speaker
+identification now run together, live: [nemo-x-asr-diarizer](https://github.com/vieenrose/nemo-x-asr-diarizer.cpp)
+pairs the X-ASR transcriber with NVIDIA's Nemotron-3 diarizer on one audio timeline, so speakers
+are tagged while you record instead of in a separate pass after the recording ends. It replaces
+the previous pipeline (voice-activity detection + X-ASR, then a separate speaker-clustering pass),
+and every setting that only applied to it is gone.
+
+- **Verified:** on 22 ten-minute AMI and AISHELL-4 meetings, speaker attribution is unchanged
+  (95.4% / 92.3%, was 95.6% / 92.1%) while 99% of the speech now gets a speaker, up from 81–89%,
+  and the diarization error rate drops from 22% to 17% (AMI) and 12% (AISHELL-4).
+  [Full results](tools/nemo-eval/README.md).
+- **Not yet verified:** speed and memory on a phone. The numbers above come from a desktop run of
+  the same engine code. On meetings it can also split off a small extra speaker; *Merge speaker into…*
+  fixes that in one tap.
+
+**Summarizer.** As of v0.42.0 VoxSum summarizes with an *agentic* pipeline
 rather than a single prompt. The transcript streams past the model in ~2000-token chunks, and the
 model edits **one evolving set of notes** through typed operations (add a bullet, revise a bullet,
 delete one) instead of writing independent per-chunk digests that are merged at the end. The

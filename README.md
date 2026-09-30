@@ -26,14 +26,31 @@
 
 ## 截圖
 
-<p align="center">
-  <img src="docs/screenshots/qs-capture.png" width="190" alt="錄音室">
-  <img src="docs/screenshots/05-agent.png" width="190" alt="會議代理">
-  <img src="docs/screenshots/04-summary.png" width="190" alt="摘要">
-  <img src="docs/screenshots/03-transcript.png" width="190" alt="逐字稿">
-</p>
-<p align="center"><i>錄音室（即時逐字稿、語者與代理狀態） · 會議代理的閱讀過程 · 摘要 · 逐字稿<br>
-示範會議：AISHELL-4 L_R004S02C01（CC BY-SA 4.0）</i></p>
+<i>示範會議：AISHELL-4 L_R004S02C01（CC BY-SA 4.0）</i>
+
+### 錄音室
+
+<p align="center"><img src="docs/screenshots/qs-capture.png" width="280" alt="錄音室"></p>
+
+錄音時逐字稿即時出現；語者確定後，每句左側出現該語者的顏色並標上時間，尚未確定的句子以淺灰顯示。上方的會議代理卡片顯示它正在聆聽或撰寫，以及距離下一次閱讀的進度。
+
+### 會議代理
+
+<p align="center"><img src="docs/screenshots/05-agent.png" width="280" alt="會議代理"></p>
+
+代理的閱讀過程：最新的片段在最上面，正在寫的筆記逐字出現，每則筆記標示類型（決議、待辦、未決、數字）與時間；較早片段的筆記收合為「+n 則筆記」。
+
+### 摘要
+
+<p align="center"><img src="docs/screenshots/04-summary.png" width="280" alt="摘要"></p>
+
+會議結束後的段落式摘要；每個藍色時間點一下即從該處播放。下方是各語者的發言比例。
+
+### 逐字稿
+
+<p align="center"><img src="docs/screenshots/03-transcript.png" width="280" alt="逐字稿"></p>
+
+依語者標註顏色的完整逐字稿；點任一句即跳到該處播放，播放時目前的句子會高亮。
 
 ## 安裝
 

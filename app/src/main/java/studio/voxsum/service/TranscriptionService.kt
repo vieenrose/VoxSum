@@ -1309,7 +1309,8 @@ class TranscriptionService : LifecycleService() {
 
     /** Download the engine's two GGUFs when missing (progress on the current run's bar). */
     private suspend fun ensureEngineModels(models: ModelManager) {
-        if (models.asrReady()) return
+        // Ready → ensureAsrModels only reclaims retired engines' files (cheap, no download).
+        if (models.asrReady()) { models.ensureAsrModels { }; return }
         emitEvent(TranscriptEvent.Status(getString(R.string.svc_downloading_models)))
         val gen = currentGen()
         models.ensureAsrModels { frac -> reportDownload(gen, R.string.svc_downloading_models_pct, frac) }

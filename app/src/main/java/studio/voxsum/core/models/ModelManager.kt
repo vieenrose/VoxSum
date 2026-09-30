@@ -61,7 +61,7 @@ class ModelManager(context: Context) {
 
     /** Download both GGUFs if missing or from a different pinned revision. */
     suspend fun ensureAsrModels(onProgress: (Float) -> Unit) = withContext(Dispatchers.IO) {
-        if (asrReady()) { onProgress(1f); return@withContext }
+        if (asrReady()) { reclaimRetired(); onProgress(1f); return@withContext }
         nemoDir.mkdirs()
         val marked = runCatching { File(nemoDir, REVISION_MARKER).readText().trim() }.getOrNull() == NEMO_REVISION
         val total = NEMO_FILES.values.sumOf { it.bytes }
@@ -79,7 +79,12 @@ class ModelManager(context: Context) {
         }
         runCatching { File(nemoDir, REVISION_MARKER).writeText(NEMO_REVISION) }
         check(asrReady()) { "ASR model files missing after provisioning" }
-        // Only after the new models verify: reclaim every retired engine's files.
+        reclaimRetired()
+    }
+
+    /** Only once the new models verify (also when they were already present — seeded or from an
+     *  earlier run): reclaim every retired engine's files. */
+    private fun reclaimRetired() {
         DROPPED_BACKEND_DIRS.forEach { File(modelsDir, it).takeIf(File::exists)?.deleteRecursively() }
         DROPPED_FILES.forEach { File(modelsDir, it).takeIf(File::exists)?.delete() }
     }

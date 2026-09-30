@@ -362,4 +362,6 @@
     </plurals>
     <string name="export_menu_entry">匯出與分享…</string>
     <string name="agent_tag_proposal">提議</string>
+    <string name="agent_verify">核對</string>
+    <string name="actions_verify_hint">約五分之一的項目可能與逐字稿不符——點時間即可聽原話核對。</string>
 </resources>

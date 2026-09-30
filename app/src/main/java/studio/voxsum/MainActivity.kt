@@ -2750,6 +2750,14 @@ private fun ActionItemsCard(
             UtteranceTextEditor(initial = text, onSave = onSave, onCancel = onCancel, minLines = 3)
         } else {
             CollapsibleMarkdown(text, collapsedMaxLines = 8, onBeginEdit = onBeginEdit, onSeek = onSeek)
+            // Verify affordance (integration note §7): about one action item in five is not
+            // supported by the transcript — each time jumps to what was actually said.
+            Spacer(Modifier.height(6.dp))
+            Text(
+                stringResource(R.string.actions_verify_hint),
+                style = MaterialTheme.typography.labelSmall,
+                color = studio.voxsum.ui.theme.VoxSumPalette.Warning,
+            )
         }
     }
 }

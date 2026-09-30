@@ -124,7 +124,7 @@ class AgentUiState {
                 add(Kind.TURN, "window ${e.window} · %.1f s · +${e.kept} notes".format(e.ms / 1000.0))
             }
             is AgentEvent.NoteKept -> {
-                notes += e.note
+                notes += ReaderProtocol.reclassify(e.note)   // same proposal guard as the minutes
                 edit { it.copy(kept = it.kept + 1) }
                 add(Kind.KEPT, ReaderProtocol.render(e.note))
             }
@@ -386,11 +386,24 @@ private fun NoteCard(n: Note, onSeek: ((Int) -> Unit)?) {
         )
         Spacer(Modifier.width(6.dp))
         n.tag?.takeIf { it != "-" }?.let { TagChip(it); Spacer(Modifier.width(6.dp)) }
+        // The error-prone types (note §7: decisions, actions, figures) carry a "verify" link.
+        val verify = fullTag(n.tag ?: "") in setOf("DECISION", "ACTION", "NUMBER") && onSeek != null
         Text(
             n.text,
             style = MaterialTheme.typography.bodySmall, color = pal.Slate200,
             maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
         )
+        if (verify) {
+            Spacer(Modifier.width(6.dp))
+            Text(
+                stringResource(R.string.agent_verify),
+                style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold,
+                color = VoxSumPalette.Warning,
+                modifier = Modifier.clip(RoundedCornerShape(50)).border(1.dp, VoxSumPalette.Warning.copy(alpha = 0.5f), RoundedCornerShape(50))
+                    .clickable { ReaderProtocol.parseTs(n.ts)?.let { onSeek?.invoke(it * 1000) } }
+                    .padding(horizontal = 6.dp, vertical = 1.dp),
+            )
+        }
     }
 }
 

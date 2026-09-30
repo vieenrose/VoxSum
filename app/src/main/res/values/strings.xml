@@ -380,4 +380,6 @@
         <item quantity="other">%1$d windows read · %2$d notes</item>
     </plurals>
     <string name="agent_tag_proposal">Proposal</string>
+    <string name="agent_verify">Verify</string>
+    <string name="actions_verify_hint">About 1 item in 5 may not be supported by the transcript — tap a time to hear what was said.</string>
 </resources>

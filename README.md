@@ -179,25 +179,27 @@ upstream's `phone_live.py` (checked by a parity test that replays the real scrip
 
 ```mermaid
 gantt
-    title A 10-minute meeting on an OPPO Reno7 — who works when
+    title A 14-minute meeting on an OPPO Reno7 — who works when
     dateFormat mm:ss
     axisFormat %M:%S
     section Speech recognition
-    words on screen ~0.4 s after they are spoken   :active, a1, 00:00, 10:00
+    words on screen ~0.4 s after they are spoken   :active, a1, 00:00, 14:00
     section Speaker identification
-    turns commit ~5 s behind the audio             :active, d1, 00:05, 10:00
-    speaker tags shown once settled (delay 15 s)   :d2, 00:15, 10:15
+    turns commit ~5 s behind the audio             :active, d1, 00:05, 14:00
+    speaker tags shown once settled (delay 15 s)   :d2, 00:15, 14:15
     section Meeting agent
     load model (~8 s)                               :g0, 00:00, 00:08
     prefill settled lines, 20 s segments           :active, g1, 00:15, 04:00
     reading turn → notes (window 1)                :crit, g2, 04:00, 04:45
     prefill                                        :active, g3, 04:45, 08:00
     reading turn → notes (window 2)                :crit, g4, 08:00, 08:25
-    prefill                                        :active, g5, 08:25, 10:15
-    last window + minutes, after the stop           :crit, g6, 10:15, 11:27
+    prefill                                        :active, g5, 08:25, 12:00
+    reading turn → notes (window 3)                :crit, g6, 12:00, 12:30
+    prefill                                        :active, g7, 12:30, 14:15
+    last window + minutes, after the stop           :crit, g8, 14:15, 15:27
     section You
-    stop recording                                  :milestone, m1, 10:00, 0s
-    minutes ready (87 s after the stop)             :milestone, m2, 11:27, 0s
+    stop recording                                  :milestone, m1, 14:00, 0s
+    minutes ready (~1.5 min after the stop)         :milestone, m2, 15:27, 0s
 ```
 
 Every lane runs at once. Speech recognition keeps priority — it is the only one that loses audio when it

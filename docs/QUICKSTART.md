@@ -110,7 +110,7 @@ player. Right: tap 🔍 to search — matches highlight and you step through the
   you can step through them with the up/down arrows.
 - **Minutes, written live** — a meeting agent reads along while you record and writes short notes
   (decisions, actions, open issues, key figures), each with a tap-to-play time; watch it work in the
-  **Meeting agent** panel. The minutes are those notes grouped by type.
+  **Meeting agent** panel. When you stop, it writes the summary as prose from those notes.
 - **Action items** — top-bar ↻ menu → *Extract action items* pulls a draft checklist of who-does-what
   and the key decisions out of a meeting.
 
@@ -153,7 +153,7 @@ Every session lives in the home-screen list — reopen a **Done** one any time w
 ## 6. Settings worth knowing
 
 <p align="center">
-  <img src="screenshots/qs-settings-summary.png" width="260" alt="Summary language and style settings">
+  <img src="screenshots/qs-settings-summary.png" width="260" alt="Summary model and live speaker delay settings">
   &nbsp;
   <img src="screenshots/qs-storage.png" width="260" alt="Storage and About settings">
 </p>

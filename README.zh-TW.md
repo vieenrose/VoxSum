@@ -26,7 +26,7 @@ VoxSum 是一間**錄音工作室**：首頁就是你的**場次清單**，每�
 
 > 剛接觸嗎？**[5 分鐘快速上手 →](docs/QUICKSTART.zh-TW.md)** 帶你走過每一項功能。
 
-<p align="center"><img src="docs/screenshots/demo.gif" width="300" alt="VoxSum 示範 —— 開啟場次、閱讀摘要、點逐字稿任一行即從該處播放"></p>
+<p align="center"><img src="docs/screenshots/demo.gif" width="300" alt="VoxSum 示範 —— 開啟場次、閱讀摘要、點時間即從該處播放"></p>
 <p align="center"><i>開啟已完成的場次：摘要、依語者標註的逐字稿，點任一行即播放並同步高亮目前句子。</i></p>
 
 ## 為什麼選擇 VoxSum
@@ -41,7 +41,7 @@ VoxSum 是一間**錄音工作室**：首頁就是你的**場次清單**，每�
   <img src="docs/screenshots/01-home.png" width="190" alt="首頁">
   <img src="docs/screenshots/03-transcript.png" width="190" alt="逐字稿">
   <img src="docs/screenshots/04-summary.png" width="190" alt="摘要">
-  <img src="docs/screenshots/05-summary-language.png" width="190" alt="摘要語言">
+  <img src="docs/screenshots/05-agent.png" width="190" alt="會議代理人 —— 即時筆記">
 </p>
 <p align="center"><i>工作室首頁（帶即時狀態的場次清單） · 帶語者的即時逐字稿 · 摘要 · 摘要語言選擇 —— 截圖為英文介面；App 亦提供繁體中文介面。</i></p>
 
@@ -131,7 +131,7 @@ Nemotron-3 語者分離模型放在同一條音訊時間軸上，所以錄音時
 **摘要器：即時閱讀會議的代理（下一版起）。** 摘要在**會議進行中**就開始撰寫，由
 [Gemma-4-E2B 會議代理](https://huggingface.co/Luigi/gemma-4-E2B-meeting-agent-zh-GGUF)（Apache-2.0，3.35 GB）
 負責：語者確定後，逐字稿就逐句送入同一段持續延伸的對話；每累積約 2,000 tokens（約 4 分鐘），代理寫下最多五則
-簡短、分類（決議、待辦、未決、數字）並附引用時間的筆記。會議紀錄即這些筆記依類型整理，每則的 `[時間]` 點一下就播放。
+簡短、分類（決議、待辦、未決、數字）並附引用時間的筆記。停止後，同一模型依這些筆記寫成段落式摘要（只保留與筆記相符的時間，每個 `[時間]` 點一下就播放）；待辦即 ACTION 筆記。
 ```mermaid
 gantt
     title 14 分鐘會議在 OPPO Reno7 上的時序

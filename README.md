@@ -30,7 +30,7 @@ them one by one while you watch each session's live status.
 
 > New here? The **[5-minute Quick Start →](docs/QUICKSTART.md)** walks through every feature.
 
-<p align="center"><img src="docs/screenshots/demo.gif" width="300" alt="VoxSum demo — open a session, read the summary, tap a transcript line to play from there"></p>
+<p align="center"><img src="docs/screenshots/demo.gif" width="300" alt="VoxSum demo — open a session, read the prose summary, tap a time to play from there"></p>
 <p align="center"><i>Open a finished session: the summary, the speaker-tagged transcript, and tap-to-play with the current line highlighted.</i></p>
 
 ## Why VoxSum
@@ -45,7 +45,7 @@ them one by one while you watch each session's live status.
   <img src="docs/screenshots/01-home.png" width="190" alt="Home">
   <img src="docs/screenshots/03-transcript.png" width="190" alt="Transcript">
   <img src="docs/screenshots/04-summary.png" width="190" alt="Summary">
-  <img src="docs/screenshots/05-summary-language.png" width="190" alt="Summary language">
+  <img src="docs/screenshots/05-agent.png" width="190" alt="Meeting agent — live notes">
 </p>
 <p align="center"><i>The studio home (session list with live statuses) · live transcript with speakers · summary · summary-language picker</i></p>
 
@@ -172,8 +172,9 @@ the meeting happens*, by [Gemma-4-E2B meeting agent](https://huggingface.co/Luig
 (Apache-2.0, 3.35 GB), fine-tuned in [meeting-summarizer](https://github.com/vieenrose/meeting-summarizer)
 as a *reader*: transcript lines are fed into one growing conversation as soon as their speaker is
 settled (prefill only, while people talk), and every ~2,000 tokens (~4 min) it writes up to five
-short, typed notes — decision, action, open issue, figure — each citing the line it rests on. The
-minutes are those notes grouped by type; every item's `[time]` is tap-to-play. When the context
+short, typed notes — decision, action, open issue, figure — each citing the line it rests on. After the
+stop, the same model writes the summary as prose from those notes (only times that match a note are
+kept, so every `[time]` is tap-to-play and grounded); action items are the ACTION notes. When the context
 reaches 8k tokens it restarts from a compacted journal. Its protocol is a byte-exact port of
 upstream's `phone_live.py` (checked by a parity test that replays the real script).
 

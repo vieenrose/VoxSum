@@ -59,7 +59,11 @@ class AgentUiState {
                 if (e.state == AgentState.READING) reply = ""
                 state = e
             }
-            is AgentEvent.Fed -> add(Kind.FED, "${e.what} · ${e.tokens} tok · %.1f s · ctx ${e.ctxTokens}".format(e.ms / 1000.0))
+            is AgentEvent.Fed -> {
+                // Keep the status line's context count moving while segments are prefilled.
+                state?.takeIf { it.state == AgentState.LISTENING }?.let { state = it.copy(ctxTokens = e.ctxTokens) }
+                add(Kind.FED, "${e.what} · ${e.tokens} tok · %.1f s · ctx ${e.ctxTokens}".format(e.ms / 1000.0))
+            }
             is AgentEvent.TurnToken -> reply += e.piece
             is AgentEvent.TurnDone -> add(Kind.TURN, "window ${e.window} · %.1f s · +${e.kept} notes".format(e.ms / 1000.0))
             is AgentEvent.NoteKept -> {

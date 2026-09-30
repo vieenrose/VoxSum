@@ -1546,7 +1546,10 @@ class TranscriptionService : LifecycleService() {
         try {
             val res = open.lane.finish(final.orEmpty())
             val conv: (String) -> String = { converter?.convert(it) ?: it }
-            val minutes = conv(res.minutes)
+            // The summary is prose written from the notes; the grouped minutes are the fallback.
+            val prose = runCatching { open.lane.prose(res.journal) }
+                .onFailure { Log.w("voxsum-reader", "prose summary failed; using minutes", it) }.getOrNull()
+            val minutes = conv(prose ?: res.minutes)
             val actions = conv(res.actions.joinToString("\n") { "- ${it.text.trimEnd('。')} [${it.ts}]" }.ifEmpty { "-" })
             emitEvent(TranscriptEvent.SummaryComplete(minutes))
             emitEvent(TranscriptEvent.ActionItemsComplete(actions))

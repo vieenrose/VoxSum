@@ -101,6 +101,31 @@ class ReaderLane(
             ?.trim()?.trim('「', '」', '"', '*', '#', ' ')?.take(40)?.ifBlank { null }
     }
 
+    /**
+     * The final summary as prose, from the journal — like [title], one fresh conversation on the same
+     * model and not part of the upstream protocol. Every `[ts]` it cites must be a journal time
+     * (anything else is stripped), so the summary's timestamps stay tap-to-play and grounded. Null
+     * when the journal is empty or the reply is unusable; callers fall back to the grouped minutes.
+     */
+    suspend fun prose(journal: List<Note>): String? = withContext(dispatcher) {
+        if (journal.isEmpty()) return@withContext null
+        llm.reset()
+        val prompt = "以下是一場會議的筆記：\n\n" + journal.joinToString("\n") { ReaderProtocol.render(it) } +
+            "\n\n根據這些筆記，用連貫的段落寫一份會議摘要（不要條列、不要標題），" +
+            "說明討論了什麼、決定了什麼、誰要做什麼、還有什麼沒解決。" +
+            "只寫筆記裡有的內容；提到某件事時在句尾附上筆記的時間，例如 [1:23]。"
+        val toks = llm.tokenize("<bos><|turn>user\n", true) + llm.tokenize(prompt, false) +
+            llm.tokenize("<turn|>\n<|turn>model\n", true)
+        if (llm.append(toks) < 0) return@withContext null
+        val raw = llm.generateContinue(PROSE_MAX, "<turn|>", ReaderProtocol.TEMP) {}
+        val known = journal.map { it.ts }.toSet()
+        val text = raw.substringBefore("<turn|>")
+            .replace(Regex("""\[(\d+:\d{2}(?::\d{2})?)\]""")) { m -> if (m.groupValues[1] in known) m.value else "" }
+            .lines().map { it.trim().removePrefix("#").trim() }.filter { it.isNotEmpty() && !it.startsWith("-") && !it.startsWith("*") }
+            .joinToString("\n\n")
+        text.takeIf { it.length >= 20 }
+    }
+
     private fun offer(utts: List<TranscriptEvent.Utterance>) {
         val lines = utts.mapNotNull { toLine(it) }
         if (lines.isNotEmpty()) post { lines.forEach(reader::offer) }
@@ -111,6 +136,8 @@ class ReaderLane(
     }
 
     companion object {
+        const val PROSE_MAX = 600
+
         /** An utterance as the model reads it (ingest.segments_to_lines): cleaned text, `S{n}`
          *  speaker labels in first-appearance order (the engine's own numbering), whole seconds. */
         fun toLine(u: TranscriptEvent.Utterance): Line? {

@@ -197,15 +197,8 @@ fun AgentPanel(agent: AgentUiState, onSeek: ((Int) -> Unit)? = null, modifier: M
             return@Column
         }
         if (!done) Gauges(agent, st)
-        Timeline(agent, st)
+        Timeline(agent, st, onSeek)
         if (agent.notes.isNotEmpty()) {
-            Text(
-                stringResource(R.string.agent_notes, agent.notes.size),
-                style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, color = pal.Slate400,
-            )
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                agent.notes.forEach { NoteCard(it, onSeek) }
-            }
             Text(stringResource(R.string.agent_notes_caution), style = MaterialTheme.typography.labelSmall, color = pal.Slate400)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
@@ -280,9 +273,13 @@ private fun Gauge(label: String, value: Int, max: Int, active: Boolean, modifier
     }
 }
 
-/** One node per window (and restart); the active window streams the reply it is writing. */
+/**
+ * One node per window (and restart), NEWEST ON TOP. The active window streams the reply it is
+ * writing; each window's notes sit under it, but only the latest window with notes shows them —
+ * older windows fold to "+n notes" (tap to open), so the panel stays short all meeting long.
+ */
 @Composable
-private fun Timeline(agent: AgentUiState, st: AgentEvent.State) {
+private fun Timeline(agent: AgentUiState, st: AgentEvent.State, onSeek: ((Int) -> Unit)?) {
     val pal = LocalVoxSumPalette.current
     val steps = agent.steps
     if (steps.isEmpty()) {
@@ -291,16 +288,23 @@ private fun Timeline(agent: AgentUiState, st: AgentEvent.State) {
         }
         return
     }
+    val opened = remember { androidx.compose.runtime.mutableStateMapOf<Int, Boolean>() }
+    // While a new window is being written its notes are in the live reply, so every older window
+    // folds; otherwise the latest window with notes stays open.
+    val writing = steps.lastOrNull { !it.restart }?.reading == true
+    val latestWithNotes = if (writing) null else agent.notes.maxOfOrNull { it.window }
     Column {
-        steps.forEachIndexed { i, s ->
-            val last = i == steps.lastIndex
+        val newestFirst = steps.asReversed()
+        newestFirst.forEachIndexed { i, s ->
+            val newest = i == 0
+            val last = i == newestFirst.lastIndex
             val color = when {
                 s.restart -> VoxSumPalette.Warning
                 s.done -> VoxSumPalette.Success
                 s.reading -> VoxSumPalette.Warning
                 else -> pal.Sky
             }
-            TimelineRow(color = color, pulsing = last && agent.working && !s.done, last = last) {
+            TimelineRow(color = color, pulsing = newest && agent.working && !s.done, last = last) {
                 if (s.restart) {
                     Text(
                         stringResource(R.string.agent_step_restart, s.ctxBefore, s.ctxAfter),
@@ -322,13 +326,31 @@ private fun Timeline(agent: AgentUiState, st: AgentEvent.State) {
                 val parts = mutableListOf(stringResource(R.string.agent_step_tokens, s.tokens))
                 if (s.done) {
                     parts += "%.0f s".format(s.ms / 1000.0)
-                    parts += stringResource(R.string.agent_step_kept, s.kept)
                     if (s.dropped > 0) parts += stringResource(R.string.agent_step_dropped, s.dropped)
                 }
-                Text(parts.joinToString(" · "), style = MaterialTheme.typography.labelMedium, color = pal.Slate400)
-                if (s.reading && last && agent.reply.isNotBlank()) {
+                val notes = agent.notes.filter { it.window == s.window }
+                val showNotes = notes.isNotEmpty() && (s.window == latestWithNotes || opened[s.window] == true)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(parts.joinToString(" · "), style = MaterialTheme.typography.labelMedium, color = pal.Slate400)
+                    if (s.done) {
+                        Text(" · ", style = MaterialTheme.typography.labelMedium, color = pal.Slate400)
+                        Text(
+                            stringResource(R.string.agent_step_kept, s.kept),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (notes.isNotEmpty() && s.window != latestWithNotes) pal.Sky else pal.Slate400,
+                            modifier = Modifier.clickable(enabled = notes.isNotEmpty() && s.window != latestWithNotes) {
+                                opened[s.window] = !(opened[s.window] ?: false)
+                            },
+                        )
+                    }
+                }
+                if (s.reading && newest && agent.reply.isNotBlank()) {
                     Spacer(Modifier.height(6.dp))
                     ReplyPreview(agent.reply)
+                }
+                if (showNotes) {
+                    Spacer(Modifier.height(4.dp))
+                    notes.asReversed().forEach { NoteCard(it, onSeek) }
                 }
             }
         }
@@ -349,27 +371,26 @@ private fun TimelineRow(color: Color, pulsing: Boolean, last: Boolean, content: 
     }
 }
 
+/** One note as a compact row: time chip (seeks) · type chip · text, at most two lines. */
 @Composable
 private fun NoteCard(n: Note, onSeek: ((Int) -> Unit)?) {
     val pal = LocalVoxSumPalette.current
-    Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(pal.InsetSurface)
-            .border(1.dp, pal.Hairline, RoundedCornerShape(12.dp)).padding(12.dp),
-        verticalAlignment = Alignment.Top,
-    ) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.Top) {
         Text(
             n.ts,
-            style = MaterialTheme.typography.labelMedium, fontFamily = FontFamily.Monospace,
+            style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.SemiBold, color = pal.Sky,
             modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(pal.ActiveTint)
                 .clickable(enabled = onSeek != null) { ReaderProtocol.parseTs(n.ts)?.let { onSeek?.invoke(it * 1000) } }
-                .padding(horizontal = 6.dp, vertical = 2.dp),
+                .padding(horizontal = 5.dp, vertical = 1.dp),
         )
-        Spacer(Modifier.width(10.dp))
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            n.tag?.takeIf { it != "-" }?.let { TagChip(it) }
-            Text(n.text, style = MaterialTheme.typography.bodyMedium, color = pal.Slate200)
-        }
+        Spacer(Modifier.width(6.dp))
+        n.tag?.takeIf { it != "-" }?.let { TagChip(it); Spacer(Modifier.width(6.dp)) }
+        Text(
+            n.text,
+            style = MaterialTheme.typography.bodySmall, color = pal.Slate200,
+            maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
+        )
     }
 }
 
@@ -459,7 +480,7 @@ private fun tagLabel(tag: String): String = when (fullTag(tag)) {
  */
 private data class ReplyLine(val ts: String?, val tag: String?, val text: String, val note: Boolean)
 
-private val REPLY_NOTE = Regex("""^\s*NOTE\b\s*\[?(\d+:\d{2}(?::\d{2})?)?\]?\s*(?:\(([A-Za-z-]*)\)?)?\s*(.*)$""")
+private val REPLY_NOTE = Regex("""^\s*NOTE\b\s*\[?(\d+(?::\d{0,2}){0,2})?\]?\s*(?:\(([A-Za-z-]*)\)?)?\s*(.*)$""")
 
 private fun replyLines(reply: String): List<ReplyLine> =
     reply.lines().map { it.trim() }.filter { it.isNotEmpty() && it != "NEXT" }.map { l ->
@@ -477,9 +498,10 @@ private fun ReplyPreview(reply: String) {
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(pal.InsetSurface)
             .border(1.dp, pal.Hairline, RoundedCornerShape(10.dp)).padding(horizontal = 10.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        lines.forEachIndexed { i, l -> ReplyLineRow(l, typing = i == lines.lastIndex) }
+        // Newest (the line being written) on top, like the notes list.
+        lines.asReversed().forEachIndexed { i, l -> ReplyLineRow(l, typing = i == 0) }
     }
 }
 
@@ -489,8 +511,8 @@ private fun ReplyLineRow(l: ReplyLine, typing: Boolean) {
     val caret = if (typing) " ▍" else ""
     Row(verticalAlignment = Alignment.CenterVertically) {
         if (l.note) {
-            Text(
-                l.ts ?: "…",
+            if (l.ts != null) Text(
+                l.ts,
                 style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.SemiBold, color = pal.Sky,
                 modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(pal.ActiveTint)

@@ -1,5 +1,13 @@
 package studio.voxsum.ui
 
+import androidx.compose.animation.core.animateFloat
+
+import androidx.compose.ui.draw.alpha
+
+import androidx.compose.foundation.shape.CircleShape
+
+import androidx.compose.foundation.layout.IntrinsicSize
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -95,6 +103,10 @@ fun CaptureScreen(
             IconButton(onClick = onBack) {
                 Icon(Icons.Filled.ArrowBack, contentDescription = stringResource(R.string.back), tint = pal.Slate200)
             }
+            if (isRecording) {
+                RecDot()
+                Spacer(Modifier.width(8.dp))
+            }
             Text(
                 stringResource(if (isRecording) R.string.status_recording else R.string.capture_title),
                 style = MaterialTheme.typography.titleMedium,
@@ -135,6 +147,18 @@ fun CaptureScreen(
             Spacer(Modifier.height(16.dp))
         }
     }
+}
+
+/** Pulsing red "on air" dot (static on e-ink). */
+@Composable
+private fun RecDot() {
+    val pal = LocalVoxSumPalette.current
+    val a = if (pal.isEink) 1f else {
+        val t = androidx.compose.animation.core.rememberInfiniteTransition(label = "rec")
+        t.animateFloat(1f, 0.25f, androidx.compose.animation.core.infiniteRepeatable(
+            androidx.compose.animation.core.tween(700), androidx.compose.animation.core.RepeatMode.Reverse), label = "rec-a").value
+    }
+    Box(Modifier.size(10.dp).alpha(a).clip(CircleShape).background(VoxSumPalette.Red))
 }
 
 @Composable
@@ -247,17 +271,31 @@ private fun androidx.compose.foundation.layout.ColumnScope.LivePanel(
                 val settled = i < stable
                 val showTag = settled && u.speaker != null &&
                     (i == 0 || utterances[i - 1].speaker != u.speaker)
-                Column(Modifier.padding(top = if (showTag && i > 0) 8.dp else 2.dp, bottom = 2.dp)) {
-                    if (showTag) {
-                        val color = Color(speakerColorOn(u.speaker, pal.isDark))
-                        Text(
-                            speakerLabel(u.speaker, emptyMap()).orEmpty(),
-                            color = color,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                        )
+                // Settled lines carry their speaker's colour rail (like the session transcript);
+                // the provisional tail has none yet, and its text is a shade lighter.
+                val rail = if (settled && u.speaker != null) Color(speakerColorOn(u.speaker, pal.isDark)) else pal.Hairline
+                Row(Modifier.padding(top = if (showTag && i > 0) 10.dp else 2.dp, bottom = 2.dp).height(IntrinsicSize.Min)) {
+                    Box(Modifier.width(3.dp).fillMaxHeight().clip(RoundedCornerShape(2.dp)).background(rail))
+                    Spacer(Modifier.width(10.dp))
+                    Column {
+                        if (showTag) {
+                            val color = Color(speakerColorOn(u.speaker, pal.isDark))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    stringResource(R.string.speaker_n, u.speaker + 1),
+                                    color = color,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    "%d:%02d".format(u.startSec.toInt() / 60, u.startSec.toInt() % 60),
+                                    color = pal.Slate400, style = MaterialTheme.typography.labelSmall,
+                                )
+                            }
+                        }
+                        Text(u.text, color = if (settled) pal.Slate200 else pal.Slate400, style = MaterialTheme.typography.bodyMedium)
                     }
-                    Text(u.text, color = pal.Slate200, style = MaterialTheme.typography.bodyMedium)
                 }
             }
         }

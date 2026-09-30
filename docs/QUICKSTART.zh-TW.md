@@ -110,7 +110,7 @@
 ## 6. 值得認識的設定
 
 <p align="center">
-  <img src="screenshots/qs-settings-summary.png" width="260" alt="摘要模型與即時語者延遲設定">
+  <img src="screenshots/qs-settings-summary.zh-TW.png" width="260" alt="摘要模型與即時語者延遲設定">
   &nbsp;
   <img src="screenshots/qs-storage.png" width="260" alt="儲存空間與關於設定">
 </p>

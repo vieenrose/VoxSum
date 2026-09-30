@@ -26,8 +26,9 @@ VoxSum 是一間**錄音工作室**：首頁就是你的**場次清單**，每�
 
 > 剛接觸嗎？**[5 分鐘快速上手 →](docs/QUICKSTART.zh-TW.md)** 帶你走過每一項功能。
 
-<p align="center"><img src="docs/screenshots/demo.gif" width="300" alt="VoxSum 示範 —— 開啟場次、閱讀摘要、點時間即從該處播放"></p>
+<p align="center"><img src="docs/screenshots/demo.zh-TW.gif" width="300" alt="VoxSum 示範 —— 開啟場次、閱讀摘要、點時間即從該處播放"></p>
 <p align="center"><i>開啟已完成的場次：摘要、依語者標註的逐字稿，點任一行即播放並同步高亮目前句子。</i></p>
+<p align="center"><i>示範會議：AISHELL-4 L_R004S02C01（CC BY-SA 4.0）。</i></p>
 
 ## 為什麼選擇 VoxSum
 
@@ -38,10 +39,10 @@ VoxSum 是一間**錄音工作室**：首頁就是你的**場次清單**，每�
 ## 螢幕截圖
 
 <p align="center">
-  <img src="docs/screenshots/01-home.png" width="190" alt="首頁">
-  <img src="docs/screenshots/03-transcript.png" width="190" alt="逐字稿">
-  <img src="docs/screenshots/04-summary.png" width="190" alt="摘要">
-  <img src="docs/screenshots/05-agent.png" width="190" alt="會議代理人 —— 即時筆記">
+  <img src="docs/screenshots/01-home.zh-TW.png" width="190" alt="首頁">
+  <img src="docs/screenshots/03-transcript.zh-TW.png" width="190" alt="逐字稿">
+  <img src="docs/screenshots/04-summary.zh-TW.png" width="190" alt="摘要">
+  <img src="docs/screenshots/05-agent.zh-TW.png" width="190" alt="會議代理人 —— 即時筆記">
 </p>
 <p align="center"><i>工作室首頁（帶即時狀態的場次清單） · 帶語者的即時逐字稿 · 摘要 · 摘要語言選擇 —— 截圖為英文介面；App 亦提供繁體中文介面。</i></p>
 

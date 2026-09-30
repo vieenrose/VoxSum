@@ -31,7 +31,8 @@ them one by one while you watch each session's live status.
 > New here? The **[5-minute Quick Start →](docs/QUICKSTART.md)** walks through every feature.
 
 <p align="center"><img src="docs/screenshots/demo.gif" width="300" alt="VoxSum demo — open a session, read the prose summary, tap a time to play from there"></p>
-<p align="center"><i>Open a finished session: the summary, the speaker-tagged transcript, and tap-to-play with the current line highlighted.</i></p>
+<p align="center"><i>Open a finished session: the summary, the speaker-tagged transcript, and tap-to-play with the current line highlighted.<br>
+Demo meeting: AMI Meeting Corpus ES2004a (CC BY 4.0). The summary model writes in Chinese, including for English meetings.</i></p>
 
 ## Why VoxSum
 

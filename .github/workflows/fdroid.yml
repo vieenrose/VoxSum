@@ -59,16 +59,15 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # The action's own licence step fails on runner images whose preinstalled cmdline-tools
-      # (16.0) list PREVIEW licences it does not answer (2026-09-30); accept them ourselves below.
-      - uses: android-actions/setup-android@v3
-        with:
-          accept-android-sdk-licenses: false
-
+      # No android-actions/setup-android: on the 2026-09 runner images its sdkmanager call fails on
+      # PREVIEW licences it cannot answer. The image already ships the SDK at $ANDROID_HOME; `yes |`
+      # answers every licence prompt.
       - name: Install NDK + cmake + platform
         run: |
-          yes | sdkmanager --licenses > /dev/null || true
-          yes | sdkmanager "platform-tools" "platforms;android-35" \
+          SDKM="$(ls -d "$ANDROID_HOME"/cmdline-tools/*/bin | sort -V | tail -1)/sdkmanager"
+          echo "$(dirname "$SDKM")" >> "$GITHUB_PATH"
+          yes | "$SDKM" --licenses > /dev/null || true
+          yes | "$SDKM" "platform-tools" "platforms;android-35" \
             "build-tools;35.0.0" "cmake;3.22.1" "ndk;27.2.12479018"
 
       # Gate the release on the host test suite. v0.36.0 shipped with an instrumented suite that

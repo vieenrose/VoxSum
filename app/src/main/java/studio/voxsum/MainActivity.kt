@@ -166,7 +166,6 @@ import studio.voxsum.core.config.TranscriptionConfig
 import studio.voxsum.core.power.BackgroundReliability
 import studio.voxsum.core.text.ChineseScript
 import studio.voxsum.core.text.OpenCcConverter
-import studio.voxsum.core.cover.CoverGenerator
 import studio.voxsum.core.events.TranscriptEvent
 import studio.voxsum.core.models.LlmRegistry
 import studio.voxsum.core.models.ModelManager
@@ -1302,19 +1301,6 @@ private fun TranscribeScreen(
     LaunchedEffect(pendingSharedImport) {
         pendingSharedImport?.let { openSessionUri(it); pendingSharedImport = null }
     }
-    // Identicon: fingerprint the audio once it's settled (opened or transcription done), then render the
-    // cover from (fingerprint + title). Keyed on title too, so editing the title regenerates the cover —
-    // its pattern AND the title text drawn on it both derive from the title. Reset is automatic: a new
-    // session clears transcriptReady, which nulls the fingerprint and the cover.
-    LaunchedEffect(audioUri, transcriptReady, coverFromSession) {
-        val u = audioUri
-        // Opened sessions keep their embedded cover; only fresh runs fingerprint the audio.
-        audioSig = if (!coverFromSession && u != null && transcriptReady) VoxsumSession.audioFingerprint(context, u) else null
-    }
-    LaunchedEffect(title, audioSig, coverFromSession) {
-        val sig = audioSig
-        if (!coverFromSession) coverBitmap = if (sig != null) withContext(Dispatchers.IO) { CoverGenerator.render(title, sig) } else null
-    }
     fun shareSession(format: VoxsumSession.Format) {
         // The build (incl. its single audio decode) runs in the service; no slow work here.
         stageSessionExport(true, null, format)
@@ -2235,7 +2221,7 @@ private fun TranscribeScreen(
         containerColor = Color.Transparent,
         topBar = {
             SessionTopBar(
-                cover = coverBitmap?.asImageBitmap(),
+                cover = null,   // no per-session art (the generated identicon was removed)
                 title = title,
                 status = status,
                 running = running,

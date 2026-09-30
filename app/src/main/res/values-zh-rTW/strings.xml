@@ -360,4 +360,5 @@
     <plurals name="agent_outcome">
         <item quantity="other">已讀 %1$d 個片段 · %2$d 則筆記</item>
     </plurals>
+    <string name="export_menu_entry">匯出與分享…</string>
 </resources>

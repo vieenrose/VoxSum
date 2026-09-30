@@ -242,16 +242,17 @@ fun AgentPanel(agent: AgentUiState, onSeek: ((Int) -> Unit)? = null, modifier: M
 @Composable
 private fun Gauges(agent: AgentUiState, st: AgentEvent.State) {
     val cur = agent.steps.lastOrNull { !it.restart }
-    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+    // Stacked, not side by side: at large font scales two half-width labels were cut ("Conte…").
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Gauge(
             label = stringResource(R.string.agent_gauge_window),
             value = cur?.tokens ?: 0, max = ReaderProtocol.WINDOW_TOKENS,
-            active = st.state == AgentState.LISTENING, modifier = Modifier.weight(1f),
+            active = st.state == AgentState.LISTENING, modifier = Modifier.fillMaxWidth(),
         )
         Gauge(
             label = stringResource(R.string.agent_gauge_context),
             value = agent.ctxTokens, max = ReaderProtocol.CTX_BUDGET,
-            active = false, modifier = Modifier.weight(1f),
+            active = false, modifier = Modifier.fillMaxWidth(),
         )
     }
 }
@@ -327,12 +328,7 @@ private fun Timeline(agent: AgentUiState, st: AgentEvent.State) {
                 Text(parts.joinToString(" · "), style = MaterialTheme.typography.labelMedium, color = pal.Slate400)
                 if (s.reading && last && agent.reply.isNotBlank()) {
                     Spacer(Modifier.height(6.dp))
-                    Text(
-                        agent.reply.trimEnd().lines().takeLast(6).joinToString("\n"),
-                        style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace, color = pal.Slate400,
-                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
-                            .background(pal.InsetSurface).padding(horizontal = 10.dp, vertical = 8.dp),
-                    )
+                    ReplyPreview(agent.reply)
                 }
             }
         }
@@ -430,7 +426,7 @@ private fun stateColor(s: AgentState): Color {
     }
 }
 
-private fun tagColor(tag: String): Color = when (tag.uppercase()) {
+private fun tagColor(tag: String): Color = when (fullTag(tag)) {
     "DECISION" -> VoxSumPalette.Success
     "ACTION" -> VoxSumPalette.Info
     "OPEN-ISSUE" -> VoxSumPalette.Warning
@@ -448,7 +444,7 @@ private fun statusLine(s: AgentEvent.State): String = when (s.state) {
 }
 
 @Composable
-private fun tagLabel(tag: String): String = when (tag.uppercase()) {
+private fun tagLabel(tag: String): String = when (fullTag(tag)) {
     "DECISION" -> stringResource(R.string.agent_tag_decision)
     "ACTION" -> stringResource(R.string.agent_tag_action)
     "OPEN-ISSUE" -> stringResource(R.string.agent_tag_open)
@@ -456,10 +452,67 @@ private fun tagLabel(tag: String): String = when (tag.uppercase()) {
     else -> tag
 }
 
-/** The reply's last line minus protocol syntax; null until it says something. */
-private fun readable(reply: String): String? =
-    reply.trimEnd().lines().lastOrNull()?.removePrefix("NOTE")?.replace("[", "")?.replace("]", "")?.trim()
-        ?.takeIf { it.length > 5 }
+/**
+ * One line of the reply being written, parsed for DISPLAY only (the model's protocol text is never
+ * rewritten): `NOTE [5:14] (ACTION) text` → time, tag, text. Tolerates the half-written last line
+ * ("NOTE [0", "NOTE [5:14] (ACT"); other verbs (REVISE/LOOKBACK) keep their raw text.
+ */
+private data class ReplyLine(val ts: String?, val tag: String?, val text: String, val note: Boolean)
+
+private val REPLY_NOTE = Regex("""^\s*NOTE\b\s*\[?(\d+:\d{2}(?::\d{2})?)?\]?\s*(?:\(([A-Za-z-]*)\)?)?\s*(.*)$""")
+
+private fun replyLines(reply: String): List<ReplyLine> =
+    reply.lines().map { it.trim() }.filter { it.isNotEmpty() && it != "NEXT" }.map { l ->
+        REPLY_NOTE.find(l)?.let { m ->
+            ReplyLine(m.groupValues[1].ifEmpty { null }, m.groupValues[2].ifEmpty { null }, m.groupValues[3], note = true)
+        } ?: ReplyLine(null, null, l, note = false)
+    }
+
+/** The reply being written, as note rows (last 5), the newest one with a typing caret. */
+@Composable
+private fun ReplyPreview(reply: String) {
+    val pal = LocalVoxSumPalette.current
+    val lines = replyLines(reply).takeLast(5)
+    if (lines.isEmpty()) return
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(pal.InsetSurface)
+            .border(1.dp, pal.Hairline, RoundedCornerShape(10.dp)).padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        lines.forEachIndexed { i, l -> ReplyLineRow(l, typing = i == lines.lastIndex) }
+    }
+}
+
+@Composable
+private fun ReplyLineRow(l: ReplyLine, typing: Boolean) {
+    val pal = LocalVoxSumPalette.current
+    val caret = if (typing) " ▍" else ""
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        if (l.note) {
+            Text(
+                l.ts ?: "…",
+                style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.SemiBold, color = pal.Sky,
+                modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(pal.ActiveTint)
+                    .padding(horizontal = 5.dp, vertical = 1.dp),
+            )
+            Spacer(Modifier.width(6.dp))
+            l.tag?.takeIf { it.length >= 3 && it != "-" }?.let { TagChip(it); Spacer(Modifier.width(6.dp)) }
+        }
+        Text(
+            l.text + caret,
+            style = MaterialTheme.typography.bodySmall,
+            color = if (l.note) pal.Slate200 else pal.Slate400,
+            maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+/** A tag, completed from its prefix while it is still being written ("ACT" → ACTION). */
+private fun fullTag(tag: String): String {
+    val t = tag.uppercase()
+    return listOf("DECISION", "ACTION", "OPEN-ISSUE", "NUMBER").firstOrNull { it.startsWith(t) } ?: t
+}
 
 private fun logPrefix(k: AgentUiState.Kind) = when (k) {
     AgentUiState.Kind.FED -> "▸"
@@ -513,11 +566,8 @@ fun AgentStrip(agent: AgentUiState, modifier: Modifier = Modifier) {
         val note = agent.notes.lastOrNull()
         when {
             // Friendlier than the raw protocol line: drop the "NOTE" keyword and the brackets.
-            st.state == AgentState.READING && readable(agent.reply) != null -> Text(
-                "✎ " + readable(agent.reply),
-                style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace, color = pal.Slate400,
-                maxLines = 2, overflow = TextOverflow.Ellipsis,
-            )
+            st.state == AgentState.READING && replyLines(agent.reply).isNotEmpty() ->
+                ReplyLineRow(replyLines(agent.reply).last(), typing = true)
             note != null -> Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(note.ts, style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace, color = pal.Sky)
                 Spacer(Modifier.width(8.dp))

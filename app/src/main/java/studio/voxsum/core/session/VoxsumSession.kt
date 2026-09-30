@@ -12,7 +12,6 @@ import studio.voxsum.core.audio.AudioTranscoder
 import studio.voxsum.core.audio.WavIo
 import studio.voxsum.core.audio.Mp4Tags
 import studio.voxsum.core.cover.CoverArt
-import studio.voxsum.core.cover.CoverGenerator
 import studio.voxsum.core.events.TranscriptEvent
 import studio.voxsum.data.SpeakerName
 import java.io.ByteArrayOutputStream
@@ -174,13 +173,9 @@ object VoxsumSession {
             android.util.Log.w("voxsum-session", "wav->${format.ext} transcode returned false")
             return@withContext null
         }
-        // Render the cover JPEG — an audio-seeded identicon (an ID for THIS track), keyed by audio + title,
-        // so transcript edits don't change it and it's reproducible on every (re)save.
-        var coverJpeg: ByteArray? = null; var coverW = 0; var coverH = 0
-        if (coverEnabled) runCatching {
-            val bmp = CoverGenerator.render(title, audioId)
-            coverJpeg = CoverGenerator.toJpeg(bmp); coverW = bmp.width; coverH = bmp.height
-        }
+        // No generated cover art: the per-session identicon read as a random logo and was removed.
+        // [coverEnabled] is kept for call-site compatibility and ignored.
+        val coverJpeg: ByteArray? = null; val coverW = 0; val coverH = 0
         val blob = encodeSession(utterances, speakerNames, summary, actionItems, title, notes, asrModelId, asrBackend, llmModelId)
         val cleanTitle = title?.replace('\n', ' ')?.trim()?.ifBlank { null }
         val cleanSummary = summary?.trim()?.ifBlank { null }

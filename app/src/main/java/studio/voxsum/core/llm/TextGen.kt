@@ -95,6 +95,7 @@ interface TextGen : AutoCloseable {
                 nCtx = nCtx.coerceIn(1024, spec.maxCtx),
                 sampler = spec.sampler,
                 kvQ8 = KV_Q8,
+                swaFull = spec.swaFull,
             )
         }
     }

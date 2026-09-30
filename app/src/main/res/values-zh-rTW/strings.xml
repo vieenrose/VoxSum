@@ -321,4 +321,20 @@
     <string name="notes_decisions">決議事項</string>
     <string name="notes_open">待確認問題</string>
     <string name="notes_topics">討論主題</string>
+    <string name="svc_summary_failed">無法產生摘要——逐字稿已儲存</string>
+    <string name="agent_title">會議代理</string>
+    <string name="agent_starting">正在載入閱讀代理…</string>
+    <string name="agent_listening">聆聽中 · 第 %1$d 段 · 上下文 %2$d tokens · %3$d 則筆記</string>
+    <string name="agent_reading">正在閱讀第 %1$d 段並寫筆記…</string>
+    <string name="agent_restarting">上下文已滿（%1$d tokens）——以精簡筆記重新開始…</string>
+    <string name="agent_done">完成 · %1$d 則筆記</string>
+    <string name="agent_notes">即時筆記（%1$d）</string>
+    <string name="agent_notes_caution">這是筆記，不是正式紀錄：約五則中有一則可能有誤——點時間即可核對。</string>
+    <string name="agent_show_log">顯示活動紀錄（%1$d）</string>
+    <string name="agent_hide_log">隱藏活動紀錄（%1$d）</string>
+    <string name="agent_tag_decision">決議</string>
+    <string name="agent_tag_action">待辦</string>
+    <string name="agent_tag_open">未決</string>
+    <string name="agent_tag_number">數字</string>
+    <string name="cpu_unsupported">不支援此裝置的處理器：VoxSum 需要支援點積指令的 ARMv8.2 處理器（大多數 2019 年以後的手機）。</string>
 </resources>

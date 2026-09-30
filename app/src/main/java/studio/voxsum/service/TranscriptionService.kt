@@ -35,6 +35,7 @@ import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
 import studio.voxsum.core.asr.AsrEngine
 import studio.voxsum.core.asr.NemoStreamEngine
 import studio.voxsum.core.asr.SnapshotConverter
@@ -45,13 +46,13 @@ import studio.voxsum.core.audio.RecordingRecovery
 import studio.voxsum.core.audio.WavIo
 import studio.voxsum.core.audio.WavNormalizer
 import studio.voxsum.core.config.SummaryScript
-import studio.voxsum.core.config.SummaryStyle
 import studio.voxsum.core.config.TranscriptionConfig
 import studio.voxsum.core.events.TranscriptEvent
 import studio.voxsum.core.library.ProcessingQueue
 import studio.voxsum.core.library.SessionLibrary
-import studio.voxsum.core.llm.ActionItemExtractor
-import studio.voxsum.core.llm.Summarizer
+import studio.voxsum.core.reader.AgentEvent
+import studio.voxsum.core.reader.AgentState
+import studio.voxsum.core.reader.ReaderLane
 import studio.voxsum.core.models.LlmRegistry
 import studio.voxsum.core.models.LlmSpec
 import studio.voxsum.core.models.ModelManager
@@ -62,8 +63,9 @@ import studio.voxsum.MainActivity
 import studio.voxsum.R
 import java.io.File
 
-/** Context for the action-item pass: enough for its 3500-char chunk cap, and no more. */
-private const val ACTION_ITEM_CTX = 8192
+/** Total RAM from which ASR + diarization and the reader run concurrently (the model alone is
+ *  3.35 GB; integration note §6 gates live mode at ~8 GB). */
+private const val LIVE_READER_MIN_RAM = 7_500L * 1024 * 1024 * 1024 / 1000
 
 /**
  * Long-running pipeline host. Transcription + diarization + summarization can take
@@ -256,7 +258,7 @@ class TranscriptionService : LifecycleService() {
 
     // Held so a stop request can break the native generate loop promptly (it ignores
     // coroutine cancellation while inside a blocking JNI call).
-    @Volatile private var activeLlm: studio.voxsum.core.llm.TextGen? = null
+    @Volatile private var activeReader: OpenReader? = null
     @Volatile private var stopRecordingRequested = false
     // "Next talk": when the graceful stop above was requested with DEFER semantics — skip
     // diarization + summary, auto-save the capture as RECORDED, and return immediately.
@@ -301,7 +303,7 @@ class TranscriptionService : LifecycleService() {
      * far below the cap, so this realistically only trims a very long processing session.
      */
     override fun onTimeout(startId: Int, fgsType: Int) {
-        activeLlm?.cancel()
+        activeReader?.engine?.cancel()
         pipelineJob?.cancel()
         notifyPaused()
         pipelineActive = false; recordingJobActive = false; queueDraining = false
@@ -368,7 +370,7 @@ class TranscriptionService : LifecycleService() {
 
         when (intent?.action) {
             ACTION_STOP -> {
-                activeLlm?.cancel()
+                activeReader?.engine?.cancel()
                 // CANCEL, THEN WAIT, THEN STOP. `cancel()` only REQUESTS cancellation and returns
                 // immediately; calling stopSelf() straight after destroyed the service — and with it
                 // lifecycleScope — before the cancelled pipeline coroutine was ever scheduled again,
@@ -444,7 +446,7 @@ class TranscriptionService : LifecycleService() {
         stopRecordingRequested = false
         deferProcessing = false
         val previousJob = pipelineJob
-        val previousLlm = activeLlm
+        val previousLlm = activeReader
         // Main-owned run-type flags for the guard above (and the UI's recovery check): a new start
         // of ANY kind supersedes whatever ran before, so overwrite rather than accumulate.
         recordingJobActive = recording
@@ -474,7 +476,7 @@ class TranscriptionService : LifecycleService() {
             // concurrently with this job and trash its resources: the drain's per-item temp cleanup
             // deleted the WAV a superseding recording was actively writing (silently lost talk), a
             // superseded recording's finally cleared the NEW recording's crash-recovery marker and
-            // recordingActive, its `activeLlm = null` deregistered the new run's engine (Stop
+            // recordingActive, its `activeReader = null` deregistered the new run's engine (Stop
             // stopped working), and two multi-GB GGUF models resident at once invited a low-memory
             // process kill. join() is cancellable: if THIS job is itself superseded while waiting,
             // it unwinds normally.
@@ -485,7 +487,7 @@ class TranscriptionService : LifecycleService() {
             runCatching {
                 when {
                     summarizeOnly -> runSummarizeOnly(transcript.orEmpty(), summarizeWithTitle)
-                    extractActions -> runExtractActions(transcript.orEmpty())
+                    extractActions -> runSummarizeOnly(transcript.orEmpty())
                     diarizeOnly -> runDiarizeOnly(uri)
                     processQueue -> runQueue()
                     recording -> runRecordingPipeline()
@@ -497,6 +499,9 @@ class TranscriptionService : LifecycleService() {
                         emitEvent(TranscriptEvent.Failed(e.message ?: "pipeline error"))
                     }
                 }
+            // A run that ended early (stop, failure, cancellation during ASR) must not leave the
+            // live reader's multi-GB model resident. Normal ends already closed it.
+            closeLive(liveReader)
             // A pending queue resumes after the run that blocked it — a drain superseded by a
             // recording/import, or items enqueued DURING a foreground import (the UI defers the
             // drain start to protect the unsaved import; without this resume those rows would sit
@@ -544,7 +549,7 @@ class TranscriptionService : LifecycleService() {
         // Now that the new job is the active one, supersede any in-flight run (e.g. Re-summarize
         // while the first summary is still streaming). Done after the reassignment so the old job's
         // teardown sees it is no longer current and leaves the new run's foreground alone.
-        previousLlm?.cancel()
+        previousLlm?.engine?.cancel()
         previousJob?.cancel()
         return START_NOT_STICKY
     }
@@ -894,6 +899,8 @@ class TranscriptionService : LifecycleService() {
             entry?.let { emitEvent(TranscriptEvent.RecordingSaved(Uri.fromFile(it.wavFile).toString())) }
         }
 
+        // Live mode: the reader loads now and reads the transcript while it is being recognized.
+        val live = if (summarizeAfter) startLiveReader(models) else null
         try {
         val engine = try {
             createEngine(models)
@@ -915,6 +922,7 @@ class TranscriptionService : LifecycleService() {
                             val snap = snapConv.apply(e)
                             utterances.clear(); utterances += snap.utterances
                             emitEvent(snap)
+                            feedLive(live, snap)
                             // Recognition progress: how far the transcript reaches through the audio.
                             val end = utterances.lastOrNull()?.endSec ?: 0.0
                             if (totalDurationSec > 0) {
@@ -945,6 +953,7 @@ class TranscriptionService : LifecycleService() {
             // instead of leaving it RECORDED and re-transcribing it on every 'Process all'. Real
             // errors (no source / corrupt model) return null above and stay retryable.
             emitEvent(TranscriptEvent.Complete(emptyList(), speakerCount = null))
+            closeLive(live)
             return emptyList<TranscriptEvent.Utterance>() to SummaryResult(null, null)
         }
         if (!summarizeAfter) {
@@ -955,7 +964,7 @@ class TranscriptionService : LifecycleService() {
         // The import was already promoted by the ASR phase's finally (see promoteImport). Nothing
         // to do here beyond keeping `entry` for attachResults below.
 
-        val result = finishPipeline(utterances, diarized, cfg, models, converter)
+        val result = finishPipeline(utterances, diarized, models, converter, live)
 
         // Embed the finished results into the entry (RECORDED → full self-describing session.m4a).
         // Non-fatal on failure: the session view still has the results, and the RECORDED entry above
@@ -964,7 +973,7 @@ class TranscriptionService : LifecycleService() {
         if (foreground && libEntry != null) {
             runCatching {
                 val updated = SessionLibrary.attachResults(
-                    this, libEntry, result.first, emptyMap(), result.second.summary, null,
+                    this, libEntry, result.first, emptyMap(), result.second.summary, result.second.actions,
                     result.second.title, result.second.notes, cfg.asrModelId, cfg.asrBackend, cfg.llmModelId,
                 )
                 if (updated != null) {
@@ -1054,35 +1063,22 @@ class TranscriptionService : LifecycleService() {
                 }
             }
 
-            // --- Pass 2: one LLM load, summarize + embed + dequeue every item with a sidecar. ---
+            // --- Pass 2: one reader load, summarize + embed + dequeue every item with a sidecar. ---
             val toSummarize = ProcessingQueue.ids(this)
             if (toSummarize.isEmpty()) continue
-            val spec = LlmRegistry.byId(cfgAll.llmModelId)
             val models = ModelManager(this)
-            ensureLlm(spec, models)
-            val llm = try {
-                // The drain holds ONE engine across every queued item, so it cannot size the
-                // context from a single transcript the way summarize() does — it takes the
-                // ceiling and lets short items pay the long ones' decode cost. Sizing per item
-                // would mean a model load per item, which is the cost this pass exists to avoid.
-                studio.voxsum.core.llm.TextGen.load(
-                    this, models.llmFile(spec).absolutePath, spec, nThreads = asrThreads(),
-                    backend = cfgAll.llmBackend, nCtx = studio.voxsum.core.llm.TextGen.CTX_MAX,
-                )
+            val reader = try {
+                openReader(models, currentGen())
             } catch (ce: CancellationException) {
                 throw ce
             } catch (t: Throwable) {
-                // LLM engine itself won't load (corrupt download, OOM): items keep their sidecars
+                // The reader itself won't load (corrupt download, OOM): items keep their sidecars
                 // and stay queued for the next drain; don't spin the outer loop on the same failure.
-                Log.w("TranscriptionService", "queue drain: LLM load failed", t)
+                Log.w("TranscriptionService", "queue drain: reader load failed", t)
                 break
             }
-            llm.use {
-              // One verifier load for the whole drain, mirroring the engine above: it is a
-              // second resident model, so loading it per item would dominate the cost this
-              // batch pass exists to avoid.
-              val drainVerifier = loadVerifierOrNull(models)
-              try {
+            reader.use {
+                var first = true
                 for (id in toSummarize) {
                     val entry = SessionLibrary.byId(this, id)
                     if (entry == null || entry.status == SessionLibrary.Status.DONE || !entry.wavFile.exists()) {
@@ -1093,12 +1089,14 @@ class TranscriptionService : LifecycleService() {
                         ?: continue   // no sidecar (its pass-1 was cut short): leave queued, next outer lap redoes ASR
                     currentQueueItemId = id
                     updateNotification(getString(R.string.svc_processing_queue, entry.title ?: SessionLibrary.defaultTitle(entry.createdAt), ProcessingQueue.size(this)))
+                    // One conversation per meeting on the one loaded model.
+                    val item = if (first) reader else reader.fresh()
+                    first = false
                     try {
                         val converter = outputConverter(cfgAll)
-                        val transcript = studio.voxsum.core.llm.TranscriptFormat.format(utterances)
-                        val summary = if (transcript.isBlank()) SummaryResult(null, null)
-                        else summarizeWith(llm, spec, transcript, cfgAll, converter,
-                            verifierLlm = drainVerifier)
+                        item.lane.feedAll(utterances)
+                        val summary = if (utterances.isEmpty()) SummaryResult(null, null)
+                        else finishReader(item, null, converter, withTitle = true)
                         // The user may have DELETED this entry while it summarized. attachResults →
                         // buildSession would mkdirs() the deleted dir and resurrect a ghost
                         // session, so bail if the entry is gone. (onDelete also dequeues it.)
@@ -1107,7 +1105,7 @@ class TranscriptionService : LifecycleService() {
                             continue
                         }
                         val updated = SessionLibrary.attachResults(
-                            this, entry, utterances, emptyMap(), summary.summary, null,
+                            this, entry, utterances, emptyMap(), summary.summary, summary.actions,
                             summary.title, summary.notes, cfgAll.asrModelId, cfgAll.asrBackend, cfgAll.llmModelId,
                         )
                         if (updated != null) {
@@ -1125,12 +1123,10 @@ class TranscriptionService : LifecycleService() {
                         notifyItemFailed(entry.title ?: SessionLibrary.defaultTitle(entry.createdAt))
                     } finally {
                         currentQueueItemId = null
+                        if (item !== reader) item.closeLaneOnly()
                     }
                     ProcessingQueue.remove(this, id)
                 }
-              } finally {
-                drainVerifier?.close()
-              }
             }
         }
         } finally {
@@ -1226,6 +1222,8 @@ class TranscriptionService : LifecycleService() {
                 mic.close()   // end-of-stream for transcribeLive (clean stop AND cancellation)
             }
         }
+        // Live mode: the reader writes notes while the meeting is still being recorded.
+        val live = startLiveReader(models)
         try {
         createEngine(models).use { engine ->
             engine.transcribeLive(mic.consumeAsFlow())
@@ -1236,6 +1234,7 @@ class TranscriptionService : LifecycleService() {
                             val snap = snapConv.apply(e)
                             utterances.clear(); utterances += snap.utterances
                             emitEvent(snap)
+                            feedLive(live, snap)
                         }
                         else -> emitEvent(e)
                     }
@@ -1282,21 +1281,23 @@ class TranscriptionService : LifecycleService() {
             // queue. Complete carries the live transcript so the UI isn't left mid-run — the next
             // recording's session reset supersedes it anyway.
             emitEvent(TranscriptEvent.Complete(utterances, speakerCount = null))
+            closeLive(live)
             return
         }
 
         if (utterances.isEmpty()) {
             emitEvent(TranscriptEvent.Complete(emptyList(), speakerCount = null))
+            closeLive(live)
             return
         }
-        val (tagged, result) = finishPipeline(utterances, diarized, cfg, models, converter)
+        val (tagged, result) = finishPipeline(utterances, diarized, models, converter, live)
         // Embed the finished results into the library entry (auto-save of the SESSION, not just the
         // audio): the entry becomes a self-describing session.m4a that reopens fully editable. A
         // failure here is non-fatal — the raw capture stays safe in the library either way.
         libEntry?.let { entry ->
             val updated = runCatching {
                 SessionLibrary.attachResults(
-                    this, entry, tagged, emptyMap(), result.summary, null, result.title,
+                    this, entry, tagged, emptyMap(), result.summary, result.actions, result.title,
                     result.notes, cfg.asrModelId, cfg.asrBackend, cfg.llmModelId,
                 )
             }.getOrNull()
@@ -1416,212 +1417,174 @@ class TranscriptionService : LifecycleService() {
     private suspend fun finishPipeline(
         utterances: List<TranscriptEvent.Utterance>,
         diarized: Pair<List<TranscriptEvent.Utterance>, Int>?,
-        cfg: TranscriptionConfig,
         models: ModelManager,
         converter: OpenCcConverter?,
+        /** The live reader, when it ran alongside ASR; otherwise the reader runs now, post-hoc. */
+        live: kotlinx.coroutines.Deferred<OpenReader?>?,
     ): Pair<List<TranscriptEvent.Utterance>, SummaryResult> {
         val tagged = diarized?.first ?: utterances
         emitEvent(TranscriptEvent.Complete(tagged, diarized?.second))
-
-        // The unified summarizer interface — same "[M:SS] S1: text" format on every
-        // platform and every ASR backend, and the target format of the upcoming
-        // summarizer fine-tune. Speaker names are not known yet at this stage of
-        // the pipeline; S-tags degrade to none when diarization did not run.
-        return tagged to summarize(
-            studio.voxsum.core.llm.TranscriptFormat.format(tagged), cfg, models, converter)
+        val open = live?.let { runCatching { it.await() }.getOrNull() }
+        val result = try {
+            if (open != null) finishReader(open, tagged, converter, withTitle = true)
+            else summarize(tagged, models, converter)
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (t: Throwable) {
+            // The summary is an enhancement: a reader failure (download, OOM) keeps the transcript.
+            Log.w("voxsum-reader", "summarization failed", t)
+            emitEvent(TranscriptEvent.Status(getString(R.string.svc_summary_failed)))
+            SummaryResult(null, null)
+        } finally {
+            closeLive(live)
+        }
+        return tagged to result
     }
 
     /** What the summary phase produced — captured so the recording pipeline can auto-save the
      *  finished session into the library ([SessionLibrary.attachResults]). */
-    private data class SummaryResult(val title: String?, val summary: String?, val notes: String? = null)
+    private data class SummaryResult(
+        val title: String?, val summary: String?, val notes: String? = null, val actions: String? = null,
+    )
+
+    // ---- The meeting reader (core/reader): the summarizer is a live reading agent ------------
+
+    /** A loaded reader: the model and the lane that drives it. */
+    private class OpenReader(
+        val engine: studio.voxsum.core.llm.LlmEngine,
+        val lane: ReaderLane,
+        val system: String,
+        val emit: (AgentEvent) -> Unit,
+    ) : AutoCloseable {
+        /** A fresh conversation on the same loaded model (the queue drain: one load, many meetings). */
+        fun fresh(): OpenReader = OpenReader(engine, ReaderLane(engine, system, emit).also { it.start() }, system, emit)
+        fun closeLaneOnly() = lane.close()
+        override fun close() { lane.close(); engine.close() }
+    }
 
     /**
-     * Load the LLM and stream a title + summary for [transcript]. Shared by the full pipeline and
-     * the standalone re-summarize action ([ACTION_SUMMARIZE]). Returns the final title/summary
-     * (alongside the emitted events) for callers that persist the finished session.
+     * Live mode: ASR + diarization and the reader run at the same time, so the minutes are ready
+     * about a minute after the meeting ends (integration note §2). It holds both models resident,
+     * so it needs the RAM: below ~8 GB the reader runs after transcription instead (same protocol,
+     * faster than real time since nothing waits for speech).
      */
-    private suspend fun summarize(
-        transcript: String,
-        cfg: TranscriptionConfig,
-        models: ModelManager,
-        converter: OpenCcConverter?,
-        withTitle: Boolean = true,
-    ): SummaryResult {
-        val spec = LlmRegistry.byId(cfg.llmModelId)
+    private fun liveReaderCapable(): Boolean {
+        val am = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+        val mi = android.app.ActivityManager.MemoryInfo().also(am::getMemoryInfo)
+        return mi.totalMem >= LIVE_READER_MIN_RAM
+    }
+
+    /** Download (if needed) and load the reader model; the lane is started (prefix prefilled). */
+    private suspend fun openReader(models: ModelManager, gen: Int): OpenReader {
+        val spec = LlmRegistry.byId(LlmRegistry.DEFAULT_ID)
         ensureLlm(spec, models)
-        // One window for every request: the summarizer always runs the agentic path, which reads
-        // one chunk at a time, so the window is a function of the CHUNK and identical for a
-        // ten-minute recording and a three-hour one. (v0.39.0-v0.39.3 also had a single-pass
-        // fallback for cross-lingual requests and sized this window wrongly for it, refusing long
-        // translations; translation is gone, so that branch is gone with it.)
-        val nCtx = Summarizer.agentContext(max = studio.voxsum.core.llm.TextGen.CTX_MAX)
-        studio.voxsum.core.llm.TextGen.load(
-            this, models.llmFile(spec).absolutePath, spec, nThreads = asrThreads(),
-            backend = cfg.llmBackend, nCtx = nCtx,
-        ).use { llm ->
-            val verifier = loadVerifierOrNull(models)
+        val system = File(models.llmDir(spec), LlmRegistry.SYSTEM_PROMPT_FILE).readText()
+        events.tryEmit(gen to TranscriptEvent.Agent(AgentEvent.State(AgentState.STARTING)))
+        val engine = withContext(Dispatchers.IO) {
+            studio.voxsum.core.llm.LlmEngine.load(
+                models.llmFile(spec).absolutePath, nThreads = asrThreads(), nCtx = spec.maxCtx,
+                sampler = spec.sampler, kvQ8 = studio.voxsum.core.llm.TextGen.KV_Q8, swaFull = spec.swaFull,
+            )
+        }
+        val emit: (AgentEvent) -> Unit = { ev -> events.tryEmit(gen to TranscriptEvent.Agent(ev)) }
+        val lane = ReaderLane(engine, system, emit)
+        lane.start()
+        return OpenReader(engine, lane, system, emit)
+    }
+
+    /** Start loading the live reader in the background; null when live mode does not apply. The
+     *  caller feeds snapshots only once it has completed, and must close it. */
+    private suspend fun startLiveReader(models: ModelManager): kotlinx.coroutines.Deferred<OpenReader?>? {
+        if (!liveReaderCapable()) return null
+        val gen = currentGen()
+        return lifecycleScope.async(Dispatchers.IO) {
             try {
-                return summarizeWith(llm, spec, transcript, cfg, converter, withTitle, verifier)
-            } finally {
-                verifier?.close()
+                openReader(models, gen)
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (t: Throwable) {
+                Log.w("voxsum-reader", "live reader unavailable; will summarize after transcription", t)
+                null
             }
+        }.also { liveReader = it }
+    }
+
+    /** The live reader of the current run, if any — closed at the end of the job whatever happened. */
+    @Volatile private var liveReader: kotlinx.coroutines.Deferred<OpenReader?>? = null
+
+    /** Hand a live snapshot to the reader if it is loaded (feeding resumes from the stable index,
+     *  so snapshots that arrive while it is still loading are not lost). */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    private fun feedLive(live: kotlinx.coroutines.Deferred<OpenReader?>?, snap: TranscriptEvent.UtteranceSnapshot) {
+        if (live == null || !live.isCompleted || live.isCancelled) return
+        runCatching { live.getCompleted() }.getOrNull()?.lane?.feed(snap)
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    private fun closeLive(live: kotlinx.coroutines.Deferred<OpenReader?>?) {
+        if (live == null) return
+        if (liveReader === live) liveReader = null
+        if (live.isCompleted) runCatching { live.getCompleted() }.getOrNull()?.close()
+        else {
+            live.cancel()
+            live.invokeOnCompletion { runCatching { live.getCompleted() }.getOrNull()?.close() }
         }
     }
 
-    /** Provision the summarizer artifact set for [spec] — graph + pre-packed XNNPACK weight
-     *  cache + tokenizer, revision-pinned and sha256-verified file by file. Progress →
-     *  notification/UI. (The TQ3 opt-in path went away with Gemma 4: its engine existed only to
-     *  run Gemma 4 E2B on low-RAM devices and cost those users a 6.9 GiB download to get
-     *  lowmemorykiller-ed anyway. Qwen3.5-0.8B replaces it at 874 MB and actually completes.) */
-    private suspend fun ensureSummarizerModels(spec: LlmSpec, models: ModelManager) {
+    /** Final transcript -> reader finish -> minutes, action items, title (converted), emitted and returned. */
+    private suspend fun finishReader(
+        open: OpenReader,
+        final: List<TranscriptEvent.Utterance>?,
+        converter: OpenCcConverter?,
+        withTitle: Boolean,
+    ): SummaryResult {
+        updateNotification(getString(R.string.svc_summarizing))
+        emitEvent(TranscriptEvent.Status(getString(R.string.svc_summarizing)))
+        activeReader = open
+        try {
+            val res = open.lane.finish(final.orEmpty())
+            val conv: (String) -> String = { converter?.convert(it) ?: it }
+            val minutes = conv(res.minutes)
+            val actions = conv(res.actions.joinToString("\n") { "- ${it.text.trimEnd('。')} [${it.ts}]" }.ifEmpty { "-" })
+            emitEvent(TranscriptEvent.SummaryComplete(minutes))
+            emitEvent(TranscriptEvent.ActionItemsComplete(actions))
+            val title = if (withTitle) runCatching { open.lane.title(res.journal) }.getOrNull()?.let(conv) else null
+            title?.let { emitEvent(TranscriptEvent.Title(it)) }
+            return SummaryResult(title, minutes, null, actions)
+        } finally {
+            activeReader = null
+        }
+    }
+
+    /** Post-hoc reading of a finished transcript (small devices, the queue drain's summary pass). */
+    private suspend fun summarize(
+        utterances: List<TranscriptEvent.Utterance>,
+        models: ModelManager,
+        converter: OpenCcConverter?,
+        withTitle: Boolean = true,
+    ): SummaryResult = openReader(models, currentGen()).use { open ->
+        open.lane.feedAll(utterances)
+        finishReader(open, null, converter, withTitle)
+    }
+
+    /** Download the reader model if needed (progress → notification/UI, tagged with the run gen). */
+    private suspend fun ensureLlm(spec: LlmSpec, models: ModelManager) {
         if (!models.llmReady(spec)) {
             emitEvent(TranscriptEvent.Status(getString(R.string.svc_downloading_named, spec.displayName)))
             val gen = currentGen()
             models.ensureLlmModel(spec) { frac -> reportDownload(gen, R.string.svc_summarization_model_pct, frac) }
         }
-        // The verifier ships WITH the summarizer — it is the in-stream faithfulness gate, and
-        // without it the student measures 2/20 inversions instead of 0/20. Fetched here rather
-        // than as a user-visible model so it can never be half-provisioned.
-        val verifier = LlmRegistry.VERIFIER
-        if (!models.llmReady(verifier)) {
-            emitEvent(TranscriptEvent.Status(getString(R.string.svc_downloading_named, verifier.displayName)))
-            val gen = currentGen()
-            models.ensureLlmModel(verifier) { frac -> reportDownload(gen, R.string.svc_summarization_model_pct, frac) }
-        }
     }
 
-    /**
-     * Load the in-stream verifier, or null if it cannot be loaded.
-     *
-     * Fails OPEN by design: a verifier that will not load must degrade the summary's guarantee,
-     * never block the summary itself. [Summarizer] logs the downgrade loudly. The caller owns
-     * the returned engine and must close it.
-     */
-    private fun loadVerifierOrNull(models: ModelManager): studio.voxsum.core.llm.TextGen? {
-        val spec = LlmRegistry.VERIFIER
-        return try {
-            if (!models.llmReady(spec)) null
-            else studio.voxsum.core.llm.TextGen.load(
-                this, models.llmFile(spec).absolutePath, spec, nThreads = asrThreads(),
-                nCtx = spec.maxCtx,
-            )
-        } catch (t: Throwable) {
-            Log.w("voxsum-cursor", "verifier failed to load; running unverified", t)
-            null
-        }
-    }
-
-    /** Download the LLM if needed (progress → notification/UI, tagged with the current run gen). */
-    private suspend fun ensureLlm(spec: LlmSpec, models: ModelManager) {
-        ensureSummarizerModels(spec, models)
-    }
-
-    /** [summarize]'s generation body over an ALREADY-LOADED engine — the batch drain holds one
-     *  the engine across every queued item's summary (one model load per drain, not per item). */
-    private suspend fun summarizeWith(
-        llm: studio.voxsum.core.llm.TextGen,
-        spec: LlmSpec,
-        transcript: String,
-        cfg: TranscriptionConfig,
-        converter: OpenCcConverter?,
-        withTitle: Boolean = true,
-        /** The in-stream faithfulness verifier — see [withVerifier]. */
-        verifierLlm: studio.voxsum.core.llm.TextGen? = null,
-    ): SummaryResult {
-        updateNotification(getString(R.string.svc_summarizing))
-        emitEvent(TranscriptEvent.Status(getString(R.string.svc_summarizing)))   // localized (Summarizer no longer sets it)
-        var outTitle: String? = null
-        var outNotes: String? = null
-        var outSummary: String? = null
-        run {
-            activeLlm = llm
-            try {
-                // t0 after the model load, so the ETA reflects generation speed only.
-                val t0 = System.nanoTime()
-                var lastEta = ""
-                val style = SummaryStyle.fromId(cfg.summaryStyle)
-                Summarizer(
-                    llm,
-                    template = spec.chatTemplate,
-                    verifierLlm = verifierLlm,
-                    log = { Log.i("voxsum-cursor", it) },
-                    convert = { converter?.convert(it) ?: it },
-                    mapInstruction = style.mapInstruction,
-                    reduceInstruction = style.reduceInstruction,
-                    mapMaxTokens = style.mapTokens,
-                    reduceMaxTokens = style.reduceTokens,
-                ).summarize(transcript, cfg.summaryPrompt, withTitle)
-                    .flowOn(Dispatchers.Default)
-                    .collect { e ->
-                        // ETA like the diarization phase — the Summarizer reports per-LLM-call
-                        // progress, so a long meeting's summary pass shows time-to-finish.
-                        if (e is TranscriptEvent.Progress) {
-                            etaText(t0, e.fraction)?.let { eta ->
-                                if (eta != lastEta) {
-                                    lastEta = eta
-                                    emitEvent(TranscriptEvent.Status(getString(R.string.svc_summarizing_eta, eta)))
-                                }
-                            }
-                        }
-                        when (e) {
-                            is TranscriptEvent.Title -> outTitle = e.title
-                            is TranscriptEvent.SummaryComplete -> outSummary = e.summary
-                            // Capture the structured notes for PERSISTENCE. The event bus is
-                            // replay=0, so a queue drain with no UI attached would otherwise
-                            // discard them and the sections would never reach the user at all.
-                            is TranscriptEvent.NotesComplete -> outNotes = e.notes.render()
-                            else -> Unit
-                        }
-                        emitEvent(e)
-                    }
-            } finally {
-                activeLlm = null
-            }
-        }
-        return SummaryResult(outTitle, outSummary, outNotes)
-    }
-
-    /** Re-summarize an existing transcript with the current settings (no re-decode / re-ASR). Keeps the
-     *  existing title — swapping models for a better summary shouldn't churn a title the user likes. */
+    /** Re-summarize an existing transcript (no re-decode / re-ASR). Keeps the existing title unless
+     *  asked — a re-run shouldn't churn a title the user likes. Also serves "extract actions": the
+     *  reader produces the action items in the same pass. */
     private suspend fun runSummarizeOnly(transcript: String, withTitle: Boolean = false) {
         val cfg = TranscriptionConfig.Holder.config
-        val models = ModelManager(this)
-        summarize(transcript, cfg, models, outputConverter(cfg), withTitle = withTitle)
-    }
-
-
-    /** Extract action items + decisions for an existing transcript (no re-decode / re-ASR). Reuses
-     *  the resident Gemma model via the CJK-safe map-reduce so a long meeting doesn't overflow n_ctx. */
-    private suspend fun runExtractActions(transcript: String) {
         if (transcript.isBlank()) { emitEvent(TranscriptEvent.ActionItemsComplete("-")); return }
-        val cfg = TranscriptionConfig.Holder.config
-        val models = ModelManager(this)
-        val spec = LlmRegistry.byId(cfg.llmModelId)
-        ensureSummarizerModels(spec, models)
-        updateNotification(getString(R.string.svc_extracting_actions))
-        emitEvent(TranscriptEvent.Status(getString(R.string.svc_extracting_actions)))
-        emitEvent(TranscriptEvent.Progress(0f))   // restart the bar for the action-items phase
-        val converter = outputConverter(cfg)
-        val gen = currentGen()   // tag the non-suspend progress callback below with this run's gen
-        // ActionItemExtractor chunks the transcript internally against a 3500-char cap, so the
-        // engine never sees more than one chunk at a time — 8192 is generous for that and much
-        // cheaper to decode against than the summarizer's ceiling. (Matches ACTION_ITEM_CTX on
-        // the desktop build.)
-        studio.voxsum.core.llm.TextGen.load(
-            this, models.llmFile(spec).absolutePath, spec, nThreads = asrThreads(),
-            backend = cfg.llmBackend, nCtx = ACTION_ITEM_CTX,
-        ).use { llm ->
-            activeLlm = llm
-            try {
-                val text = ActionItemExtractor(
-                    llm,
-                    template = spec.chatTemplate,
-                    convert = { converter?.convert(it) ?: it },
-                ).extract(transcript) { frac -> events.tryEmit(gen to TranscriptEvent.Progress(frac)) }
-                emitEvent(TranscriptEvent.ActionItemsComplete(text))
-            } finally {
-                activeLlm = null
-            }
+        openReader(ModelManager(this), currentGen()).use { open ->
+            open.lane.feedText(transcript)
+            finishReader(open, null, outputConverter(cfg), withTitle)
         }
     }
 

@@ -108,9 +108,9 @@ player. Right: tap 🔍 to search — matches highlight and you step through the
   line highlights as it plays.
 - **Search** — tap the 🔍 in the top bar to find any word in a long recording; matches highlight and
   you can step through them with the up/down arrows.
-- **Summary, your way** — a short title and a summary as **bullets, an executive brief, or a
-  narrative** (pick the style in **Settings**), in the language you choose — the
-  summary language is independent of the audio's language.
+- **Minutes, written live** — a meeting agent reads along while you record and writes short notes
+  (decisions, actions, open issues, key figures), each with a tap-to-play time; watch it work in the
+  **Meeting agent** panel. The minutes are those notes grouped by type.
 - **Action items** — top-bar ↻ menu → *Extract action items* pulls a draft checklist of who-does-what
   and the key decisions out of a meeting.
 
@@ -123,7 +123,7 @@ player. Right: tap 🔍 to search — matches highlight and you step through the
 - **Fix the speakers** — on any line, the ⇄ menu lets you move a misattributed line to the right
   person or merge two speakers into one.
 - **Re-run** — the top-bar ↻ menu re-runs transcription, the summary, name detection, or action-item
-  extraction. VoxSum also tracks what depends on what: change the summary language or style, or edit
+  extraction. VoxSum also tracks what depends on what: edit
   the transcript, and it offers a one-tap **re-summarize** (which also refreshes the title, unless you
   wrote your own). Switching only between **繁體中文 ↔ 简体中文** converts the title, summary, and
   transcript **instantly** — no re-run needed.
@@ -164,7 +164,6 @@ delete button) and <b>About</b> (version, license, open-source components).</i><
   readers like Boox). **Auto** — the default — follows your system's light/dark setting.
 - **Chinese script** — show Chinese text (summary, title, transcript) in 繁體中文 or 简体中文; the summary
   itself is always written in the recording's language.
-- **Summary style** — Bullets / Executive / Narrative.
 - **Speakers** — turn speaker identification on or off, and set the **live speaker delay** (5–30 s,
   default 15): while recording, words appear at once and speaker tags follow at least this long after —
   longer is more accurate. The saved transcript is not affected.

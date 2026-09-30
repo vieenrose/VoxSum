@@ -63,6 +63,10 @@ sealed interface TranscriptEvent {
     data class Partial(val chunk: String, val reset: Boolean = false) : TranscriptEvent
     data class SummaryComplete(val summary: String) : TranscriptEvent
 
+    /** What the live reading agent is doing right now (state, prefills, the streamed reply of the
+     *  current reading turn, notes kept/dropped, restarts) — drives the Agent panel. */
+    data class Agent(val event: studio.voxsum.core.reader.AgentEvent) : TranscriptEvent
+
     /** Extracted action items + key decisions (an editable draft, not an authoritative record). */
     data class ActionItemsComplete(val text: String) : TranscriptEvent
 

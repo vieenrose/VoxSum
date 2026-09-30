@@ -17,7 +17,7 @@ as a `Flow` from a **foreground service** and collected by Compose. Incremental 
 | `server/routers/api.py` (HTTP) | `service/TranscriptionService.kt` | foreground service, not a router |
 | NDJSON events | `core/events/TranscriptEvent.kt` | sealed Flow events |
 | `asr.py::transcribe_file` + `diarization.py` | `core/asr/NemoStreamEngine.kt` + `cpp/nemo/` | ONE streaming pass: X-ASR (CrispASR) + Nemotron-3 diarization (audio.cpp) on one timeline |
-| `summarization.py::summarize_transcript` | `core/llm/Summarizer.kt` | map-reduce, LangChain dropped |
+| `summarization.py::summarize_transcript` | `core/reader/` (MeetingReader, ReaderLane) | live reading agent, KV-keeping llama.cpp session |
 | `get_llm` (lru_cache) | `core/llm/LlmEngine.kt` + `llm_jni.cpp` | one model resident |
 | `utils.py` registry + lazy download | `core/models/ModelManager.kt` | revision- and SHA-256-pinned |
 | `get_speaker_color` | `data/Session.kt::speakerColor` | same palette idea |
@@ -37,17 +37,21 @@ as a `Flow` from a **foreground service** and collected by Compose. Incremental 
 - **Models are openly licensed.** ASR: X-ASR zh-en (Apache-2.0); diarization: Nemotron-3
   Diarization (OpenMDW-1.1); summarizer models are listed in `LlmRegistry.kt`.
 
-## Memory model (the on-device constraint that shapes everything)
+## Three concurrent lanes
 
-A phone can't hold the ASR/diarization models and a multi-GB LLM resident at once.
-The service runs the pipeline in two phases with a hard release between them:
+With ~8 GB of RAM (`LIVE_READER_MIN_RAM`), recording and imports run three lanes at once:
 
 ```
-decode → [streaming ASR + diarization, one pass] → [emit Complete] → release both GGUFs
-        → load GGUF (mmap) → summarize (stream) → release LLM
+mic/decode → [NemoStreamEngine: ASR + diarization] → UtteranceSnapshot (stable prefix)
+                                                        ↓ ReaderLane (low-priority thread)
+                              MeetingReader: prefill segments while people talk → every ~2k tokens
+                              a reading turn writes typed, cited notes → minutes at stop
 ```
 
-This is why summarization is a distinct phase, not interleaved with transcription.
+ASR keeps priority — it is the only lane that loses data when late; the reader queues lines and
+catches up. Below the RAM gate the old order stays: ASR + diarization, release, then the reader
+post-hoc over the finished transcript (same protocol). The queue drain transcribes every item,
+then loads the reader once for all of them.
 
 ## Streaming ASR + diarization (`app/src/main/cpp/nemo`)
 
@@ -62,6 +66,6 @@ Three ggml copies share the process (llama.cpp's, CrispASR's, audio.cpp's). audi
 `libaudiocpp.so` with its ggml hidden behind a version script; CrispASR and its ggml link
 statically into `libvoxsum-nemo.so`, which exports only JNI symbols. Both are CMake
 ExternalProjects from the `native/audiocpp`, `native/crispasr` and `native/crispasr-ggml`
-submodules, compiled for the ARMv8.0 floor like llama.cpp.
+submodules, compiled for `armv8.2-a+dotprod` like llama.cpp (ARMv8.0 devices are unsupported).
 
 `tools/nemo-eval/` drives the same engine on the host for accuracy runs.

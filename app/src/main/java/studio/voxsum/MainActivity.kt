@@ -330,6 +330,12 @@ class MainActivity : ComponentActivity() {
             CompositionLocalProvider(LocalThemeController provides controller) {
                 VoxSumTheme(themeMode) {
                     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                        if (!studio.voxsum.core.power.CpuSupport.hasDotProd) {
+                            Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+                                Text(stringResource(R.string.cpu_unsupported), style = MaterialTheme.typography.titleMedium)
+                            }
+                            return@Surface
+                        }
                         TranscribeScreen(::startTranscription, ::stopTranscription, ::startRecording, ::stopRecording, ::stopRecordingDefer, ::processQueue)
                     }
                 }
@@ -531,6 +537,8 @@ private fun TranscribeScreen(
     // Leading utterances of the live transcript that won't change until the final snapshot (the rest
     // are provisional; the recording booth de-emphasises their speaker tags).
     var liveStable by remember { mutableIntStateOf(0) }
+    // The meeting-reading agent's live state (status, streamed reply, notes, activity log).
+    val agent = remember { studio.voxsum.ui.AgentUiState() }
 
     // --- Update notifier: once/day GitHub release check → dismissible banner → download+install. ---
     var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
@@ -964,6 +972,7 @@ private fun TranscribeScreen(
         SessionAutosave.clear(context)
         utterances.clear(); speakerNames.clear(); editingIndex = -1; editingSpeakerId = null
         liveStable = 0
+        agent.reset()
         diarizeOnlyRun = false
         editingTitle = false; editingSummary = false; editingActions = false
         // Also PAUSE the hoisted player, not just the flag: when the next run reuses the SAME
@@ -1645,6 +1654,7 @@ private fun TranscribeScreen(
                 is TranscriptEvent.Partial ->
                     summary = if (e.reset) "" else (summary ?: "") + e.chunk
                 is TranscriptEvent.SummaryComplete -> { summary = e.summary; status = context.getString(R.string.status_done); running = false; if (libraryDir != null && !watchingQueue) sessionDirty = true; autosaveSessionNow() }
+                is TranscriptEvent.Agent -> agent.apply(e.event)
                 is TranscriptEvent.ActionItemsComplete -> { actionItems = e.text.ifBlank { "-" }; status = context.getString(R.string.status_done); running = false; if (libraryDir != null && !watchingQueue) sessionDirty = true; autosaveSessionNow() }
                 is TranscriptEvent.NotesComplete -> {
                     meetingNotes = e.notes
@@ -1982,6 +1992,8 @@ private fun TranscribeScreen(
     val anchorSeek: ((Int) -> Unit)? = if (audioUri != null) ({ ms -> seekAndPlay(ms) }) else null
     val summaryCards: @Composable () -> Unit = {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            // The reading agent at work (live during recording/processing; stays after as a log).
+            if (agent.active) SectionCard { studio.voxsum.ui.AgentPanel(agent, anchorSeek) }
             title?.let { t ->
                 TitleCard(t, llmDisplay, editingTitle,
                     onBeginEdit = { editingTitle = true },
@@ -2198,6 +2210,7 @@ private fun TranscribeScreen(
             onSessionName = { captureName = it },
             utterances = utterances,
             stable = liveStable,
+            agent = agent,
             onNextTalk = { nextTalk() },
             onStop = { handleStop() },
             onBack = { screen = Screen.Studio },
@@ -2437,10 +2450,8 @@ private fun TranscribeScreen(
                 if (newCfg.summaryScript != old.summaryScript && utterances.isNotEmpty()) {
                     applyChineseScript(SummaryScript.scriptFor(newCfg.summaryScript, context))
                 }
-                // Summary-shaping changes (model / style / prompt) need an LLM re-run of the summary
-                // (and, via regenerateStaleChildren, the action items).
-                if ((!summary.isNullOrBlank() || actionItems != null) && (newCfg.summaryStyle != old.summaryStyle ||
-                        newCfg.llmModelId != old.llmModelId || newCfg.summaryPrompt != old.summaryPrompt)) {
+                // A summarizer model change needs a re-run of the summary (and its action items).
+                if ((!summary.isNullOrBlank() || actionItems != null) && newCfg.llmModelId != old.llmModelId) {
                     summaryStale = true
                 }
             },

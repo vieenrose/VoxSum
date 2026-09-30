@@ -400,6 +400,9 @@ class ModelManager(context: Context) {
             // LiteRT X-ASR + Silero VAD + pyannote + CAM++, replaced 2026-09 by the streaming
             // nemo-x-asr-diarizer (same X-ASR model family, now on ggml, plus Nemotron-3 diarization).
             "xasr-litert",
+            // MiniCPM5 CURSOR summarizer + Granite verifier, replaced 2026-09 by the Gemma-4-E2B
+            // meeting agent (core/reader).
+            "minicpm5-cursor-gguf", "granite-verifier-gguf",
         )
 
         /** Retired by the nemo switch; reclaimed only after the new models verify. */

@@ -28,9 +28,7 @@ object ConfigStore {
                 .coerceIn(TranscriptionConfig.SPEAKER_DELAY_MIN, TranscriptionConfig.SPEAKER_DELAY_MAX),
             llmModelId = p.getString("llmModelId", d.llmModelId) ?: d.llmModelId,
             llmBackend = p.getString("llmBackend", d.llmBackend) ?: d.llmBackend,
-            summaryPrompt = p.getString("summaryPrompt", d.summaryPrompt) ?: d.summaryPrompt,
             summaryScript = summaryScript,
-            summaryStyle = p.getString("summaryStyle", d.summaryStyle) ?: d.summaryStyle,
         )
     }
 
@@ -43,9 +41,7 @@ object ConfigStore {
             putInt("speakerDelaySec", c.speakerDelaySec)
             putString("llmModelId", c.llmModelId)
             putString("llmBackend", c.llmBackend)
-            putString("summaryPrompt", c.summaryPrompt)
             putString("summaryScript", c.summaryScript)
-            putString("summaryStyle", c.summaryStyle)
             // Settings of retired engines (hotwords, VAD, speaker-count hint, precise diarization, ASR
             // hardware) — nothing reads them any more.
             RETIRED_KEYS.forEach(::remove)
@@ -55,5 +51,6 @@ object ConfigStore {
 
     private val RETIRED_KEYS = listOf(
         "asrContext", "vadThreshold", "numSpeakers", "preciseDiarization", "asrHardware",
+        "summaryStyle", "summaryPrompt",
     )
 }

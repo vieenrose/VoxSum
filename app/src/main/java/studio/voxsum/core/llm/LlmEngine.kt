@@ -17,7 +17,8 @@ import studio.voxsum.core.models.SamplerProfile
  * Load -> generate -> close around the summarization phase (TranscriptionService does this with
  * `.use {}`).
  */
-class LlmEngine private constructor(private var handle: Long, override val nCtx: Int) : TextGen {
+class LlmEngine private constructor(private var handle: Long, override val nCtx: Int) :
+    TextGen, studio.voxsum.core.reader.ReaderLlm {
 
     // cancel() arrives from the MAIN thread (service Stop / supersede) while the owning pipeline
     // thread may concurrently be inside generate() or tearing down via close() — without exclusion
@@ -54,6 +55,37 @@ class LlmEngine private constructor(private var handle: Long, override val nCtx:
         return if (n >= 0) n else super.countTokens(text)
     }
 
+    // ---- Session API (the live meeting reader; see core/reader). The KV cache is KEPT between
+    // these calls; [generate] (one-shot) clears it. Same [lock] discipline as generate().
+
+    private inline fun <T> session(default: T, block: (Long) -> T): T {
+        val h = synchronized(lock) {
+            if (handle == 0L) return default
+            generating = true
+            handle
+        }
+        try {
+            return block(h)
+        } finally {
+            synchronized(lock) {
+                generating = false
+                if (closeRequested && handle != 0L) { nativeFree(handle); handle = 0L }
+            }
+        }
+    }
+
+    override fun tokenize(text: String, special: Boolean): IntArray =
+        session(IntArray(0)) { nativeTokenize(it, text, special) }
+
+    override fun append(tokens: IntArray): Int = session(-1) { nativeAppend(it, tokens) }
+
+    override fun generateContinue(maxTokens: Int, stop: String, temp: Float, onToken: (String) -> Unit): String =
+        session("") { nativeGenerateContinue(it, maxTokens, stop, temp, TextGen.TokenCallback(onToken)) }
+
+    override fun seqLength(): Int = session(0) { nativeSeqLength(it) }
+
+    override fun reset() = session(Unit) { nativeReset(it) }
+
     /** Stop an in-flight generation (foreground service stop / new request). llama.cpp checks the
      *  flag once per token, so this lands within one token rather than one chunk. */
     override fun cancel() {
@@ -78,6 +110,13 @@ class LlmEngine private constructor(private var handle: Long, override val nCtx:
         ptr: Long, prompt: String, maxTokens: Int, onToken: TextGen.TokenCallback,
     ): String
     private external fun nativeCountTokens(ptr: Long, text: String): Int
+    private external fun nativeTokenize(ptr: Long, text: String, parseSpecial: Boolean): IntArray
+    private external fun nativeAppend(ptr: Long, tokens: IntArray): Int
+    private external fun nativeGenerateContinue(
+        ptr: Long, maxTokens: Int, stop: String, temp: Float, onToken: TextGen.TokenCallback,
+    ): String
+    private external fun nativeSeqLength(ptr: Long): Int
+    private external fun nativeReset(ptr: Long)
     private external fun nativeCancel(ptr: Long)
     private external fun nativeFree(ptr: Long)
 
@@ -101,11 +140,12 @@ class LlmEngine private constructor(private var handle: Long, override val nCtx:
             nCtx: Int = DEFAULT_CTX,
             sampler: SamplerProfile = SamplerProfile.LEGACY,
             kvQ8: Boolean = true,
+            swaFull: Boolean = true,
         ): LlmEngine {
             val h = nativeLoad(
                 modelPath, nThreads, nCtx,
                 sampler.topK, sampler.topP, sampler.temp, sampler.repeatPenalty, sampler.presencePenalty,
-                kvQ8,
+                kvQ8, swaFull,
             )
             check(h != 0L) { "Failed to load GGUF model: $modelPath" }
             android.util.Log.i("voxsum-llm", "loaded $modelPath nCtx=$nCtx kvQ8=$kvQ8")
@@ -119,7 +159,7 @@ class LlmEngine private constructor(private var handle: Long, override val nCtx:
         @JvmStatic private external fun nativeLoad(
             path: String, nThreads: Int, nCtx: Int,
             topK: Int, topP: Float, temp: Float, repeatPenalty: Float, presencePenalty: Float,
-            kvQ8: Boolean,
+            kvQ8: Boolean, swaFull: Boolean,
         ): Long
     }
 }

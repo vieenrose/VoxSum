@@ -42,8 +42,8 @@ so read it together with coverage: the new engine labels ~10–18 points more of
 same attribution.
 
 Host RTF (x86, 4 threads, 5 runs in parallel) was 0.27–0.69; peak RSS 530 MB for a 10-minute clip.
-Phone figures are in the upstream repo (RTF 0.60 on 2 A78 cores with dotprod); this app builds
-for the ARMv8.0 floor, so expect slower on dotprod-capable phones — measure on-device before quoting.
+Phone figures: see `bench_on_device.sh` (the app's own arm64 build, `armv8.2-a+dotprod` like upstream's
+RTF 0.60 measurement on 2 A78 cores).
 
 ## Speaker count on labelled clips (`~/voxsum-testdata`, truth confirmed by ear)
 

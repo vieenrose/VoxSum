@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Phone RTF of the ASR + diarization engine for each diarizer latency geometry (the points of the
-# accuracy-vs-latency curve in README.md). Uses the app's own arm64 native build (ARMv8.0 floor), so
+# accuracy-vs-latency curve in README.md). Uses the app's own arm64 native build (armv8.2-a+dotprod), so
 # the numbers are what the app gets.
 #
 #   ./gradlew :app:externalNativeBuildRelease          # once, builds the arm64 libraries

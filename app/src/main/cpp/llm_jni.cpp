@@ -72,6 +72,9 @@ struct LlmHandle {
     float repeatPenalty   = 1.3f;
     float presencePenalty = 0.0f;
     std::atomic<bool> cancel{false};
+    // Session mode (the live meeting reader): the token sequence the KV cache holds. Every call
+    // EXTENDS it; only nativeReset clears it. nativeGenerate (one-shot) clears it too.
+    std::vector<llama_token> seq;
 };
 
 inline LlmHandle* asHandle(jlong p) { return reinterpret_cast<LlmHandle*>(p); }
@@ -161,7 +164,7 @@ JNIEXPORT jlong JNICALL
 Java_studio_voxsum_core_llm_LlmEngine_nativeLoad(
         JNIEnv* env, jobject /*thiz*/, jstring jPath, jint nThreads, jint nCtx,
         jint topK, jfloat topP, jfloat temp, jfloat repeatPenalty, jfloat presencePenalty,
-        jboolean kvQ8) {
+        jboolean kvQ8, jboolean swaFull) {
     llama_backend_init();
 
     // Pin BEFORE the context (and therefore the ggml thread pool) is created — the workers
@@ -211,6 +214,10 @@ Java_studio_voxsum_core_llm_LlmEngine_nativeLoad(
     cp.n_ubatch        = 256;
     cp.n_threads       = nThreads;
     cp.n_threads_batch = nThreads;
+    // Gemma's sliding-window layers: the default (true) gives them full attention, which costs a
+    // lot at depth on a phone CPU. The session reader only ever appends, so the SWA cache never has
+    // to roll back and false is safe (voxsumdroid-integration.md §3).
+    cp.swa_full        = swaFull;
     // Optional q8_0-quantized KV cache (desktop, where the context is 32768). Halves the KV
     // footprint at ~no quality cost. llama.cpp can only run a quantized *V* cache under Flash
     // Attention (the non-FA path needs a contiguous fp V for the ggml_mul_mat), so FA is forced
@@ -257,6 +264,7 @@ Java_studio_voxsum_core_llm_LlmEngine_nativeGenerate(
     // loaded model (multi-chunk map + reduce + title, or several summaries) n_past crosses n_ctx and
     // llama_decode fails, returning an empty string.
     llama_memory_clear(llama_get_memory(h->ctx), /*data=*/true);
+    h->seq.clear();
 
     const llama_vocab* vocab = llama_model_get_vocab(h->model);
 
@@ -387,6 +395,149 @@ Java_studio_voxsum_core_llm_LlmEngine_nativeFree(JNIEnv*, jobject, jlong ptr) {
     if (h->model) llama_model_free(h->model);
     delete h;
     // NOTE: llama_backend_free() is process-global; only call on app teardown.
+}
+
+// ---- Session API (live meeting reader) --------------------------------------------------------
+// One conversation per handle whose KV cache is KEPT between calls: append (prefill only),
+// generateContinue (decode, tokens join the sequence), reset. The caller owns the protocol.
+
+namespace {
+std::string fromJava(JNIEnv* env, jstring s) {
+    // Via UTF-16, not GetStringUTFChars: Modified UTF-8 mangles supplementary characters.
+    const jsize n = env->GetStringLength(s);
+    const jchar* c = env->GetStringChars(s, nullptr);
+    std::string out;
+    out.reserve(n * 3);
+    for (jsize i = 0; i < n; i++) {
+        uint32_t cp = c[i];
+        if (cp >= 0xD800 && cp <= 0xDBFF && i + 1 < n && c[i + 1] >= 0xDC00 && c[i + 1] <= 0xDFFF) {
+            cp = 0x10000 + ((cp - 0xD800) << 10) + (c[i + 1] - 0xDC00);
+            i++;
+        }
+        if (cp < 0x80) out += (char) cp;
+        else if (cp < 0x800) { out += (char) (0xC0 | (cp >> 6)); out += (char) (0x80 | (cp & 0x3F)); }
+        else if (cp < 0x10000) {
+            out += (char) (0xE0 | (cp >> 12)); out += (char) (0x80 | ((cp >> 6) & 0x3F));
+            out += (char) (0x80 | (cp & 0x3F));
+        } else {
+            out += (char) (0xF0 | (cp >> 18)); out += (char) (0x80 | ((cp >> 12) & 0x3F));
+            out += (char) (0x80 | ((cp >> 6) & 0x3F)); out += (char) (0x80 | (cp & 0x3F));
+        }
+    }
+    env->ReleaseStringChars(s, c);
+    return out;
+}
+
+// Decode [toks] onto the cache in n_batch-sized pieces; they join h->seq. False on failure.
+bool decodeAppend(LlmHandle* h, const llama_token* toks, size_t n) {
+    const size_t step = (size_t) llama_n_batch(h->ctx);
+    for (size_t off = 0; off < n; off += step) {
+        const size_t k = std::min(step, n - off);
+        if ((int) (h->seq.size() + k) > h->nCtx) { LOGE("session: n_ctx %d exceeded", h->nCtx); return false; }
+        llama_batch b = llama_batch_get_one(const_cast<llama_token*>(toks + off), (int32_t) k);
+        if (llama_decode(h->ctx, b) != 0) { LOGE("session: llama_decode failed"); return false; }
+        h->seq.insert(h->seq.end(), toks + off, toks + off + k);
+        if (h->cancel.load()) return false;
+    }
+    return true;
+}
+}  // namespace
+
+// Tokenize without adding BOS. parseSpecial: template pieces (true) vs transcript text (false).
+JNIEXPORT jintArray JNICALL
+Java_studio_voxsum_core_llm_LlmEngine_nativeTokenize(
+        JNIEnv* env, jobject, jlong ptr, jstring jText, jboolean parseSpecial) {
+    LlmHandle* h = asHandle(ptr);
+    if (!h) return env->NewIntArray(0);
+    const std::string text = fromJava(env, jText);
+    const llama_vocab* vocab = llama_model_get_vocab(h->model);
+    const int n = -llama_tokenize(vocab, text.c_str(), (int32_t) text.size(), nullptr, 0, false, parseSpecial);
+    std::vector<llama_token> out(std::max(n, 0));
+    if (n > 0) llama_tokenize(vocab, text.c_str(), (int32_t) text.size(), out.data(), n, false, parseSpecial);
+    jintArray arr = env->NewIntArray((jsize) out.size());
+    env->SetIntArrayRegion(arr, 0, (jsize) out.size(), reinterpret_cast<const jint*>(out.data()));
+    return arr;
+}
+
+// Prefill-only: decode the tokens and keep them. Returns the new sequence length, or -1.
+JNIEXPORT jint JNICALL
+Java_studio_voxsum_core_llm_LlmEngine_nativeAppend(JNIEnv* env, jobject, jlong ptr, jintArray jToks) {
+    LlmHandle* h = asHandle(ptr);
+    if (!h) return -1;
+    h->cancel = false;
+    pin_to_big_cores();
+    const jsize n = env->GetArrayLength(jToks);
+    std::vector<llama_token> toks(n);
+    env->GetIntArrayRegion(jToks, 0, n, reinterpret_cast<jint*>(toks.data()));
+    return decodeAppend(h, toks.data(), toks.size()) ? (jint) h->seq.size() : -1;
+}
+
+// Decode from the current state; stop at [stop] (kept in the sequence), EOG or maxTokens. Every
+// generated token joins the sequence, so the next append continues from exactly what was said.
+// Returns the full text, stop string included when it stopped on it; streams pieces through onToken.
+JNIEXPORT jstring JNICALL
+Java_studio_voxsum_core_llm_LlmEngine_nativeGenerateContinue(
+        JNIEnv* env, jobject, jlong ptr, jint maxTokens, jstring jStop, jfloat temp, jobject onToken) {
+    LlmHandle* h = asHandle(ptr);
+    if (!h || h->seq.empty()) return env->NewStringUTF("");
+    h->cancel = false;
+    pin_to_big_cores();
+    const std::string stop = fromJava(env, jStop);
+    const llama_vocab* vocab = llama_model_get_vocab(h->model);
+    jclass cbClass = env->GetObjectClass(onToken);
+    jmethodID emit = env->GetMethodID(cbClass, "onToken", "(Ljava/lang/String;)V");
+    if (env->ExceptionCheck()) env->ExceptionClear();
+    if (!emit) return env->NewStringUTF("");
+
+    // llama-server's default chain at the reference settings (top_k 40, top_p 0.95, min_p 0.05).
+    llama_sampler* smpl = llama_sampler_chain_init(llama_sampler_chain_default_params());
+    llama_sampler_chain_add(smpl, llama_sampler_init_top_k(40));
+    llama_sampler_chain_add(smpl, llama_sampler_init_top_p(0.95f, 1));
+    llama_sampler_chain_add(smpl, llama_sampler_init_min_p(0.05f, 1));
+    llama_sampler_chain_add(smpl, llama_sampler_init_temp(temp));
+    llama_sampler_chain_add(smpl, llama_sampler_init_dist(LLAMA_DEFAULT_SEED));
+
+    std::string out, pending;
+    bool stopped = false;
+    for (int i = 0; i < maxTokens && !h->cancel.load(); i++) {
+        // The logits of the last decoded token are current (append/decodeAppend left them there).
+        const llama_token id = llama_sampler_sample(smpl, h->ctx, -1);
+        if (llama_vocab_is_eog(vocab, id)) break;
+        if (!decodeAppend(h, &id, 1)) break;           // the token joins the cache + sequence
+        const std::string piece = pieceOf(vocab, id);
+        out += piece;
+        pending += piece;
+        const size_t cut = completeUtf8Prefix(pending);
+        if (cut > 0) {
+            jstring jp = toJavaString(env, pending.data(), cut);
+            env->CallVoidMethod(onToken, emit, jp);
+            env->DeleteLocalRef(jp);
+            pending.erase(0, cut);
+        }
+        if (!stop.empty() && out.size() >= stop.size() &&
+            out.compare(out.size() - stop.size(), stop.size(), stop) == 0) {
+            stopped = true;
+            break;
+        }
+    }
+    llama_sampler_free(smpl);
+    (void) stopped;   // the stop string stays in the returned text: it is how the caller knows
+    return toJavaString(env, out.data(), completeUtf8Prefix(out));
+}
+
+JNIEXPORT jint JNICALL
+Java_studio_voxsum_core_llm_LlmEngine_nativeSeqLength(JNIEnv*, jobject, jlong ptr) {
+    LlmHandle* h = asHandle(ptr);
+    return h ? (jint) h->seq.size() : 0;
+}
+
+// Restart: clear the cache and the sequence; the caller appends a fresh prefix.
+JNIEXPORT void JNICALL
+Java_studio_voxsum_core_llm_LlmEngine_nativeReset(JNIEnv*, jobject, jlong ptr) {
+    LlmHandle* h = asHandle(ptr);
+    if (!h) return;
+    llama_memory_clear(llama_get_memory(h->ctx), /*data=*/true);
+    h->seq.clear();
 }
 
 } // extern "C"

@@ -28,10 +28,12 @@ set(NATIVE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../../native")
 #   * CrispASR + its ggml link STATICALLY into libvoxsum-nemo.so, which exports
 #     only its JNI entry points (nemo/nemo_jni.map).
 # Both are ExternalProjects because their ggml targets would collide with
-# llama.cpp's in one CMake tree. ARMv8.0 floor, as for llama.cpp below.
+# llama.cpp's in one CMake tree. Same ARMv8.2-A+dotprod floor as llama.cpp below.
 # ---------------------------------------------------------------------------
 include(ExternalProject)
-set(NEMO_ARCH armv8-a)
+# The CPU floor for every ggml copy in the app: ARMv8.2-A with the int8 dot-product extension.
+set(VOXSUM_ARM_ARCH armv8.2-a+dotprod)
+set(NEMO_ARCH ${VOXSUM_ARM_ARCH})
 set(NEMO_COMMON_ARGS
     -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
     -DANDROID_ABI=${ANDROID_ABI}
@@ -106,28 +108,19 @@ target_link_libraries(voxsum-nemo ${CRISP_LIBS} audiocpp android log dl m)
 
 
 # ---------------------------------------------------------------------------
-# llama.cpp — the GGUF summarizer runtime (Qwen3.5-0.8B Q4_K_M; see LlmRegistry).
+# llama.cpp — the GGUF runtime of the meeting reader (Gemma-4-E2B Q4_0; see LlmRegistry).
 #
-# ARMv8.0 BASELINE, DELIBERATELY. The Boox Tab Mini C is a Cortex-A73: ARMv8.0,
-# no dotprod and no fp16 arithmetic extension. Anything compiled above
-# `-march=armv8-a` SIGILLs there, and this project has been burned by exactly
-# that with prebuilt arm64 libraries. ggml only adds +dotprod/+i8mm when
-# GGML_NATIVE is on (a host-CPU probe, meaningless when cross-compiling) or
-# when GGML_CPU_ARM_ARCH / GGML_CPU_ALL_VARIANTS asks for it, so all three are
-# pinned explicitly below rather than left to the default. Verified on the
-# reference build: "Adding CPU backend variant ggml-cpu: -march=armv8-a" with
-# HAVE_DOTPROD / HAVE_MATMUL_INT8 / HAVE_FP16_VECTOR_ARITHMETIC all Failed.
-#
-# TRADEOFF, stated plainly: one baseline binary means newer big.LITTLE phones
-# do not get their +dotprod/+i8mm Q4_K kernels. The upstream fix is
-# GGML_CPU_ALL_VARIANTS + GGML_BACKEND_DL, which ships several ggml-cpu-*.so
-# and dlopen()s the best one at runtime; that is a packaging change (extra .so
-# in the APK, dlopen paths under Android's linker namespace) and is left as a
-# follow-up rather than bundled into this migration.
+# ARMv8.2-A + DOTPROD FLOOR (VOXSUM_ARM_ARCH, shared with the nemo engine above). Support for
+# ARMv8.0 devices (the Boox Tab Mini C's Cortex-A73) was dropped 2026-09: the int8 dot-product
+# kernels are what make the q8_0/Q4_0 models run in real time. ggml only uses them when
+# GGML_CPU_ARM_ARCH asks for them (GGML_NATIVE probes the BUILD host, meaningless when
+# cross-compiling), so the arch is pinned explicitly. No i8mm: the Dimensity 900/1300 reference
+# phones lack it and would SIGILL. A device without dotprod is refused at startup
+# (CpuSupport.kt) instead of crashing on the first model load.
 # ---------------------------------------------------------------------------
 set(GGML_NATIVE            OFF      CACHE BOOL   "" FORCE)  # never probe the BUILD host's CPU
 set(GGML_CPU_ALL_VARIANTS  OFF      CACHE BOOL   "" FORCE)
-set(GGML_CPU_ARM_ARCH      armv8-a  CACHE STRING "" FORCE)  # Boox/A73 floor — do not raise
+set(GGML_CPU_ARM_ARCH      ${VOXSUM_ARM_ARCH} CACHE STRING "" FORCE)
 set(GGML_OPENMP            OFF      CACHE BOOL   "" FORCE)  # the Android NDK has no libgomp
 set(GGML_LLAMAFILE         OFF      CACHE BOOL   "" FORCE)
 set(LLAMA_BUILD_TESTS      OFF      CACHE BOOL   "" FORCE)

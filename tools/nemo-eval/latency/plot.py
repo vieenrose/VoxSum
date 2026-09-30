@@ -14,6 +14,9 @@ rows = json.load(open(os.path.join(HERE, "results_4meetings.json")))
 rtf = {r["geo"]: r["host_rtf"] for r in json.load(open(os.path.join(HERE, "results_8meetings.json")))}
 OUT = os.path.join(HERE, "../../../docs/figures/latency_accuracy.png")
 GEOS = ["low", "c12", "c25", "c50", "c100", "c200", "c340"]
+# Phone RTF: OPPO Reno7 (Dimensity 900), 2 threads, the app's armv8.2-a+dotprod build
+# (tools/nemo-eval/bench_on_device.sh, 123 s clip, 2026-09-30).
+PHONE_RTF = {"low": 4.20, "c12": 1.47, "c25": 0.95, "c50": 0.61, "c100": 0.55, "c200": 0.48, "c340": 0.44}
 SHORT = {"low": "low", "c12": "1 s", "c25": "2 s", "c50": "4 s", "c100": "8 s", "c200": "16 s", "c340": "27 s"}
 SURF, INK, INK2, GRID = "#fcfcfb", "#0b0b0b", "#52514e", "#e6e5e0"
 COL = {"linestart": "#2a78d6", "frozen": "#eb6834"}
@@ -54,13 +57,13 @@ for sp in ("left", "bottom"): ax.spines[sp].set_color(GRID)
 ax.tick_params(colors=INK2)
 ax.legend(loc="lower right", frameon=False, fontsize=9, labelcolor=INK)
 box = "Diarizer chunk · RTF (PC / phone)\n" + "\n".join(
-    f"{SHORT[g]:>5} : {rtf[g]:.2f} / —" + ("   ← current" if g == "c50" else "") for g in GEOS)
+    f"{SHORT[g]:>5} : {rtf[g]:.2f} / {PHONE_RTF[g]:.2f}" + ("   ← current" if g == "c50" else "") for g in GEOS)
 ax.text(36, 60.5, box, fontsize=8, color=INK2, family="monospace", va="bottom",
         bbox=dict(boxstyle="round,pad=0.5", fc=SURF, ec=GRID))
 fig.suptitle("Live speaker accuracy vs latency — 4 meetings (2 AMI, 2 AISHELL-4)",
              x=0.055, ha="left", fontsize=13, color=INK)
 ax.set_title("Point = diarizer chunk size × display delay (labelled “chunk · delay”). Line = best accuracy reachable at that\n"
-             "latency. RTF on an x86 PC (2 threads, loaded machine); phone RTF not measured yet.",
+             "latency. RTF: x86 PC (2 threads, loaded machine) / OPPO Reno7 phone (2 threads, dotprod build).",
              loc="left", fontsize=8.5, color=INK2)
 fig.tight_layout()
 fig.savefig(OUT, facecolor=SURF)

@@ -30,14 +30,11 @@ data class TranscriptionConfig(
     /** Summarizer inference hardware: "cpu" (default) or "gpu" (LiteRT-LM models only —
      *  llama.cpp GGUFs and the MOSS/ASR engines always run on CPU). */
     val llmBackend: String = "auto",  // auto = GPU-first with CPU fallback
-    val summaryPrompt: String = "Summarize the key points of this transcript.",
     // Target language for ALL out-coming text — summary, title, transcript, and detected speaker names
     // Han script every Chinese text is normalized to (a [SummaryScript] id). Summaries are always
     // in the RECORDING's language — the translate-as-you-summarize option was removed because it
     // degraded a 0.8B summarizer's output. This is a post-hoc OpenCC mapping, not a model task.
     val summaryScript: String = "zh-Hant",
-    // Format of the summary (a [SummaryStyle] id): bullet (default) | executive | narrative.
-    val summaryStyle: String = "executive",
 ) {
     companion object {
         const val SPEAKER_DELAY_MIN = 5

@@ -97,14 +97,6 @@ class SettingsContentTest {
         assertEquals(SummaryScript.SIMPLIFIED.id, changed?.summaryScript)
     }
 
-    @Test fun editingSummaryPromptReportsIt() {
-        var changed: TranscriptionConfig? = null
-        host(baseCfg.copy(summaryPrompt = "Summarize."), onChange = { changed = it })
-        compose.onNode(hasSetTextAction()).performScrollTo().performTextInput("X")
-        assertNotNull("prompt edit should report a change", changed)
-        assertNotEquals("Summarize.", changed?.summaryPrompt)
-    }
-
     @Test fun disabledStateDisablesTheModelCards() {
         host(enabled = false)
         compose.onNodeWithText(AsrBackend.XASR.shortName).assertIsNotEnabled()

@@ -55,7 +55,6 @@ import kotlinx.coroutines.launch
 import studio.voxsum.BuildConfig
 import studio.voxsum.R
 import studio.voxsum.core.config.SummaryScript
-import studio.voxsum.core.config.SummaryStyle
 import studio.voxsum.core.config.ThemeMode
 import studio.voxsum.core.config.TranscriptionConfig
 import kotlin.math.roundToInt
@@ -158,31 +157,6 @@ fun SettingsContent(
                 }
             }
         }
-        LabeledRow(stringResource(R.string.settings_summary_style)) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                SummaryStyle.entries.forEach { style ->
-                    FilterChip(
-                        selected = config.summaryStyle == style.id,
-                        enabled = enabled,
-                        onClick = { onChange(config.copy(summaryStyle = style.id)) },
-                        label = { Text(stringResource(style.labelRes)) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = pal.Sky.copy(alpha = 0.15f),
-                            selectedLabelColor = pal.Sky,
-                            labelColor = pal.Slate400,
-                        ),
-                    )
-                }
-            }
-        }
-        OutlinedTextField(
-            value = config.summaryPrompt,
-            onValueChange = { onChange(config.copy(summaryPrompt = it)) },
-            label = { Text(stringResource(R.string.settings_summary_prompt)) },
-            enabled = enabled,
-            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-            minLines = 2,
-        )
 
         // (6) Storage — downloaded models, per-item delete (each re-downloads on next use).
         Section(stringResource(R.string.settings_storage))

@@ -1,0 +1,129 @@
+package studio.voxsum.core.reader
+
+/**
+ * The meeting reader's protocol, ported from github.com/vieenrose/meeting-summarizer
+ * (`eval/phone_live.py`, `eval/realtime_agent.py` harness v3, `summarizer/ingest.py`). The model was
+ * fine-tuned on exactly this text: every string, regex and threshold here is a port, not a
+ * design choice. Change one only against a re-measurement upstream.
+ */
+object ReaderProtocol {
+    // phone_live.py
+    const val WINDOW_TOKENS = 2000          // realtime_agent.WINDOW_TOKENS
+    const val READ_MAX = 400
+    const val RESTART_BUDGET = 2500         // compacted-journal budget on restart
+    const val MAX_NOTES = 6
+    const val SEGMENT_S = 20                // feed granularity (meeting seconds)
+    const val CTX_BUDGET = 8192             // restart when the conversation would pass this (note §4.4)
+    const val TEMP = 0.2f
+    const val STOP = "\nNEXT"
+    const val DUP_LOOKBACK = 30
+    const val DUP_JACCARD = 0.6
+
+    // Gemma 4 chat template pieces (thinking off), note §4.1 — what phone_live.py derives from the
+    // GGUF's own template via /apply-template: before system, system->user, user->model,
+    // model->next user.
+    const val P0 = "<bos><|turn>system\n"
+    const val P1 = "<turn|>\n<|turn>user\n"
+    const val P2 = "<turn|>\n<|turn>model\n"
+    const val P3 = "<turn|>\n<|turn>user\n"
+
+    const val JOURNAL_HEADER = "## 筆記本（至今）\n"
+    const val JOURNAL_EMPTY = "（尚無筆記）"
+    fun windowHeader(k: Int) = "## 逐字稿片段 $k\n"
+    fun omitted(n: Int) = "\n（另有 $n 則較早的筆記未列出）"
+
+    // journal_agent.ACT, realtime_agent.NOTE
+    val ACT = Regex("""^\s*(NOTE|REVISE|LOOKBACK|NEXT)\b(.*)$""")
+    val NOTE = Regex("""^\s*\[?(\d+:\d{2}(?::\d{2})?)\]?\s*(?:\((\w[\w-]*)\)\s*)?(.+)$""")
+
+    /** ingest.format_ts: `M:SS` under an hour, `H:MM:SS` from an hour on. */
+    fun formatTs(seconds: Int): String {
+        val h = seconds / 3600
+        val m = (seconds % 3600) / 60
+        val s = seconds % 60
+        return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%d:%02d".format(m, s)
+    }
+
+    /** Inverse of [formatTs]; null when not a timestamp. */
+    fun parseTs(ts: String): Int? {
+        val p = ts.split(":").map { it.toIntOrNull() ?: return null }
+        return when (p.size) {
+            2 -> p[0] * 60 + p[1]
+            3 -> p[0] * 3600 + p[1] * 60 + p[2]
+            else -> null
+        }
+    }
+
+    private val LINE = Regex("""^\[(\d+:\d{2}(?::\d{2})?)\]\s*(.*)$""")
+    private val SPEAKER = Regex("""S\d+|[^\s:]{1,20}""")
+
+    /** ingest.parse_line: `[ts] speaker: text`, speaker optional; null for a non-transcript line. */
+    fun parseLine(raw: String): Line? {
+        val m = LINE.find(raw.trim()) ?: return null
+        val start = parseTs(m.groupValues[1]) ?: return null
+        val rest = m.groupValues[2]
+        val i = rest.indexOf(": ")
+        return if (i > 0 && SPEAKER.matches(rest.substring(0, i))) Line(start, rest.substring(0, i), rest.substring(i + 2))
+        else Line(start, null, rest)
+    }
+
+    private val NON_SPEECH_TAG = Regex("""\[[A-Za-z][A-Za-z _-]*\]""")
+    private val FILLER = Regex("""(?:(?<=^)|(?<=[，。！？、\s]))[嗯啊呃]+[，。、]?""")
+    private val WS = Regex("""\s+""")
+
+    /** ingest.clean_text. */
+    fun cleanText(text: String): String =
+        WS.replace(FILLER.replace(NON_SPEECH_TAG.replace(text, ""), ""), " ").trim()
+
+    /** realtime_agent.similar: character-bigram Jaccard. */
+    fun similar(a: String, b: String): Double {
+        fun bg(t: String): Set<String> = (0 until t.length - 1).map { t.substring(it, it + 2) }.toSet()
+        val x = bg(a)
+        val y = bg(b)
+        return (x intersect y).size.toDouble() / maxOf(1, (x union y).size)
+    }
+
+    /** realtime_agent.render. */
+    fun render(n: Note): String = "#${n.id} [${n.ts}] " + (n.tag?.let { "($it) " } ?: "") + n.text
+
+    /** phone_live.compact: DECISION, then OPEN-ISSUE, then ACTION, newest first within each, then
+     *  the rest newest first, within [RESTART_BUDGET] tokens; kept in chronological order. */
+    fun compact(journal: List<Note>, count: (String) -> Int): String {
+        val key = mapOf("DECISION" to 0, "OPEN-ISSUE" to 1, "ACTION" to 2)
+        val order = journal.indices.sortedWith(
+            compareBy<Int>({ key[journal[it].tag?.uppercase()] ?: 3 }, { -it }),
+        )
+        val chosen = HashSet<Int>()
+        var used = 0
+        for (i in order) {
+            val t = count(render(journal[i]))
+            if (used + t <= RESTART_BUDGET) { chosen += i; used += t }
+        }
+        val rest = journal.size - chosen.size
+        val text = chosen.sorted().joinToString("\n") { render(journal[it]) } + (if (rest > 0) omitted(rest) else "")
+        return text.ifEmpty { JOURNAL_EMPTY }
+    }
+
+    private val SECTIONS = listOf(
+        "決議事項" to "DECISION", "待辦與負責人" to "ACTION", "保留與未決" to "OPEN-ISSUE", "重要數字" to "NUMBER",
+    )
+
+    /** phone_live.py minutes: the notes grouped by type; every item keeps its `[ts]`. */
+    fun minutes(journal: List<Note>): String {
+        val out = ArrayList<String>()
+        for ((title, tag) in SECTIONS) {
+            val items = journal.filter { it.tag?.uppercase() == tag }
+            out += "【$title】"
+            out += if (items.isEmpty()) listOf("- 無") else items.map { "- ${it.text.trimEnd('。')} [${it.ts}]" }
+        }
+        return out.joinToString("\n")
+    }
+}
+
+/** One transcript line as the model reads it (ingest.Line). [speaker] is "S1", "S2", … or null. */
+data class Line(val startS: Int, val speaker: String?, val text: String) {
+    fun render(): String = "[${ReaderProtocol.formatTs(startS)}] " + (speaker?.let { "$it: " } ?: "") + text
+}
+
+/** A journal entry. [tag] is DECISION / ACTION / NUMBER / OPEN-ISSUE / "-" or null. */
+data class Note(val id: Int, val window: Int, val ts: String, val tag: String?, val text: String)

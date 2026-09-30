@@ -73,6 +73,8 @@ fun CaptureScreen(
     utterances: List<TranscriptEvent.Utterance>,
     /** Leading [utterances] that are settled; the rest are provisional (speaker may still change). */
     stable: Int = 0,
+    /** The meeting-reading agent, when it runs live alongside the recording. */
+    agent: AgentUiState? = null,
     onNextTalk: () -> Unit,
     onStop: () -> Unit,
     onBack: () -> Unit,
@@ -115,7 +117,7 @@ fun CaptureScreen(
                 Spacer(Modifier.width(24.dp))
                 Column(Modifier.weight(1.2f).fillMaxHeight()) {
                     LiveHeader(showLive, pal) { showLive = !showLive }
-                    LivePanel(showLive, utterances, stable)
+                    LivePanel(showLive, utterances, stable, agent)
                 }
             }
             Spacer(Modifier.height(12.dp))
@@ -127,7 +129,7 @@ fun CaptureScreen(
             // Live transcript: a first-class panel filling everything between the name field and
             // the buttons — the full running transcript, auto-following the newest line.
             LiveHeader(showLive, pal) { showLive = !showLive }
-            LivePanel(showLive, utterances, stable)
+            LivePanel(showLive, utterances, stable, agent)
             Spacer(Modifier.height(16.dp))
             CaptureButtons(isRecording, onNextTalk, onStop, buttonHeight = 96.dp)
             Spacer(Modifier.height(16.dp))
@@ -199,12 +201,15 @@ private fun androidx.compose.foundation.layout.ColumnScope.LivePanel(
     showLive: Boolean,
     utterances: List<TranscriptEvent.Utterance>,
     stable: Int,
+    agent: AgentUiState?,
 ) {
     val pal = LocalVoxSumPalette.current
     if (!showLive) {
         Spacer(Modifier.weight(1f))
         return
     }
+    // The summarizing agent works alongside ASR + diarization: its status stays pinned on top.
+    agent?.let { AgentStrip(it) }
     if (utterances.isEmpty()) {
         // Centered waiting state: a corner-anchored one-liner made the big empty panel
         // look unfinished — center it with a quiet mic glyph so the space reads intentional.

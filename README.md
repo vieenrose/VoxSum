@@ -69,7 +69,7 @@ them one by one while you watch each session's live status.
 **📝 Read and understand**
 - **Live transcript** — lines show up as soon as you speak; you can start reading (and playing) before it finishes.
 - **Who spoke when, live** — speakers are identified *while* the words are transcribed, in the same pass: each line is tagged and colour-coded by speaker as you record, with an automatic speaker count (up to 8 speakers). Benchmarked on the AMI and AISHELL-4 meeting corpora at **95.4% / 92.3%** time-weighted attribution while labelling **99%** of the speech ([details](tools/nemo-eval/README.md)). VoxSum can even **guess speakers' real names** from what they say.
-- **A summary in your language, your way** — a short title and a **concise** summary (a handful of points, never a wall of text) as **bullets, an executive brief, or a narrative**. It is written in the recording's language; Chinese can be shown in **繁體中文** or **简体中文** (defaulting from your phone's region).
+- **Minutes written live** — while you record, a meeting agent reads along and writes short notes — **decisions, actions, open issues, key figures** — each with a tap-to-play timestamp; the minutes are ready about a minute after the meeting ends. Chinese can be shown in **繁體中文** or **简体中文** (defaulting from your phone's region).
 - **Action items & decisions** — pull a draft checklist of who-does-what and the key decisions out of a meeting, ready to edit.
 - **Search the transcript** — find any word in a long recording; matches highlight and you can step through them.
 - **A built-in player, in sync** — docked at the bottom like a music app: tap any line to jump there, and the current line highlights as it plays.
@@ -80,7 +80,7 @@ them one by one while you watch each session's live status.
 - **Fix the speakers** — move a misattributed line to the right person, or merge two speakers into one.
 - **Copy** the whole summary with one tap.
 - **Export the words** — one **Export & share…** sheet, grouped by what you get: the **VoxSum session** (`.m4a`), a **document** (**PDF**, **Markdown**, plain text) carrying the title, summary, action items and the timestamped transcript, or **subtitles** (`.srt`/`.vtt`/`.lrc`) with speaker labels. Everything can be **saved or shared**, and the transcript copies to the clipboard in one tap.
-- **Re-run** the transcription, the summary, **just the speaker detection** (*Re-detect speakers*), or the speaker-name detection whenever you like — and VoxSum keeps everything consistent: change the summary language or style (or edit the transcript) and it offers a one-tap **re-summarize**, which also refreshes the title (unless you wrote your own). Switching just between **繁體中文 ↔ 简体中文** converts the title, summary, and transcript **instantly**, no re-run needed.
+- **Re-run** the transcription, the summary, **just the speaker detection** (*Re-detect speakers*), or the speaker-name detection whenever you like — and VoxSum keeps everything consistent: edit the transcript and it offers a one-tap **re-summarize**, which also refreshes the title (unless you wrote your own). Switching just between **繁體中文 ↔ 简体中文** converts the title, summary, and transcript **instantly**, no re-run needed.
 - **Save or share as one file** — the whole session (audio + transcript + summary + speakers + a cover) packs into a single **`.m4a`**. It **plays in any music app** — showing the title, cover, summary, and the **time-synced transcript** as [scrolling lyrics](#synced-lyrics-in-android-music-players) — and **reopens in VoxSum** with everything intact. `.m4a` reaches the widest set of players (iPhones, cars, every app); older `.ogg` sessions still open too.
 
 ## Languages
@@ -122,11 +122,10 @@ after that, updates arrive automatically.
   saved half-finished — they unlock the moment it completes.
 - **The only thing it ever sends** is an optional, once-a-day check to GitHub for a new version — no
   tracking, and skipped when you're offline. (F-Droid users get updates through their client instead.)
-- **Runs on Android 8.0+.** A recent phone with a few GB of free storage is comfortable. The
+- **Runs on Android 8.0+** with an ARMv8.2 processor (dot-product instructions — most phones from 2019 on). A recent phone with a few GB of free storage is comfortable. The
   first transcription downloads the speech engine's two models (~275 MB); the first summary
-  downloads the summarizer's two (~880 MiB). They never run at the same time: the speech models
-  are released before the summarizer loads, and a full transcribe + summarize pass peaks around
-  2 GB of memory on a mid-range phone.
+  downloads the meeting agent (~3.35 GB). With ~8 GB of RAM both run at once during a recording
+  (about 3 GB peak); with less, the agent runs after the speech engine is released.
 
 ## Project status
 
@@ -158,9 +157,9 @@ chunk size (~1 s to 27 s) × every display delay (0–30 s), scored against the 
 - **Tagging a line as soon as its first word settles is fast but wrong.** Latency drops to 2–3 s, but
   words later in the line inherit the tag before the diarizer has seen them, and accuracy falls to
   60–67 %; it recovers to ~81 % at ~8 s and ~88 % at ~19 s.
-- **Smaller diarizer chunks barely buy accuracy and cost a lot of compute** — the ~1 s `low` profile
-  runs 10× slower than the shipped 4 s chunks on the same PC. Phone RTF for each point is not measured
-  yet (`tools/nemo-eval/bench_on_device.sh` does it once a device is connected).
+- **Smaller diarizer chunks barely buy accuracy and cost a lot of compute** — on an OPPO Reno7
+  (Dimensity 900, 2 threads) the ~1 s `low` profile runs at RTF 4.2 (4× slower than real time),
+  against 0.61 for the shipped 4 s chunks.
 - **The saved transcript is unaffected** by any of this: it is re-attributed in full when the
   recording stops.
 
@@ -168,35 +167,31 @@ The next step is word-level tagging — a tag on each *settled word* rather than
 bring the latency close to the diarizer's own ~5 s at today's accuracy.
 Data and plotting: [`tools/nemo-eval/latency/`](tools/nemo-eval/latency).
 
-**Summarizer.** As of v0.42.0 VoxSum summarizes with an *agentic* pipeline
-rather than a single prompt. The transcript streams past the model in ~2000-token chunks, and the
-model edits **one evolving set of notes** through typed operations (add a bullet, revise a bullet,
-delete one) instead of writing independent per-chunk digests that are merged at the end. The
-practical difference: when a meeting reverses itself — a plan rejected at 12:00 and approved at
-48:00 — the notes now *update* the earlier bullet instead of listing both.
+**Summarizer: a live meeting-reading agent (from the next release).** The summary is written *while
+the meeting happens*, by [Gemma-4-E2B meeting agent](https://huggingface.co/Luigi/gemma-4-E2B-meeting-agent-zh-GGUF)
+(Apache-2.0, 3.35 GB), fine-tuned in [meeting-summarizer](https://github.com/vieenrose/meeting-summarizer)
+as a *reader*: transcript lines are fed into one growing conversation as soon as their speaker is
+settled (prefill only, while people talk), and every ~2,000 tokens (~4 min) it writes up to five
+short, typed notes — decision, action, open issue, figure — each citing the line it rests on. The
+minutes are those notes grouped by type; every item's `[time]` is tap-to-play. When the context
+reaches 8k tokens it restarts from a compacted journal. Its protocol is a byte-exact port of
+upstream's `phone_live.py` (checked by a parity test that replays the real script).
 
-Two models work together on-device, both Apache-2.0:
+Three lanes run at once while recording — speech recognition, speaker identification, and the
+agent — and the recording screen shows all three: the live transcript, speaker tags as they
+settle, and the agent's status, the note it is writing, and its latest notes (the full activity
+log — every prefill, reading turn, dropped note and restart — is on the session screen).
 
-| model | role | size |
-|---|---|---|
-| MiniCPM5-1B-CURSOR | proposes the note edits | ~656 MiB |
-| Granite-4.0-350m-verifier | checks every proposed decision/action against the transcript before it is accepted | ~226 MiB |
-
-Everything the model proposes passes through deterministic checks written in Kotlin: timestamps
-must point at a line the model actually saw, a bullet contradicting a later one is dropped,
-duplicates are rejected, and section limits are applied by spreading across the meeting rather
-than truncating it. The model never writes the notes file directly — the app renders it.
-
-**What is verified.** Op-format correctness (zero malformed operations across English, Chinese and
-a 62-minute real meeting, on x86 and on-device), timestamps always resolving to real transcript
-lines, and the full pipeline running on a mid-range phone (Dimensity 900) inside ~2 GB peak memory.
-
-**What is not, and you should know it.** Summary *coverage* is unmeasured: on real meetings the
-model tends to write few notes, and may miss action items that were clearly stated. We also cannot
-yet publish a trustworthy faithfulness figure — our own inversion detector ships in this release,
-but the meetings we have are not a fair test set (they overlap the model's training data). Treat
-the summary as a helpful first pass, not a record: the app says as much next to every summary, and
-every bullet carries a timestamp so you can check it against the transcript in one tap.
+- **Verified on an OPPO Reno7 (Dimensity 900, 8 GB)**, a 10-minute meeting replayed at real time
+  with all three lanes: speech recognition never fell more than 6.5 s behind and lost no audio,
+  reading turns took 17–45 s, the minutes were ready **87 s after the audio ended**, peak memory
+  3.0 GB.
+- **Quality, measured upstream** on 38 held-out zh-TW meetings: coverage 0.91, 77 % of decisions
+  recalled — and **18 % of statements contradicted** by the transcript. The app labels the output
+  as notes, not minutes; check a note by tapping its time.
+- **Limits.** The model was trained on Chinese (Legislative Yuan) meetings and writes its notes in
+  Chinese, also for English meetings. Live mode needs ~8 GB of RAM; on smaller phones the agent
+  reads the transcript right after the recording instead.
 
 ## Synced lyrics in Android music players
 
@@ -235,11 +230,13 @@ Every model runs locally, and everything native is built from source:
   and NVIDIA's streaming Nemotron-3 Diarization (via [audio.cpp](https://github.com/0xShug0/audio.cpp)),
   fused so every word carries the speaker whose turn covers it. Words appear ~0.4 s after they are
   spoken; speaker turns settle ~5 s behind the audio. Two GGUFs, ~275 MB together.
-- **Summarization** — [llama.cpp](https://github.com/ggml-org/llama.cpp) over GGUF models
-  (see `LlmRegistry.kt`).
+- **Summarization** — a live reading agent (Gemma-4-E2B, fine-tuned) on
+  [llama.cpp](https://github.com/ggml-org/llama.cpp), through a session that keeps its KV cache
+  between calls so the meeting is read incrementally (`core/reader/`, `llm_jni.cpp`).
 
-All of it runs on ggml. The arm64 build is deliberately pinned to `-march=armv8-a`: Cortex-A73/A72
-devices have no dotprod or fp16 arithmetic, and anything above the baseline crashes there.
+All of it runs on ggml, built for `armv8.2-a+dotprod`: the int8 dot-product kernels are what make
+the models run in real time. ARMv8.0 devices (Cortex-A53/A72/A73, e.g. the older Boox tablets) are
+not supported; the app says so at launch instead of crashing.
 
 See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the module map.
 

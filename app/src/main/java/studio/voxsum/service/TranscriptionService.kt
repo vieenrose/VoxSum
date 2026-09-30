@@ -63,9 +63,10 @@ import studio.voxsum.MainActivity
 import studio.voxsum.R
 import java.io.File
 
-/** Total RAM from which ASR + diarization and the reader run concurrently (the model alone is
- *  3.35 GB; integration note §6 gates live mode at ~8 GB). */
-private const val LIVE_READER_MIN_RAM = 7_500L * 1024 * 1024 * 1024 / 1000
+/** Total RAM from which ASR + diarization and the reader run concurrently (integration note §6
+ *  gates live mode at "8 GB"). An 8 GB phone reports ~7.4 GiB of totalMem (the OPPO Reno7:
+ *  7,728,400 kB), so the gate is 7 GiB: every 8 GB phone passes, 6 GB phones do not. */
+private const val LIVE_READER_MIN_RAM = 7L * 1024 * 1024 * 1024
 
 /**
  * Long-running pipeline host. Transcription + diarization + summarization can take

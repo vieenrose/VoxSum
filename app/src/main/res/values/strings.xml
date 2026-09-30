@@ -354,5 +354,23 @@
     <string name="agent_tag_action">Action</string>
     <string name="agent_tag_open">Open issue</string>
     <string name="agent_tag_number">Figure</string>
+    <string name="agent_outcome">%1$d windows read · %2$d notes</string>
+    <string name="agent_show_process">Show the process</string>
+    <string name="agent_hide_process">Hide the process</string>
+    <string name="agent_state_starting">Loading</string>
+    <string name="agent_state_listening">Listening</string>
+    <string name="agent_state_reading">Writing</string>
+    <string name="agent_state_restarting">Compacting</string>
+    <string name="agent_state_done">Done</string>
+    <string name="agent_gauge_window">Window %1$d → next read</string>
+    <string name="agent_gauge_context">Context</string>
+    <string name="agent_step_listening">Window %1$d · listening</string>
+    <string name="agent_step_reading">Window %1$d · writing notes</string>
+    <string name="agent_step_done">Window %1$d · read</string>
+    <string name="agent_step_tokens">%1$,d tokens</string>
+    <string name="agent_step_kept">+%1$d notes</string>
+    <string name="agent_step_dropped">%1$d dropped</string>
+    <string name="agent_step_restart">Context compacted · %1$,d → %2$,d tokens</string>
+    <string name="agent_notes_count">%1$d notes</string>
     <string name="cpu_unsupported">This device\'s processor is not supported: VoxSum needs an ARMv8.2 CPU with dot-product instructions (most phones from 2019 on).</string>
 </resources>

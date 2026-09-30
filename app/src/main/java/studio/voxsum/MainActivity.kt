@@ -2636,7 +2636,7 @@ private fun TitleCard(
                 )
                 EditPencil(onBeginEdit)
             }
-            Text("via $llm", style = MaterialTheme.typography.labelSmall, color = pal.Slate400)
+            // No "via <model>" here: the summary card right below already credits the model.
         }
     }
 }

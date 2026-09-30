@@ -163,7 +163,11 @@ private fun NameField(sessionName: String, onSessionName: (String) -> Unit) {
         value = sessionName,
         onValueChange = onSessionName,
         singleLine = true,
-        label = { Text(stringResource(R.string.capture_session_name), color = pal.Slate400) },
+        // Placeholder, not a floating label: the booth is about the timer and the live text, so the
+        // optional name stays one quiet line.
+        placeholder = { Text(stringResource(R.string.capture_session_name), color = pal.Slate400) },
+        textStyle = MaterialTheme.typography.bodyLarge,
+        shape = RoundedCornerShape(12.dp),
         colors = OutlinedTextFieldDefaults.colors(
             focusedTextColor = pal.Slate200, unfocusedTextColor = pal.Slate200,
             focusedBorderColor = pal.Sky, unfocusedBorderColor = pal.Slate700,

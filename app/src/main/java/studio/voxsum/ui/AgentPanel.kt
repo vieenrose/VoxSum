@@ -1,27 +1,49 @@
 package studio.voxsum.ui
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import studio.voxsum.R
 import studio.voxsum.core.reader.AgentEvent
@@ -29,11 +51,12 @@ import studio.voxsum.core.reader.AgentState
 import studio.voxsum.core.reader.Note
 import studio.voxsum.core.reader.ReaderProtocol
 import studio.voxsum.ui.theme.LocalVoxSumPalette
+import studio.voxsum.ui.theme.VoxSumPalette
 
 /**
- * Live state of the meeting-reading agent, folded from [AgentEvent]s: what it is doing now, the
- * reply it is streaming for the current window, the notes it kept, and an activity log of every
- * prefill, turn, dropped note and restart. One instance per session view.
+ * Live state of the meeting-reading agent, folded from [AgentEvent]s: what it is doing now, one
+ * [Step] per window it read (and per restart), the reply it is streaming, the notes it kept, and a
+ * raw activity log. One instance per session view.
  */
 @Stable
 class AgentUiState {
@@ -41,38 +64,82 @@ class AgentUiState {
         private set
     var reply by mutableStateOf("")
         private set
+    /** Tokens in the model's context now (moves with every prefill). */
+    var ctxTokens by mutableIntStateOf(0)
+        private set
     val notes = mutableStateListOf<Note>()
+    val steps = mutableStateListOf<Step>()
     val log = mutableStateListOf<LogLine>()
+
+    /** A window the agent listened to and read, or a context restart between windows. */
+    data class Step(
+        val window: Int,
+        val restart: Boolean = false,
+        /** Transcript tokens fed into this window so far. */
+        val tokens: Int = 0,
+        val reading: Boolean = false,
+        val done: Boolean = false,
+        val ms: Long = 0,
+        val kept: Int = 0,
+        val dropped: Int = 0,
+        /** Restart only: context before → after. */
+        val ctxBefore: Int = 0,
+        val ctxAfter: Int = 0,
+    )
 
     data class LogLine(val kind: Kind, val text: String)
     enum class Kind { FED, TURN, KEPT, DROPPED, RESTART, STATE }
 
     val active: Boolean get() = state != null
+    val working: Boolean get() = state?.state.let { it != null && it != AgentState.DONE }
+    val windowsRead: Int get() = steps.count { !it.restart && it.done }
 
     fun reset() {
-        state = null; reply = ""; notes.clear(); log.clear()
+        state = null; reply = ""; ctxTokens = 0; notes.clear(); steps.clear(); log.clear()
     }
 
     fun apply(e: AgentEvent) {
         when (e) {
             is AgentEvent.State -> {
-                if (e.state == AgentState.READING) reply = ""
+                if (e.ctxTokens > 0) ctxTokens = e.ctxTokens
+                if (e.window > 0 && steps.none { !it.restart && it.window == e.window }) steps += Step(e.window)
+                if (e.state == AgentState.READING) {
+                    reply = ""
+                    edit { it.copy(reading = true) }
+                }
                 state = e
             }
             is AgentEvent.Fed -> {
-                // Keep the status line's context count moving while segments are prefilled.
-                state?.takeIf { it.state == AgentState.LISTENING }?.let { state = it.copy(ctxTokens = e.ctxTokens) }
+                ctxTokens = e.ctxTokens
+                if (e.what == "segment") edit { it.copy(tokens = it.tokens + e.tokens) }
                 add(Kind.FED, "${e.what} · ${e.tokens} tok · %.1f s · ctx ${e.ctxTokens}".format(e.ms / 1000.0))
             }
             is AgentEvent.TurnToken -> reply += e.piece
-            is AgentEvent.TurnDone -> add(Kind.TURN, "window ${e.window} · %.1f s · +${e.kept} notes".format(e.ms / 1000.0))
+            is AgentEvent.TurnDone -> {
+                edit { it.copy(reading = false, done = true, ms = e.ms) }
+                add(Kind.TURN, "window ${e.window} · %.1f s · +${e.kept} notes".format(e.ms / 1000.0))
+            }
             is AgentEvent.NoteKept -> {
                 notes += e.note
+                edit { it.copy(kept = it.kept + 1) }
                 add(Kind.KEPT, ReaderProtocol.render(e.note))
             }
-            is AgentEvent.NoteDropped -> add(Kind.DROPPED, "${e.reason.name.lowercase()} · ${e.line}")
-            is AgentEvent.Restart -> add(Kind.RESTART, "#${e.count} · ctx ${e.ctxBefore} → ${e.ctxAfter}")
+            is AgentEvent.NoteDropped -> {
+                edit { it.copy(dropped = it.dropped + 1) }
+                add(Kind.DROPPED, "${e.reason.name.lowercase()} · ${e.line}")
+            }
+            is AgentEvent.Restart -> {
+                ctxTokens = e.ctxAfter
+                steps += Step(window = 0, restart = true, done = true, ctxBefore = e.ctxBefore, ctxAfter = e.ctxAfter)
+                add(Kind.RESTART, "#${e.count} · ctx ${e.ctxBefore} → ${e.ctxAfter}")
+            }
         }
+    }
+
+    /** Update the current (latest) window step. */
+    private fun edit(f: (Step) -> Step) {
+        val i = steps.indexOfLast { !it.restart }
+        if (i >= 0) steps[i] = f(steps[i])
     }
 
     private fun add(kind: Kind, text: String) {
@@ -84,63 +151,286 @@ class AgentUiState {
 }
 
 /**
- * The Agent panel: status line, the reply being written for the current window, the live notes
- * (each timestamp seeks the player), and a collapsible activity log. Labelled as notes, not minutes
- * — about one statement in five is contradicted by the transcript (integration note §7).
+ * The Agent panel, laid out like an agent trace: a header with a live status dot and state chip,
+ * two gauges (how full the current window is before the next reading turn, and the context budget
+ * before a restart), a step timeline — one node per window, the active one streaming the reply it
+ * is writing — and the notes as cards (each time seeks the player). Collapses to its header once
+ * the agent is done. Labelled as notes, not minutes — about one statement in five is contradicted
+ * by the transcript (integration note §7).
  */
 @Composable
 fun AgentPanel(agent: AgentUiState, onSeek: ((Int) -> Unit)? = null, modifier: Modifier = Modifier) {
     val pal = LocalVoxSumPalette.current
     val st = agent.state ?: return
+    val done = st.state == AgentState.DONE
+    var expanded by remember(done) { mutableStateOf(!done) }
     var showLog by remember { mutableStateOf(false) }
-    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(
-            stringResource(R.string.agent_title),
-            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = pal.Slate200,
-        )
-        Text(statusLine(st), style = MaterialTheme.typography.bodyMedium, color = pal.Sky)
-        if (st.state == AgentState.READING && agent.reply.isNotBlank()) {
-            Text(
-                agent.reply.trimEnd(),
-                style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace, color = pal.Slate400,
-            )
+    Column(modifier.fillMaxWidth().animateContentSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(
+            Modifier.fillMaxWidth().clickable { expanded = !expanded },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            StatusDot(stateColor(st.state), pulsing = agent.working)
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    stringResource(R.string.agent_title),
+                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = pal.Slate200,
+                )
+                Text(
+                    stringResource(R.string.agent_outcome, agent.windowsRead, agent.notes.size),
+                    style = MaterialTheme.typography.labelMedium, color = pal.Slate400,
+                )
+            }
+            StateChip(st.state)
         }
+        if (!expanded) {
+            Text(
+                stringResource(R.string.agent_show_process),
+                style = MaterialTheme.typography.labelLarge, color = pal.Sky,
+                modifier = Modifier.clickable { expanded = true }.padding(vertical = 2.dp),
+            )
+            return@Column
+        }
+        if (!done) Gauges(agent, st)
+        Timeline(agent, st)
         if (agent.notes.isNotEmpty()) {
-            Spacer(Modifier.height(4.dp))
-            Text(stringResource(R.string.agent_notes, agent.notes.size), style = MaterialTheme.typography.labelMedium, color = pal.Slate400)
-            agent.notes.forEach { n ->
-                Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
-                    Text(
-                        "[${n.ts}]",
-                        style = MaterialTheme.typography.bodySmall, color = pal.Sky,
-                        modifier = Modifier.clickable(enabled = onSeek != null) {
-                            ReaderProtocol.parseTs(n.ts)?.let { onSeek?.invoke(it * 1000) }
-                        },
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        (n.tag?.let { "${tagLabel(it)} · " } ?: "") + n.text,
-                        style = MaterialTheme.typography.bodySmall, color = pal.Slate200,
-                    )
-                }
+            Text(
+                stringResource(R.string.agent_notes, agent.notes.size),
+                style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, color = pal.Slate400,
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                agent.notes.forEach { NoteCard(it, onSeek) }
             }
             Text(stringResource(R.string.agent_notes_caution), style = MaterialTheme.typography.labelSmall, color = pal.Slate400)
         }
-        Text(
-            stringResource(if (showLog) R.string.agent_hide_log else R.string.agent_show_log, agent.log.size),
-            style = MaterialTheme.typography.labelMedium, color = pal.Sky,
-            modifier = Modifier.clickable { showLog = !showLog }.padding(vertical = 4.dp),
-        )
+        Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+            if (done) Text(
+                stringResource(R.string.agent_hide_process),
+                style = MaterialTheme.typography.labelLarge, color = pal.Sky,
+                modifier = Modifier.clickable { expanded = false }.padding(vertical = 4.dp),
+            )
+            Text(
+                stringResource(if (showLog) R.string.agent_hide_log else R.string.agent_show_log, agent.log.size),
+                style = MaterialTheme.typography.labelLarge, color = pal.Slate400,
+                modifier = Modifier.clickable { showLog = !showLog }.padding(vertical = 4.dp),
+            )
+        }
         if (showLog) {
-            agent.log.asReversed().take(60).forEach { l ->
-                Text(
-                    "${logPrefix(l.kind)} ${l.text}",
-                    style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace,
-                    color = if (l.kind == AgentUiState.Kind.DROPPED) pal.Slate400 else pal.Slate200,
-                )
+            Column(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(pal.InsetSurface).padding(10.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                agent.log.asReversed().take(60).forEach { l ->
+                    Text(
+                        "${logPrefix(l.kind)} ${l.text}",
+                        style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace,
+                        color = if (l.kind == AgentUiState.Kind.DROPPED) pal.Slate400 else pal.Slate200,
+                        maxLines = 2, overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
     }
+}
+
+/** Window fill (the next reading turn fires at [ReaderProtocol.WINDOW_TOKENS]) and context budget. */
+@Composable
+private fun Gauges(agent: AgentUiState, st: AgentEvent.State) {
+    val cur = agent.steps.lastOrNull { !it.restart }
+    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        Gauge(
+            label = stringResource(R.string.agent_gauge_window, cur?.window ?: 0),
+            value = cur?.tokens ?: 0, max = ReaderProtocol.WINDOW_TOKENS,
+            active = st.state == AgentState.LISTENING, modifier = Modifier.weight(1f),
+        )
+        Gauge(
+            label = stringResource(R.string.agent_gauge_context),
+            value = agent.ctxTokens, max = ReaderProtocol.CTX_BUDGET,
+            active = false, modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun Gauge(label: String, value: Int, max: Int, active: Boolean, modifier: Modifier) {
+    val pal = LocalVoxSumPalette.current
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(label, style = MaterialTheme.typography.labelMedium, color = pal.Slate400, modifier = Modifier.weight(1f), maxLines = 1)
+            Text(
+                "%,d / %,d".format(value.coerceAtMost(max), max),
+                style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace, color = pal.Slate400,
+            )
+        }
+        LinearProgressIndicator(
+            progress = { (value.toFloat() / max).coerceIn(0f, 1f) },
+            modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
+            color = if (active) pal.Sky else pal.Slate600,
+            trackColor = pal.Slate700,
+            strokeCap = StrokeCap.Round,
+            drawStopIndicator = {},
+        )
+    }
+}
+
+/** One node per window (and restart); the active window streams the reply it is writing. */
+@Composable
+private fun Timeline(agent: AgentUiState, st: AgentEvent.State) {
+    val pal = LocalVoxSumPalette.current
+    val steps = agent.steps
+    if (steps.isEmpty()) {
+        TimelineRow(color = stateColor(st.state), pulsing = agent.working, last = true) {
+            Text(statusLine(st), style = MaterialTheme.typography.bodyMedium, color = pal.Slate200)
+        }
+        return
+    }
+    Column {
+        steps.forEachIndexed { i, s ->
+            val last = i == steps.lastIndex
+            val color = when {
+                s.restart -> VoxSumPalette.Warning
+                s.done -> VoxSumPalette.Success
+                s.reading -> VoxSumPalette.Idle
+                else -> pal.Sky
+            }
+            TimelineRow(color = color, pulsing = last && agent.working && !s.done, last = last) {
+                if (s.restart) {
+                    Text(
+                        stringResource(R.string.agent_step_restart, s.ctxBefore, s.ctxAfter),
+                        style = MaterialTheme.typography.bodyMedium, color = pal.Slate200,
+                    )
+                    return@TimelineRow
+                }
+                Text(
+                    stringResource(
+                        when {
+                            s.done -> R.string.agent_step_done
+                            s.reading -> R.string.agent_step_reading
+                            else -> R.string.agent_step_listening
+                        },
+                        s.window,
+                    ),
+                    style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, color = pal.Slate200,
+                )
+                val parts = mutableListOf(stringResource(R.string.agent_step_tokens, s.tokens))
+                if (s.done) {
+                    parts += "%.0f s".format(s.ms / 1000.0)
+                    parts += stringResource(R.string.agent_step_kept, s.kept)
+                    if (s.dropped > 0) parts += stringResource(R.string.agent_step_dropped, s.dropped)
+                }
+                Text(parts.joinToString(" · "), style = MaterialTheme.typography.labelMedium, color = pal.Slate400)
+                if (s.reading && last && agent.reply.isNotBlank()) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        agent.reply.trimEnd().lines().takeLast(6).joinToString("\n"),
+                        style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace, color = pal.Slate400,
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
+                            .background(pal.InsetSurface).padding(horizontal = 10.dp, vertical = 8.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TimelineRow(color: Color, pulsing: Boolean, last: Boolean, content: @Composable () -> Unit) {
+    val pal = LocalVoxSumPalette.current
+    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+        Column(Modifier.width(20.dp).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
+            Spacer(Modifier.height(5.dp))
+            StatusDot(color, pulsing)
+            if (!last) Box(Modifier.padding(top = 4.dp).width(2.dp).weight(1f).background(pal.Hairline))
+        }
+        Spacer(Modifier.width(10.dp))
+        Column(Modifier.weight(1f).padding(bottom = if (last) 0.dp else 14.dp)) { content() }
+    }
+}
+
+@Composable
+private fun NoteCard(n: Note, onSeek: ((Int) -> Unit)?) {
+    val pal = LocalVoxSumPalette.current
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(pal.InsetSurface)
+            .border(1.dp, pal.Hairline, RoundedCornerShape(12.dp)).padding(12.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Text(
+            n.ts,
+            style = MaterialTheme.typography.labelMedium, fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.SemiBold, color = pal.Sky,
+            modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(pal.ActiveTint)
+                .clickable(enabled = onSeek != null) { ReaderProtocol.parseTs(n.ts)?.let { onSeek?.invoke(it * 1000) } }
+                .padding(horizontal = 6.dp, vertical = 2.dp),
+        )
+        Spacer(Modifier.width(10.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            n.tag?.takeIf { it != "-" }?.let { TagChip(it) }
+            Text(n.text, style = MaterialTheme.typography.bodyMedium, color = pal.Slate200)
+        }
+    }
+}
+
+@Composable
+private fun TagChip(tag: String) {
+    val c = tagColor(tag)
+    Text(
+        tagLabel(tag),
+        style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = c,
+        modifier = Modifier.clip(RoundedCornerShape(50)).background(c.copy(alpha = 0.14f))
+            .padding(horizontal = 8.dp, vertical = 2.dp),
+    )
+}
+
+@Composable
+private fun StateChip(s: AgentState) {
+    val c = stateColor(s)
+    Text(
+        stringResource(
+            when (s) {
+                AgentState.STARTING -> R.string.agent_state_starting
+                AgentState.LISTENING -> R.string.agent_state_listening
+                AgentState.READING -> R.string.agent_state_reading
+                AgentState.RESTARTING -> R.string.agent_state_restarting
+                AgentState.DONE -> R.string.agent_state_done
+            },
+        ),
+        style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = c,
+        modifier = Modifier.clip(RoundedCornerShape(50)).background(c.copy(alpha = 0.14f))
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+    )
+}
+
+/** A status dot; pulses while the agent works (never on e-ink, where animation ghosts). */
+@Composable
+private fun StatusDot(color: Color, pulsing: Boolean, size: Int = 10) {
+    val pal = LocalVoxSumPalette.current
+    val a = if (pulsing && !pal.isEink) {
+        val t = rememberInfiniteTransition(label = "agent-dot")
+        t.animateFloat(1f, 0.3f, infiniteRepeatable(tween(800), RepeatMode.Reverse), label = "agent-dot-alpha").value
+    } else 1f
+    Box(Modifier.size(size.dp).alpha(a).clip(CircleShape).background(color))
+}
+
+@Composable
+private fun stateColor(s: AgentState): Color {
+    val pal = LocalVoxSumPalette.current
+    return when (s) {
+        AgentState.STARTING -> pal.Slate400
+        AgentState.LISTENING -> pal.Sky
+        AgentState.READING -> VoxSumPalette.Idle
+        AgentState.RESTARTING -> VoxSumPalette.Warning
+        AgentState.DONE -> VoxSumPalette.Success
+    }
+}
+
+private fun tagColor(tag: String): Color = when (tag.uppercase()) {
+    "DECISION" -> VoxSumPalette.Success
+    "ACTION" -> VoxSumPalette.Info
+    "OPEN-ISSUE" -> VoxSumPalette.Warning
+    "NUMBER" -> Color(0xFF8B6CF0)
+    else -> VoxSumPalette.Neutral
 }
 
 @Composable
@@ -171,23 +461,63 @@ private fun logPrefix(k: AgentUiState.Kind) = when (k) {
 }
 
 /**
- * Compact agent strip for the recording booth: status (or the reply being written) and the latest
- * note, pinned above the live transcript so it never scrolls away.
+ * Compact agent strip for the recording booth, pinned above the live transcript: status dot +
+ * state chip, a thin window-fill bar (how close the next reading turn is), and the reply being
+ * written or the latest note.
  */
 @Composable
 fun AgentStrip(agent: AgentUiState, modifier: Modifier = Modifier) {
     val pal = LocalVoxSumPalette.current
     val st = agent.state ?: return
-    Column(modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(
-            stringResource(R.string.agent_title) + " · " + statusLine(st),
-            style = MaterialTheme.typography.labelMedium, color = pal.Sky, maxLines = 1,
-        )
-        val line = if (st.state == AgentState.READING && agent.reply.isNotBlank())
-            agent.reply.trimEnd().lines().last()
-        else agent.notes.lastOrNull()?.let { n -> "[${n.ts}] " + (n.tag?.let { "${tagLabel(it)} · " } ?: "") + n.text }
-        line?.let {
-            Text(it, style = MaterialTheme.typography.bodySmall, color = pal.Slate200, maxLines = 2)
+    val cur = agent.steps.lastOrNull { !it.restart }
+    Column(
+        modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp).clip(RoundedCornerShape(12.dp))
+            .background(pal.InsetSurface).border(1.dp, pal.Hairline, RoundedCornerShape(12.dp))
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            StatusDot(stateColor(st.state), pulsing = agent.working, size = 8)
+            Spacer(Modifier.width(8.dp))
+            Text(
+                stringResource(R.string.agent_title),
+                style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, color = pal.Slate200,
+                modifier = Modifier.weight(1f),
+            )
+            if (agent.notes.isNotEmpty()) {
+                Text(
+                    stringResource(R.string.agent_notes_count, agent.notes.size),
+                    style = MaterialTheme.typography.labelMedium, color = pal.Slate400,
+                )
+                Spacer(Modifier.width(8.dp))
+            }
+            StateChip(st.state)
+        }
+        if (st.state == AgentState.LISTENING && cur != null) {
+            LinearProgressIndicator(
+                progress = { (cur.tokens.toFloat() / ReaderProtocol.WINDOW_TOKENS).coerceIn(0f, 1f) },
+                modifier = Modifier.fillMaxWidth().height(3.dp).clip(CircleShape),
+                color = pal.Sky, trackColor = pal.Slate700, strokeCap = StrokeCap.Round, drawStopIndicator = {},
+            )
+        }
+        val note = agent.notes.lastOrNull()
+        when {
+            st.state == AgentState.READING && agent.reply.isNotBlank() -> Text(
+                agent.reply.trimEnd().lines().last(),
+                style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace, color = pal.Slate400,
+                maxLines = 2, overflow = TextOverflow.Ellipsis,
+            )
+            note != null -> Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(note.ts, style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace, color = pal.Sky)
+                Spacer(Modifier.width(8.dp))
+                note.tag?.takeIf { it != "-" }?.let { TagChip(it); Spacer(Modifier.width(6.dp)) }
+                Text(
+                    note.text,
+                    style = MaterialTheme.typography.bodySmall, color = pal.Slate200,
+                    maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
+                )
+            }
+            else -> Text(statusLine(st), style = MaterialTheme.typography.labelMedium, color = pal.Slate400, maxLines = 1)
         }
     }
 }

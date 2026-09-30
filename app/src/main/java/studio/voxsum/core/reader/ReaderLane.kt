@@ -150,5 +150,5 @@ class ReaderLane(
 
 /** What a reader run produced: the journal and the minutes assembled from it. */
 data class ReaderResult(val journal: List<Note>, val minutes: String) {
-    val actions: List<Note> get() = journal.filter { it.tag.equals("ACTION", ignoreCase = true) }
+    val actions: List<Note> get() = journal.map(ReaderProtocol::reclassify).filter { it.tag.equals("ACTION", ignoreCase = true) }
 }

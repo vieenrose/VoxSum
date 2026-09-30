@@ -379,4 +379,5 @@
         <item quantity="one">%1$d window read · %2$d notes</item>
         <item quantity="other">%1$d windows read · %2$d notes</item>
     </plurals>
+    <string name="agent_tag_proposal">Proposal</string>
 </resources>

@@ -104,15 +104,31 @@ object ReaderProtocol {
         return text.ifEmpty { JOURNAL_EMPTY }
     }
 
+    // v5 order (integration note §4.5): 討論要點 (PROPOSAL) sits before 重要數字.
     private val SECTIONS = listOf(
-        "決議事項" to "DECISION", "待辦與負責人" to "ACTION", "保留與未決" to "OPEN-ISSUE", "重要數字" to "NUMBER",
+        "決議事項" to "DECISION", "待辦與負責人" to "ACTION", "保留與未決" to "OPEN-ISSUE",
+        "討論要點" to "PROPOSAL", "重要數字" to "NUMBER",
     )
 
-    /** phone_live.py minutes: the notes grouped by type; every item keeps its `[ts]`. */
+    // realtime_agent.PROPOSAL_CUE and the "really decided" words (v5 proposal guard, note §4.8).
+    private val PROPOSAL_CUE = Regex("""^(建議|提議|可以|可考慮|考慮|希望|應該|應|或許|是否|討論|研議)|建議|提議|可考慮""")
+    private val DECIDED = Regex("""通過|決定|決議|同意|定案""")
+
+    /** realtime_agent.reclassify_proposals: a DECISION or ACTION worded as a suggestion, with no
+     *  word saying it was decided, is a PROPOSAL. Applied when the minutes are assembled. */
+    fun reclassify(n: Note): Note {
+        val tag = n.tag?.uppercase()
+        return if ((tag == "DECISION" || tag == "ACTION") && PROPOSAL_CUE.containsMatchIn(n.text) && !DECIDED.containsMatchIn(n.text))
+            n.copy(tag = "PROPOSAL") else n
+    }
+
+    /** realtime_agent v5 minutes: the checked notes (proposal guard applied) grouped by type;
+     *  every item keeps its `[ts]`. */
     fun minutes(journal: List<Note>): String {
+        val notes = journal.map(::reclassify)
         val out = ArrayList<String>()
         for ((title, tag) in SECTIONS) {
-            val items = journal.filter { it.tag?.uppercase() == tag }
+            val items = notes.filter { it.tag?.uppercase() == tag }
             out += "【$title】"
             out += if (items.isEmpty()) listOf("- 無") else items.map { "- ${it.text.trimEnd('。')} [${it.ts}]" }
         }

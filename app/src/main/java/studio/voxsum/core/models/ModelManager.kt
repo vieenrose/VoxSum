@@ -89,6 +89,12 @@ class ModelManager(context: Context) {
         DROPPED_FILES.forEach { File(modelsDir, it).takeIf(File::exists)?.delete() }
     }
 
+    /** Superseded reader models, deleted only once the current one verifies (a failed download
+     *  never leaves the device without a summarizer). */
+    private fun reclaimRetiredLlm() {
+        RETIRED_LLM_DIRS.forEach { File(modelsDir, it).takeIf(File::exists)?.deleteRecursively() }
+    }
+
     // --- LLM: a revision-pinned, multi-file artifact set under its own directory. --------------
     // The summarizer is no longer a single `.litertlm` bundle: it is a LiteRT graph + a PRE-PACKED
     // XNNPACK weight cache + a tokenizer blob. The weight cache is the load-bearing part — without
@@ -150,6 +156,7 @@ class ModelManager(context: Context) {
         val n = name.lowercase()
         return when {
             n == NEMO_DIR -> ModelKind.ASR
+            LlmRegistry.ALL.any { it.dirName == n } -> ModelKind.LLM
             // MOSS-TD is an ASR model that happens to ship as a .gguf — classify it before the
             // generic gguf→LLM rule below, or Settings lists it as a summary model.
             n.startsWith("moss-td") || n.startsWith("moss-transcribe") || n.startsWith("moss_td") -> ModelKind.ASR
@@ -167,7 +174,7 @@ class ModelManager(context: Context) {
      * and costs the user a silent multi-minute on-device repack).
      */
     suspend fun ensureLlmModel(spec: LlmSpec, onProgress: (Float) -> Unit) = withContext(Dispatchers.IO) {
-        if (llmReady(spec)) { onProgress(1f); return@withContext }
+        if (llmReady(spec)) { reclaimRetiredLlm(); onProgress(1f); return@withContext }
         val dir = llmDir(spec).apply { mkdirs() }
         val marked = runCatching { File(dir, REVISION_MARKER).readText().trim() }.getOrNull() == spec.revision
         val total = spec.totalBytes
@@ -185,6 +192,7 @@ class ModelManager(context: Context) {
         }
         runCatching { File(dir, REVISION_MARKER).writeText(spec.revision) }
         check(llmReady(spec)) { "${spec.displayName} files missing after provisioning" }
+        reclaimRetiredLlm()
     }
 
     /** No-arg convenience over the default model. */
@@ -409,6 +417,9 @@ class ModelManager(context: Context) {
             // meeting agent (core/reader).
             "minicpm5-cursor-gguf", "granite-verifier-gguf",
         )
+
+        /** Meeting-agent v3 (root GGUF), replaced by v5; reclaimed after v5 verifies. */
+        private val RETIRED_LLM_DIRS = listOf("gemma4-meeting-agent-gguf")
 
         /** Retired by the nemo switch; reclaimed only after the new models verify. */
         private val LITERT_RETIRED = setOf(

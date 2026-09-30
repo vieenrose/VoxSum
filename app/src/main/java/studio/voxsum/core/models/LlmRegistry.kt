@@ -128,23 +128,26 @@ data class SamplerProfile(
 object LlmRegistry {
     const val DEFAULT_ID = "gemma4-e2b-meeting-agent-zh"
 
-    private const val REV = "8cc7dff1d1967a9ab373d9275176ce8e5df189e2"
-    const val SYSTEM_PROMPT_FILE = "system_prompt.txt"
+    // v5 (2026-09-30): adds the PROPOSAL type, strict DECISION/ACTION; trained on IVOD + AliMeeting.
+    // Weights and prompt live under v5/ and must stay paired (integration note §9).
+    private const val REV = "958a8f29a0143184418196c36a78b4899c0c8996"
+    private const val GGUF = "v5/gemma-4-E2B-meeting-agent-zh-v5-Q4_0.gguf"
+    const val SYSTEM_PROMPT_FILE = "v5/system_prompt.txt"
 
     val ALL: List<LlmSpec> = listOf(
         LlmSpec(
             id = DEFAULT_ID,
             displayName = "Gemma-4-E2B meeting agent (zh)",
             shortName = "Meeting agent",
-            dirName = "gemma4-meeting-agent-gguf",
+            dirName = "gemma4-meeting-agent-v5-gguf",
             revision = "https://huggingface.co/Luigi/gemma-4-E2B-meeting-agent-zh-GGUF/resolve/$REV",
             files = mapOf(
-                "gemma-4-E2B-meeting-agent-zh-Q4_0.gguf" to
-                    (3_349_515_904L to "560041008644c58501e28af80da46ecfdae250381442d1784e0d016dd499946c"),
+                GGUF to
+                    (3_349_515_904L to "c812c04c4c627c15847614873d187d72db793b4165ea32fd00f1cec451aa5344"),
                 SYSTEM_PROMPT_FILE to
-                    (1_267L to "11e5e1dcc358cc62f47a7d8185676b1850d6dd204b8005648fc116236a4914ef"),
+                    (1_686L to "406040c70270b5b9d47a4222138fcf2177f361dcbfb79fba164ca2559e0ffbf3"),
             ),
-            mainFile = "gemma-4-E2B-meeting-agent-zh-Q4_0.gguf",
+            mainFile = GGUF,
             chatTemplate = ChatTemplate.GEMMA4,
             sampler = SamplerProfile.GEMMA_READER,
             // The reader restarts its conversation at 8k (prefill slows sharply with depth on a

@@ -10,7 +10,7 @@ import studio.voxsum.core.reader.ReaderLlm
 
 /**
  * Parity with upstream: tools/reader-parity/make_golden.py ran the REAL eval/phone_live.py on 205
- * transcript lines against a fake server (one token per codepoint, deterministic replies). The
+ * transcript lines (v5 minutes: upstream realtime_agent.reclassify_proposals + sections) against a fake server (one token per codepoint, deterministic replies). The
  * Kotlin reader, fed the same lines with the same tokenizer and replies, must build the SAME
  * conversation at every reading turn and end with the same notes, minutes and restart count.
  */
@@ -74,7 +74,7 @@ class ReaderParityTest {
             assertEquals(if (n.isNull("tag")) null else n.getString("tag"), k.tag)
             assertEquals(n.getString("text"), k.text)
         }
-        assertEquals(g.getString("minutes"), minutes)
+        assertEquals(g.getString("minutes_v5"), minutes)   // v5 assembly (proposal guard + 討論要點)
         assertEquals(g.getInt("restarts"), restarts)
     }
 }

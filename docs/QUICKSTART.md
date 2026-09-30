@@ -109,7 +109,7 @@ player. Right: tap 🔍 to search — matches highlight and you step through the
 - **Search** — tap the 🔍 in the top bar to find any word in a long recording; matches highlight and
   you can step through them with the up/down arrows.
 - **Minutes, written live** — a meeting agent reads along while you record and writes short notes
-  (decisions, actions, open issues, key figures), each with a tap-to-play time; watch it work in the
+  (decisions, actions, proposals, open issues, key figures), each with a tap-to-play time; watch it work in the
   **Meeting agent** panel. When you stop, it writes the summary as prose from those notes.
 - **Action items** — top-bar ↻ menu → *Extract action items* pulls a draft checklist of who-does-what
   and the key decisions out of a meeting.

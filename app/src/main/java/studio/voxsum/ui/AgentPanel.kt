@@ -452,6 +452,7 @@ private fun tagColor(tag: String): Color = when (fullTag(tag)) {
     "ACTION" -> VoxSumPalette.Info
     "OPEN-ISSUE" -> VoxSumPalette.Warning
     "NUMBER" -> Color(0xFF8B6CF0)
+    "PROPOSAL" -> Color(0xFF0E9AA7)
     else -> VoxSumPalette.Neutral
 }
 
@@ -470,6 +471,7 @@ private fun tagLabel(tag: String): String = when (fullTag(tag)) {
     "ACTION" -> stringResource(R.string.agent_tag_action)
     "OPEN-ISSUE" -> stringResource(R.string.agent_tag_open)
     "NUMBER" -> stringResource(R.string.agent_tag_number)
+    "PROPOSAL" -> stringResource(R.string.agent_tag_proposal)
     else -> tag
 }
 
@@ -533,7 +535,7 @@ private fun ReplyLineRow(l: ReplyLine, typing: Boolean) {
 /** A tag, completed from its prefix while it is still being written ("ACT" → ACTION). */
 private fun fullTag(tag: String): String {
     val t = tag.uppercase()
-    return listOf("DECISION", "ACTION", "OPEN-ISSUE", "NUMBER").firstOrNull { it.startsWith(t) } ?: t
+    return listOf("DECISION", "ACTION", "OPEN-ISSUE", "NUMBER", "PROPOSAL").firstOrNull { it.startsWith(t) } ?: t
 }
 
 private fun logPrefix(k: AgentUiState.Kind) = when (k) {

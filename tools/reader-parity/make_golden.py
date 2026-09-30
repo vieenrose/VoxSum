@@ -54,7 +54,10 @@ def reply_for(prompt_text, k):
              "NOTE [9:59:59] (NUMBER) 捏造的時間不應被採用",
              f"NOTE [{first}] (DECISION) 第{k}段決議：通過第{k}案。",          # near-duplicate
              f"NOTE {last} (OPEN-ISSUE) 第{k}段保留：停車費率未定",              # brackets optional
-             "NOTE 這行格式錯誤"]
+             "NOTE 這行格式錯誤",
+             f"NOTE [{last}] (DECISION) 建議第{k}區增設停車位",                 # v5 guard: -> PROPOSAL
+             f"NOTE [{first}] (PROPOSAL) 第{k}段提議改用線上報名",
+             f"NOTE [{last}] (ACTION) 同意照辦：第{k}段建議案通過後執行"]      # decided word: stays ACTION
     if k % 3 == 0:
         notes += [f"NOTE [{first}] (NUMBER) 第{k}段數字{i}：{i * 100} 萬元" for i in range(1, 7)]  # cap
     text = "\n".join(notes)
@@ -101,12 +104,27 @@ sys.argv = ["phone_live.py", "--session", "golden", "--transcripts", os.path.joi
             "--speed", "1e9", "--ctx", "8192", "--out", os.path.join(tmp, "out")]
 pl.main()
 rec = json.load(open(os.path.join(tmp, "out", "golden.json"), encoding="utf-8"))
+
+# --- v5 minutes, assembled exactly as upstream realtime_agent does for --harness v5: the proposal
+# guard (reclassify_proposals) on every kept note, then the five sections in order.
+import eval.realtime_agent as ra  # noqa: E402
+kept = [dict(n) for n in rec["notes"]]
+for e in kept:
+    ra.reclassify_proposals(e)
+sections = {"決議事項": ["DECISION"], "待辦與負責人": ["ACTION"], "保留與未決": ["OPEN-ISSUE"],
+            "討論要點": ["PROPOSAL"], "重要數字": ["NUMBER"]}
+out = []
+for title, tags in sections.items():
+    items = [e for e in kept if (e["tag"] or "").upper() in tags]
+    out += [f"【{title}】"] + ([f"- {e['text'].rstrip('。')} [{e['ts']}]" for e in items] or ["- 無"])
+minutes_v5 = "\n".join(out)
 json.dump({
     "system_prompt": pl.SYSTEM_V3,
     "lines": [{"start": s, "speaker": spk, "text": t} for s, spk, t in lines],
     "turns": turns,
     "notes": rec["notes"],
-    "minutes": rec["minutes"],
+    "minutes": rec["minutes"],        # phone_live.py's own (v3) assembly
+    "minutes_v5": minutes_v5,
     "restarts": rec["restarts"],
 }, open(OUT, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 print(f"{len(lines)} lines, {len(turns)} turns, {len(rec['notes'])} notes, {rec['restarts']} restarts -> {OUT}")

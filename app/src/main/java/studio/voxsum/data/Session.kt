@@ -39,12 +39,14 @@ fun speakerLabel(speakerId: Int?, names: SpeakerNames): String? =
  * Per-speaker color palette. The first 10 entries are the EXACT port of
  * src/diarization.py::SPEAKER_COLORS (get_speaker_color wraps speaker_id % 10); entries
  * 10–29 extend it so >10 speakers never collide (the web app reuses colors past 10 — this
- * is an intentional improvement). ARGB Long, opaque.
+ * is an intentional improvement). The first eight are ordered for maximum hue separation (coral,
+ * teal, amber, violet, sky, pink, green, yellow): meetings rarely exceed eight speakers, and the old
+ * order put three blue-greens at speakers 2–4. ARGB Long, opaque.
  */
 private val SPEAKER_PALETTE = longArrayOf(
-    0xFFFF6B6B, 0xFF4ECDC4, 0xFF45B7D1, 0xFF96CEB4, 0xFFFFEAA7,
-    0xFFDDA0DD, 0xFFFFB347, 0xFF87CEEB, 0xFFF0E68C, 0xFFFF69B4,
-    0xFFB39DDB, 0xFF80CBC4, 0xFFFFAB91, 0xFFA5D6A7, 0xFF9FA8DA,
+    0xFFFF6B6B, 0xFF4ECDC4, 0xFFFFB347, 0xFFB39DDB, 0xFF45B7D1,
+    0xFFFF69B4, 0xFFA5D6A7, 0xFFFFEAA7, 0xFF96CEB4, 0xFFDDA0DD,
+    0xFF87CEEB, 0xFFF0E68C, 0xFF80CBC4, 0xFFFFAB91, 0xFF9FA8DA,
     0xFFFFCC80, 0xFF90CAF9, 0xFFCE93D8, 0xFFEF9A9A, 0xFFC5E1A5,
     0xFFFFE082, 0xFF80DEEA, 0xFFBCAAA4, 0xFFE6EE9C, 0xFFF48FB1,
     0xFF81D4FA, 0xFFDCE775, 0xFFFFD54F, 0xFF4DD0E1, 0xFFAED581,

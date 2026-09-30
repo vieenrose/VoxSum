@@ -540,6 +540,9 @@ private fun TranscribeScreen(
     var liveStable by remember { mutableIntStateOf(0) }
     // The meeting-reading agent's live state (status, streamed reply, notes, activity log).
     val agent = remember { studio.voxsum.ui.AgentUiState() }
+    // The queue drain's agent, folded even while nobody watches: opening a queued item mid-summary
+    // must show the whole trace so far, not just the events after the tap.
+    val queueAgent = remember { studio.voxsum.ui.AgentUiState() }
 
     // --- Update notifier: once/day GitHub release check → dismissible banner → download+install. ---
     var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
@@ -1156,7 +1159,10 @@ private fun TranscribeScreen(
     // transcript grow in real time is what makes on-device processing feel fast — no staring at a
     // spinner until the very end. Back returns to Studio; processing continues either way.
     fun watchQueueItem(e: SessionLibrary.Entry) {
-        utterances.clear(); utterances.addAll(queueUtterances)
+        utterances.clear()
+        // Summary pass: the ASR pass finished earlier, so its live buffer is empty — show the
+        // transcript it left on disk instead of a blank screen.
+        utterances.addAll(queueUtterances.ifEmpty { SessionLibrary.peekPendingTranscript(e).orEmpty() })
         speakerNames.clear(); editingIndex = -1; editingSpeakerId = null
         diarizeOnlyRun = false
         editingTitle = false; editingSummary = false; editingActions = false
@@ -1516,7 +1522,7 @@ private fun TranscribeScreen(
                     // the PREVIOUS item, stop forwarding: item B's transcript must not stream into
                     // item A's open session view (A's terminal events already landed).
                     watchingQueue = false
-                    queueUtterances.clear(); queueTitle = null; queueSummary = null
+                    queueUtterances.clear(); queueTitle = null; queueSummary = null; queueAgent.reset()
                     queueItemId = qid; queueFraction = 0f
                 }
                 when (e) {
@@ -1529,6 +1535,7 @@ private fun TranscribeScreen(
                     is TranscriptEvent.Partial ->
                         queueSummary = if (e.reset) "" else (queueSummary ?: "") + e.chunk
                     is TranscriptEvent.SummaryComplete -> queueSummary = e.summary
+                    is TranscriptEvent.Agent -> queueAgent.apply(e.event)
                     else -> Unit
                 }
                 if (qid == null) { queueItemId = null; queueFraction = 0f }
@@ -1655,7 +1662,8 @@ private fun TranscribeScreen(
                 is TranscriptEvent.Partial ->
                     summary = if (e.reset) "" else (summary ?: "") + e.chunk
                 is TranscriptEvent.SummaryComplete -> { summary = e.summary; status = context.getString(R.string.status_done); running = false; if (libraryDir != null && !watchingQueue) sessionDirty = true; autosaveSessionNow() }
-                is TranscriptEvent.Agent -> agent.apply(e.event)
+                // Queue events were already folded into queueAgent above (the view shows that one).
+                is TranscriptEvent.Agent -> if (gen != TranscriptionService.QUEUE_GEN) agent.apply(e.event)
                 is TranscriptEvent.ActionItemsComplete -> { actionItems = e.text.ifBlank { "-" }; status = context.getString(R.string.status_done); running = false; if (libraryDir != null && !watchingQueue) sessionDirty = true; autosaveSessionNow() }
                 is TranscriptEvent.NotesComplete -> {
                     meetingNotes = e.notes
@@ -1994,7 +2002,8 @@ private fun TranscribeScreen(
     val summaryCards: @Composable () -> Unit = {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             // The reading agent at work (live during recording/processing; stays after as a log).
-            if (agent.active) SectionCard { studio.voxsum.ui.AgentPanel(agent, anchorSeek) }
+            val shownAgent = if (watchingQueue) queueAgent else agent
+            if (shownAgent.active) SectionCard { studio.voxsum.ui.AgentPanel(shownAgent, anchorSeek) }
             title?.let { t ->
                 TitleCard(t, llmDisplay, editingTitle,
                     onBeginEdit = { editingTitle = true },

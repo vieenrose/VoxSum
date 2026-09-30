@@ -111,6 +111,9 @@ class AgentUiState {
                 state = e
             }
             is AgentEvent.Fed -> {
+                // Joined mid-run (the STARTING event came before anyone listened): show it anyway.
+                if (state == null) state = AgentEvent.State(AgentState.LISTENING, window = e.window, ctxTokens = e.ctxTokens)
+                if (e.window > 0 && steps.none { !it.restart && it.window == e.window }) steps += Step(e.window)
                 ctxTokens = e.ctxTokens
                 if (e.what == "segment") edit { it.copy(tokens = it.tokens + e.tokens) }
                 add(Kind.FED, "${e.what} · ${e.tokens} tok · %.1f s · ctx ${e.ctxTokens}".format(e.ms / 1000.0))

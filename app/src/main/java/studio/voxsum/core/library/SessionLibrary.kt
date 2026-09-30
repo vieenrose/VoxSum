@@ -209,6 +209,17 @@ object SessionLibrary {
         }.getOrNull()
     }
 
+    /** The sidecar's utterances whatever settings wrote it — for DISPLAY only (watching a queued
+     *  item whose ASR pass already finished); null when absent or unreadable. */
+    fun peekPendingTranscript(entry: Entry): List<TranscriptEvent.Utterance>? {
+        val f = File(entry.dir, PENDING_TRANSCRIPT)
+        if (!f.exists()) return null
+        return runCatching {
+            val arr = JSONObject(f.readText()).getJSONArray("utterances")
+            List(arr.length()) { i -> VoxsumSession.utteranceFromJson(arr.getJSONObject(i), fallbackIndex = i) }
+        }.getOrNull()
+    }
+
     fun clearPendingTranscript(entry: Entry) {
         runCatching { File(entry.dir, PENDING_TRANSCRIPT).delete() }
     }

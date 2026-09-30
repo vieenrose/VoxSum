@@ -177,6 +177,34 @@ minutes are those notes grouped by type; every item's `[time]` is tap-to-play. W
 reaches 8k tokens it restarts from a compacted journal. Its protocol is a byte-exact port of
 upstream's `phone_live.py` (checked by a parity test that replays the real script).
 
+```mermaid
+gantt
+    title A 10-minute meeting on an OPPO Reno7 — who works when
+    dateFormat mm:ss
+    axisFormat %M:%S
+    section Speech recognition
+    words on screen ~0.4 s after they are spoken   :active, a1, 00:00, 10:00
+    section Speaker identification
+    turns commit ~5 s behind the audio             :active, d1, 00:05, 10:00
+    speaker tags shown once settled (delay 15 s)   :d2, 00:15, 10:15
+    section Meeting agent
+    load model (~8 s)                               :g0, 00:00, 00:08
+    prefill settled lines, 20 s segments           :active, g1, 00:15, 04:00
+    reading turn → notes (window 1)                :crit, g2, 04:00, 04:45
+    prefill                                        :active, g3, 04:45, 08:00
+    reading turn → notes (window 2)                :crit, g4, 08:00, 08:25
+    prefill                                        :active, g5, 08:25, 10:15
+    last window + minutes, after the stop           :crit, g6, 10:15, 11:27
+    section You
+    stop recording                                  :milestone, m1, 10:00, 0s
+    minutes ready (87 s after the stop)             :milestone, m2, 11:27, 0s
+```
+
+Every lane runs at once. Speech recognition keeps priority — it is the only one that loses audio when it
+falls behind — so the agent prefills in the background while people talk and only does real work (a
+reading turn, 17–45 s on the phone) once every ~4 minutes of speech. It never sees a line whose speaker
+could still change, and at the stop it only has the last window left to read.
+
 Three lanes run at once while recording — speech recognition, speaker identification, and the
 agent — and the recording screen shows all three: the live transcript, speaker tags as they
 settle, and the agent's status, the note it is writing, and its latest notes (the full activity

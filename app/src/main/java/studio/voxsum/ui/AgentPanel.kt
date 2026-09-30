@@ -40,6 +40,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -178,7 +179,7 @@ fun AgentPanel(agent: AgentUiState, onSeek: ((Int) -> Unit)? = null, modifier: M
                     style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = pal.Slate200,
                 )
                 Text(
-                    stringResource(R.string.agent_outcome, agent.windowsRead, agent.notes.size),
+                    pluralStringResource(R.plurals.agent_outcome, agent.windowsRead, agent.windowsRead, agent.notes.size),
                     style = MaterialTheme.typography.labelMedium, color = pal.Slate400,
                 )
             }
@@ -240,7 +241,7 @@ private fun Gauges(agent: AgentUiState, st: AgentEvent.State) {
     val cur = agent.steps.lastOrNull { !it.restart }
     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         Gauge(
-            label = stringResource(R.string.agent_gauge_window, cur?.window ?: 0),
+            label = stringResource(R.string.agent_gauge_window),
             value = cur?.tokens ?: 0, max = ReaderProtocol.WINDOW_TOKENS,
             active = st.state == AgentState.LISTENING, modifier = Modifier.weight(1f),
         )
@@ -258,6 +259,7 @@ private fun Gauge(label: String, value: Int, max: Int, active: Boolean, modifier
     Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(verticalAlignment = Alignment.Bottom) {
             Text(label, style = MaterialTheme.typography.labelMedium, color = pal.Slate400, modifier = Modifier.weight(1f), maxLines = 1)
+            Spacer(Modifier.width(8.dp))
             Text(
                 "%,d / %,d".format(value.coerceAtMost(max), max),
                 style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace, color = pal.Slate400,
@@ -291,7 +293,7 @@ private fun Timeline(agent: AgentUiState, st: AgentEvent.State) {
             val color = when {
                 s.restart -> VoxSumPalette.Warning
                 s.done -> VoxSumPalette.Success
-                s.reading -> VoxSumPalette.Idle
+                s.reading -> VoxSumPalette.Warning
                 else -> pal.Sky
             }
             TimelineRow(color = color, pulsing = last && agent.working && !s.done, last = last) {
@@ -419,8 +421,8 @@ private fun stateColor(s: AgentState): Color {
     return when (s) {
         AgentState.STARTING -> pal.Slate400
         AgentState.LISTENING -> pal.Sky
-        AgentState.READING -> VoxSumPalette.Idle
-        AgentState.RESTARTING -> VoxSumPalette.Warning
+        AgentState.READING -> VoxSumPalette.Warning
+        AgentState.RESTARTING -> VoxSumPalette.Neutral
         AgentState.DONE -> VoxSumPalette.Success
     }
 }
@@ -450,6 +452,11 @@ private fun tagLabel(tag: String): String = when (tag.uppercase()) {
     "NUMBER" -> stringResource(R.string.agent_tag_number)
     else -> tag
 }
+
+/** The reply's last line minus protocol syntax; null until it says something. */
+private fun readable(reply: String): String? =
+    reply.trimEnd().lines().lastOrNull()?.removePrefix("NOTE")?.replace("[", "")?.replace("]", "")?.trim()
+        ?.takeIf { it.length > 5 }
 
 private fun logPrefix(k: AgentUiState.Kind) = when (k) {
     AgentUiState.Kind.FED -> "▸"
@@ -502,8 +509,9 @@ fun AgentStrip(agent: AgentUiState, modifier: Modifier = Modifier) {
         }
         val note = agent.notes.lastOrNull()
         when {
-            st.state == AgentState.READING && agent.reply.isNotBlank() -> Text(
-                agent.reply.trimEnd().lines().last(),
+            // Friendlier than the raw protocol line: drop the "NOTE" keyword and the brackets.
+            st.state == AgentState.READING && readable(agent.reply) != null -> Text(
+                "✎ " + readable(agent.reply),
                 style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace, color = pal.Slate400,
                 maxLines = 2, overflow = TextOverflow.Ellipsis,
             )

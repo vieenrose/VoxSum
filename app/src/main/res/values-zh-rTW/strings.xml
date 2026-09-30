@@ -212,6 +212,7 @@
     <string name="re_extract_actions">擷取行動項目</string>
     <string name="action_items_copied">已複製行動項目</string>
     <string name="cd_reassign_speaker">變更此句的語者</string>
+    <string name="cd_line_actions">此句操作</string>
     <string name="speaker_move_line">將此句移至</string>
     <string name="speaker_merge_into">合併語者至</string>
     <string name="cover_title">工作階段封面</string>
@@ -315,7 +316,7 @@
     <string name="cd_status_processing">處理中</string>
     <string name="cd_status_done">已完成</string>
     <string name="storage_compile_cache">%1$s（編譯快取）</string>
-    <string name="pipeline_transcript_via">使用 %1$s · %2$s · 每句附時間軸</string>
+    <string name="pipeline_transcript_via">使用 %1$s · %2$s</string>
     <string name="pipeline_diar_nemotron">語者由 Nemotron-3 即時分離</string>
     <string name="pipeline_diar_off">未區分語者</string>
     <string name="notes_decisions">決議事項</string>
@@ -336,7 +337,6 @@
     <string name="agent_tag_action">待辦</string>
     <string name="agent_tag_open">未決</string>
     <string name="agent_tag_number">數字</string>
-    <string name="agent_outcome">已讀 %1$d 個片段 · %2$d 則筆記</string>
     <string name="agent_show_process">顯示過程</string>
     <string name="agent_hide_process">隱藏過程</string>
     <string name="agent_state_starting">載入中</string>
@@ -344,7 +344,7 @@
     <string name="agent_state_reading">撰寫中</string>
     <string name="agent_state_restarting">壓縮中</string>
     <string name="agent_state_done">完成</string>
-    <string name="agent_gauge_window">片段 %1$d → 下次閱讀</string>
+    <string name="agent_gauge_window">下次閱讀</string>
     <string name="agent_gauge_context">上下文</string>
     <string name="agent_step_listening">片段 %1$d · 聆聽中</string>
     <string name="agent_step_reading">片段 %1$d · 撰寫筆記</string>
@@ -355,4 +355,9 @@
     <string name="agent_step_restart">上下文已壓縮 · %1$,d → %2$,d 個 token</string>
     <string name="agent_notes_count">%1$d 則筆記</string>
     <string name="cpu_unsupported">不支援此裝置的處理器：VoxSum 需要支援點積指令的 ARMv8.2 處理器（大多數 2019 年以後的手機）。</string>
+    <string name="studio_empty_title">在手機上整理你的會議</string>
+    <string name="studio_empty_import">加入音訊檔</string>
+    <plurals name="agent_outcome">
+        <item quantity="other">已讀 %1$d 個片段 · %2$d 則筆記</item>
+    </plurals>
 </resources>

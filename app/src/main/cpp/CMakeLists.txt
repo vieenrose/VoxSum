@@ -32,7 +32,12 @@ set(NATIVE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../../native")
 # ---------------------------------------------------------------------------
 include(ExternalProject)
 # The CPU floor for every ggml copy in the app: ARMv8.2-A with the int8 dot-product extension.
-set(VOXSUM_ARM_ARCH armv8.2-a+dotprod)
+# Only on arm64: ggml turns GGML_CPU_ARM_ARCH into -march, which breaks the x86_64 emulator build.
+if(ANDROID_ABI STREQUAL "arm64-v8a")
+    set(VOXSUM_ARM_ARCH armv8.2-a+dotprod)
+else()
+    set(VOXSUM_ARM_ARCH "")
+endif()
 set(NEMO_ARCH ${VOXSUM_ARM_ARCH})
 set(NEMO_COMMON_ARGS
     -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}

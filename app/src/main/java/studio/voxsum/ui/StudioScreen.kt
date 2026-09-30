@@ -1,5 +1,7 @@
 package studio.voxsum.ui
 
+import androidx.compose.foundation.shape.CircleShape
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -289,13 +291,40 @@ fun StudioScreen(
                 Modifier.weight(1f).fillMaxWidth().padding(32.dp),
                 verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Icon(Icons.Filled.GraphicEq, contentDescription = null, tint = pal.Slate700, modifier = Modifier.size(48.dp))
-                Spacer(Modifier.height(14.dp))
+                val firstRun = query.isBlank() && statusFilter == StatusFilter.ALL
+                if (firstRun) {
+                    // First run: a clear invitation, not a faint glyph in a void. Record is the big
+                    // button below; importing a file is the other way in, so it gets a button here.
+                    Box(
+                        Modifier.size(88.dp).clip(CircleShape).background(pal.ActiveTint),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Filled.GraphicEq, contentDescription = null, tint = pal.Sky, modifier = Modifier.size(44.dp))
+                    }
+                    Spacer(Modifier.height(20.dp))
+                    Text(
+                        stringResource(R.string.studio_empty_title),
+                        color = pal.Slate200, style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                }
                 Text(
-                    if (query.isBlank() && statusFilter == StatusFilter.ALL) stringResource(R.string.library_empty) else stringResource(R.string.studio_no_match),
+                    if (firstRun) stringResource(R.string.library_empty) else stringResource(R.string.studio_no_match),
                     color = pal.Slate400, style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center,
                 )
+                if (firstRun) {
+                    Spacer(Modifier.height(20.dp))
+                    androidx.compose.material3.OutlinedButton(
+                        onClick = onImport,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, pal.Slate600),
+                    ) {
+                        Icon(Icons.Filled.Add, contentDescription = null, tint = pal.Sky, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.studio_empty_import), color = pal.Sky)
+                    }
+                }
             }
         } else {
             LazyColumn(

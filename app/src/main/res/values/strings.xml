@@ -230,6 +230,7 @@
     <string name="re_extract_actions">Extract action items</string>
     <string name="action_items_copied">Action items copied</string>
     <string name="cd_reassign_speaker">Change speaker for this line</string>
+    <string name="cd_line_actions">Line actions</string>
     <string name="speaker_move_line">Move line to</string>
     <string name="speaker_merge_into">Merge speaker into</string>
     <string name="cover_title">Session cover</string>
@@ -333,7 +334,7 @@
     <string name="cd_status_processing">Processing</string>
     <string name="cd_status_done">Done</string>
     <string name="storage_compile_cache">%1$s (compile cache)</string>
-    <string name="pipeline_transcript_via">via %1$s · %2$s · timestamps per utterance</string>
+    <string name="pipeline_transcript_via">via %1$s · %2$s</string>
     <string name="pipeline_diar_nemotron">speakers via Nemotron-3 (live)</string>
     <string name="pipeline_diar_off">no speaker separation</string>
     <string name="notes_decisions">Decisions</string>
@@ -354,7 +355,6 @@
     <string name="agent_tag_action">Action</string>
     <string name="agent_tag_open">Open issue</string>
     <string name="agent_tag_number">Figure</string>
-    <string name="agent_outcome">%1$d windows read · %2$d notes</string>
     <string name="agent_show_process">Show the process</string>
     <string name="agent_hide_process">Hide the process</string>
     <string name="agent_state_starting">Loading</string>
@@ -362,7 +362,7 @@
     <string name="agent_state_reading">Writing</string>
     <string name="agent_state_restarting">Compacting</string>
     <string name="agent_state_done">Done</string>
-    <string name="agent_gauge_window">Window %1$d → next read</string>
+    <string name="agent_gauge_window">Next reading</string>
     <string name="agent_gauge_context">Context</string>
     <string name="agent_step_listening">Window %1$d · listening</string>
     <string name="agent_step_reading">Window %1$d · writing notes</string>
@@ -373,4 +373,10 @@
     <string name="agent_step_restart">Context compacted · %1$,d → %2$,d tokens</string>
     <string name="agent_notes_count">%1$d notes</string>
     <string name="cpu_unsupported">This device\'s processor is not supported: VoxSum needs an ARMv8.2 CPU with dot-product instructions (most phones from 2019 on).</string>
+    <string name="studio_empty_title">Your meetings, summarized on your phone</string>
+    <string name="studio_empty_import">Add an audio file</string>
+    <plurals name="agent_outcome">
+        <item quantity="one">%1$d window read · %2$d notes</item>
+        <item quantity="other">%1$d windows read · %2$d notes</item>
+    </plurals>
 </resources>

@@ -47,6 +47,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Forward5
@@ -2023,7 +2024,11 @@ private fun TranscribeScreen(
                 // show them rather than silently dropping content the user's model produced.
                 n.extra.forEach { (key, lines) -> NotesSection(key, lines, anchorSeek) }
             }
-            if (stats.perSpeaker.isNotEmpty()) SpeakerStatsPanel(stats = stats)
+            if (stats.perSpeaker.isNotEmpty()) SectionCard {
+                SpeakerStatsPanel(stats = stats, label = { sid ->
+                    speakerNames[sid]?.name ?: stringResource(R.string.speaker_n, sid + 1)
+                })
+            }
             if (title == null && summary == null && stats.perSpeaker.isEmpty()) {
                 Text(
                     stringResource(R.string.summary_pending_hint),
@@ -2756,23 +2761,30 @@ private fun ActionItemsCard(
 
 /** Per-line speaker fix: move this line to another speaker, or merge this speaker into another. */
 @Composable
-private fun SpeakerReassignMenu(
-    current: Int,
+private fun LineMenu(
+    current: Int?,
     speakerIds: List<Int>,
     speakerNames: SnapshotStateMap<Int, SpeakerName>,
+    onEdit: () -> Unit,
     onReassign: (Int) -> Unit,
     onMerge: (Int) -> Unit,
 ) {
     val pal = LocalVoxSumPalette.current
     var open by remember { mutableStateOf(false) }   // before any early return, for slot-table stability
-    val others = speakerIds.filter { it != current }
-    if (others.isEmpty()) return
+    val others = if (current == null) emptyList() else speakerIds.filter { it != current }
     Box {
         IconButton(onClick = { open = true }, modifier = Modifier.size(28.dp)) {
-            Icon(Icons.Filled.SwapHoriz, contentDescription = stringResource(R.string.cd_reassign_speaker),
-                tint = pal.Slate400, modifier = Modifier.size(16.dp))
+            Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.cd_line_actions),
+                tint = pal.Slate400.copy(alpha = 0.7f), modifier = Modifier.size(18.dp))
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.cd_edit)) },
+                leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                onClick = { open = false; onEdit() },
+            )
+            if (others.isEmpty()) return@DropdownMenu
+            HorizontalDivider()
             DropdownMenuItem(enabled = false, onClick = {},
                 text = { Text(stringResource(R.string.speaker_move_line), style = MaterialTheme.typography.labelSmall, color = pal.Slate400) })
             others.forEach { sid ->
@@ -2823,7 +2835,8 @@ private fun SectionCard(content: @Composable androidx.compose.foundation.layout.
         colors = CardDefaults.cardColors(containerColor = pal.PanelSurface),
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(1.dp, pal.Hairline),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+        // Hairline border + a whisper of shadow: 8 dp read as heavy floating slabs on the light theme.
+        elevation = CardDefaults.cardElevation(defaultElevation = if (pal.isDark) 0.dp else 1.dp),
     ) {
         Column(Modifier.padding(16.dp), content = content)
     }
@@ -3167,17 +3180,9 @@ private fun UtteranceRow(
                     color = pal.Slate200,
                     modifier = Modifier.weight(1f).clickable { onSeek(utt.startSec) },
                 )
-                if (utt.speaker != null && speakerIds.size > 1) {
-                    SpeakerReassignMenu(utt.speaker, speakerIds, speakerNames, onReassignLine, onMergeSpeaker)
-                }
-                IconButton(onClick = onBeginEdit, modifier = Modifier.size(28.dp)) {
-                    Icon(
-                        Icons.Filled.Edit,
-                        contentDescription = stringResource(R.string.cd_edit),
-                        tint = pal.Slate400,
-                        modifier = Modifier.size(16.dp),
-                    )
-                }
+                // One quiet overflow per line (edit text, move/merge speaker): two icon buttons
+                // on every line took a fifth of the width and made the transcript look busy.
+                LineMenu(utt.speaker, speakerIds, speakerNames, onBeginEdit, onReassignLine, onMergeSpeaker)
             }
         }
     }

@@ -990,6 +990,18 @@ private fun TranscribeScreen(
         )
     }
 
+    // Leaving the app (Home, app switch, screen off) must not lose edits: Android may kill the
+    // process before the user ever comes back through Back. Flush on ON_PAUSE, while the app is
+    // still foreground and allowed to start the service.
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val obs = androidx.lifecycle.LifecycleEventObserver { _, ev ->
+            if (ev == androidx.lifecycle.Lifecycle.Event.ON_PAUSE && screen == Screen.Session) runCatching { persistSessionEdits() }
+        }
+        lifecycleOwner.lifecycle.addObserver(obs)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
+    }
+
     // ONE place to tear down the open session and every pending-intent flag — launchAudio,
     // beginRecording and row-deletion all reset through here, so a new flag has exactly one
     // reset site instead of three drifting copies.

@@ -91,7 +91,7 @@ class NemoStreamEngine(files: NemoModelFiles, threads: Int, speakerDelaySec: Int
                     speaker = f[0].toInt().takeIf { it >= 0 },
                 )
             }
-            return out
+            return LongUtteranceSplitter.split(out).mapIndexed { i, u -> u.copy(index = firstIndex + i) }
         }
     }
 }

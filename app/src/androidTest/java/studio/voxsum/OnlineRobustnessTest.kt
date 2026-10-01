@@ -1,5 +1,6 @@
 package studio.voxsum
 
+import androidx.test.platform.app.InstrumentationRegistry
 import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import kotlinx.coroutines.runBlocking
@@ -73,7 +74,7 @@ class OnlineRobustnessTest {
      * that is an upstream condition, not a regression here.
      */
     @Test(timeout = 90_000) fun resolvedStreamIsDecodableOnThisDevice() = runBlocking {
-        val audio = runCatching { YouTube.resolve("https://www.youtube.com/watch?v=jNQXAC9IVRw") }
+        val audio = runCatching { YouTube.resolve(InstrumentationRegistry.getInstrumentation().targetContext, "https://www.youtube.com/watch?v=jNQXAC9IVRw") }
             .getOrElse { Log.i(TAG, "resolve unavailable: ${it.message?.take(120)}"); return@runBlocking }
         Log.i(TAG, "picked .${audio.ext} for '${audio.title}'")
         assertTrue(
@@ -86,7 +87,7 @@ class OnlineRobustnessTest {
 
     @Test(timeout = 60_000) fun youtubeResolveBadInputsDegradeGracefully() = runBlocking {
         for (u in listOf("not a url at all", "https://example.com/", "https://www.youtube.com/watch?v=zzzzzzzzzzz")) {
-            gracefully("resolve($u)") { runBlocking { YouTube.resolve(u) } }
+            gracefully("resolve($u)") { runBlocking { YouTube.resolve(InstrumentationRegistry.getInstrumentation().targetContext, u) } }
         }
     }
 

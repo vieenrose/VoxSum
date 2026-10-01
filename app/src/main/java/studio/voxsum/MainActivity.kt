@@ -1394,7 +1394,7 @@ private fun TranscribeScreen(
             val ok = withContext(Dispatchers.IO) {
                 runCatching {
                     context.contentResolver.openOutputStream(uri)?.use { os ->
-                        studio.voxsum.core.export.PdfExport.write(os, utts, speakerLabel, t, s, sumH, txH, extras, null)
+                        studio.voxsum.core.export.PdfExport.write(os, utts, speakerLabel, t, s, sumH, txH, extras, null, context.resources.configuration.locales[0])
                     } != null
                 }.getOrDefault(false)
             }
@@ -1443,7 +1443,7 @@ private fun TranscribeScreen(
                     File(dir, "${exportBaseName()}.${f.ext}").also { out ->
                         if (f == ExportFormat.PDF) {
                             out.outputStream().use { os ->
-                                studio.voxsum.core.export.PdfExport.write(os, utts, speakerLabel, t, sum, sumH, txH, acts, actH)
+                                studio.voxsum.core.export.PdfExport.write(os, utts, speakerLabel, t, sum, sumH, txH, acts, actH, context.resources.configuration.locales[0])
                             }
                         } else {
                             out.writeText(body.orEmpty())
@@ -2352,6 +2352,14 @@ private fun TranscribeScreen(
 
     // A hand-edited transcript makes its summary child stale → offer a one-tap re-summarize (once per
     // edit episode; the flag stays set while the snackbar shows so further edits don't stack it).
+    // A status line is a string made when its event happened; after a language switch an idle one
+    // would stay in the old language, so it is rebuilt (or dropped) instead. Runs and errors keep theirs.
+    val uiLangCode = LocalLanguageController.current.code
+    LaunchedEffect(uiLangCode) {
+        if (!running && !statusIsError) {
+            status = if (utterances.isEmpty()) context.getString(R.string.empty_status) else ""
+        }
+    }
     LaunchedEffect(transcriptDirty) {
         // Only on the Session screen: this snackbar carries a Re-summarize action, so it must land
         // where there's a host AND where acting on it makes sense (transcript edits happen here).
@@ -2869,7 +2877,8 @@ private fun PlayerBar(
                 Modifier
                     .size(playSize)
                     .clip(CircleShape)
-                    .background(pal.BrandGradient)
+                    // Dark: the solid accent (the brand fill is a navy that swallows the dark glyph).
+                    .background(if (pal.isDark) androidx.compose.ui.graphics.SolidColor(pal.Sky) else pal.BrandGradient)
                     .clickable(onClick = onPlayPause),
                 contentAlignment = Alignment.Center,
             ) {

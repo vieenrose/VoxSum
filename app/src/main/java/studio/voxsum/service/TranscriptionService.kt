@@ -80,9 +80,20 @@ private const val LIVE_READER_MIN_RAM = 7L * 1024 * 1024 * 1024
  */
 class TranscriptionService : LifecycleService() {
 
-    /** Notifications and status texts in the language chosen in Settings. */
-    override fun attachBaseContext(newBase: Context) {
-        super.attachBaseContext(studio.voxsum.core.config.AppLanguage.wrap(newBase))
+    /**
+     * Notifications and status texts in the language chosen in Settings — read on every call, so a
+     * service that outlives a language switch (a long queue drain) does not keep the old one.
+     */
+    private var langCode: String? = null
+    private var langRes: android.content.res.Resources? = null
+    override fun getResources(): android.content.res.Resources {
+        val base = baseContext ?: return super.getResources()
+        val code = studio.voxsum.core.config.AppLanguage.load(base)
+        if (langRes == null || code != langCode) {
+            langRes = studio.voxsum.core.config.AppLanguage.resourcesFor(base, code)
+            langCode = code
+        }
+        return langRes!!
     }
 
     companion object {

@@ -31,10 +31,12 @@ object PdfExport {
         transcriptHeading: String,
         actionItems: String? = null,
         actionsHeading: String? = null,
+        /** The interface language: picks the Han glyph variants (zh-CN and zh-TW draw some characters differently). */
+        locale: Locale = Locale.getDefault(),
     ) {
-        val titlePaint = paint(18f, bold = true)
-        val headingPaint = paint(13f, bold = true)
-        val bodyPaint = paint(10f)
+        val titlePaint = paint(18f, bold = true, locale)
+        val headingPaint = paint(13f, bold = true, locale)
+        val bodyPaint = paint(10f, locale = locale)
 
         val doc = PdfDocument()
         val pager = Pager(doc)
@@ -60,7 +62,8 @@ object PdfExport {
         doc.close()
     }
 
-    private fun paint(size: Float, bold: Boolean = false) = TextPaint().apply {
+    private fun paint(size: Float, bold: Boolean = false, locale: Locale = Locale.getDefault()) = TextPaint().apply {
+        textLocale = locale
         isAntiAlias = true
         color = Color.BLACK
         textSize = size

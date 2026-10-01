@@ -86,9 +86,9 @@ val DarkColors = VoxSumColors(
     Sky = Color(0xFF7DA2FF),
     Indigo = Color(0xFF9DB8FF),
     Slate900 = Color(0xFF0E1420),
-    Slate800 = Color(0xFF1A2233),
-    Slate700 = Color(0xFF2A3550),
-    Slate600 = Color(0xFF3D4A69),
+    Slate800 = Color(0xFF1D2740),   // cards: a visible step above the ground (1.25:1 was 1.16:1)
+    Slate700 = Color(0xFF36435F),   // inactive tracks, disabled fills — 2.0:1 on the ground (was 1.5:1)
+    Slate600 = Color(0xFF55658A),   // borders — 3.0:1 (was 2.0:1)
     Slate400 = Color(0xFF93A0B8),
     Slate200 = Color(0xFFE9EDF6),
     OnBrand = Color.White,
@@ -96,9 +96,9 @@ val DarkColors = VoxSumColors(
     OnBrandFaint = Color.White.copy(alpha = 0.35f),
     BrandGradient = Brush.linearGradient(listOf(Color(0xFF23304B), Color(0xFF23304B))),
     Slate900Grad = Brush.verticalGradient(listOf(Color(0xFF0E1420), Color(0xFF0E1420))),
-    PanelSurface = Color(0xFF1A2233),
+    PanelSurface = Color(0xFF1D2740),
     InsetSurface = Color(0xFF0E1420).copy(alpha = 0.55f),
-    Hairline = Color(0xFF93A0B8).copy(alpha = 0.18f),
+    Hairline = Color(0xFF93A0B8).copy(alpha = 0.30f),
     ActiveTint = Color(0xFF7DA2FF).copy(alpha = 0.16f),
     ActiveBar = Color(0xFF7DA2FF),
     WarningText = Color(0xFFE08A0B),

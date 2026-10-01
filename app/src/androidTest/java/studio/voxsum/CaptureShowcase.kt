@@ -47,7 +47,7 @@ class CaptureShowcase {
         var stable by mutableIntStateOf(0)
         var secs by mutableIntStateOf(0)
         rule.setContent {
-            VoxSumTheme(ThemeMode.LIGHT) {
+            VoxSumTheme(runCatching { ThemeMode.valueOf(args.getString("theme") ?: "LIGHT") }.getOrDefault(ThemeMode.LIGHT)) {
                 CaptureScreen(
                     isRecording = true, recSeconds = secs, micLevel = 0.6f,
                     sessionName = "", onSessionName = {},

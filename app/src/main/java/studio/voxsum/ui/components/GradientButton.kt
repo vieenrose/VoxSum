@@ -45,7 +45,7 @@ fun GradientButton(
         ),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
         modifier = modifier.background(
-            brush = if (enabled) pal.BrandGradient else SolidColor(pal.Slate700),
+            brush = if (!enabled) SolidColor(pal.Slate700) else if (pal.isDark) SolidColor(pal.Sky) else pal.BrandGradient,
             shape = RoundedCornerShape(12.dp),
         ),
     ) {

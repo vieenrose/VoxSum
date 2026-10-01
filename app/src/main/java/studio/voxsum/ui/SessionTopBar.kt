@@ -151,8 +151,9 @@ fun SessionTopBar(
                 color = if (idle) pal.Slate400 else statusColor(running, transcriptAvailable, statusIsError),
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
             )
-        } else if (status.isNotBlank() && !running && !statusIsError) {
-            // The idle line has faded: keep its height so the tabs below don't jump up.
+        } else if (!running && !statusIsError) {
+            // The idle line has faded (or there is none): keep its height so the tabs below
+            // don't jump between sessions or tabs.
             Spacer(Modifier.height(16.dp))
         }
         if (running) {

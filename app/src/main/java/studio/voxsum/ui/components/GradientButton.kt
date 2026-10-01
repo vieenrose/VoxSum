@@ -49,15 +49,16 @@ fun GradientButton(
             shape = RoundedCornerShape(12.dp),
         ),
     ) {
+        val fg = if (enabled) pal.Slate900 else pal.Slate400
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (icon != null) {
-                Icon(icon, contentDescription = null, tint = pal.Slate900, modifier = Modifier.size(18.dp))
+                Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
             }
-            Text(text, color = pal.Slate900, fontWeight = FontWeight.SemiBold)
+            Text(text, color = fg, fontWeight = FontWeight.SemiBold)
             if (trailingIcon != null) {
                 Spacer(Modifier.width(4.dp))
-                Icon(trailingIcon, contentDescription = null, tint = pal.Slate900, modifier = Modifier.size(18.dp))
+                Icon(trailingIcon, contentDescription = null, tint = fg, modifier = Modifier.size(18.dp))
             }
         }
     }

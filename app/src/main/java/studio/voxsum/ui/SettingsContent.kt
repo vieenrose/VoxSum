@@ -248,6 +248,7 @@ private fun StoragePanel(enabled: Boolean, summaryReady: Boolean) {
 private fun prettyModelName(name: String): String {
     val i = name.indexOf(".xnnpack_cache")
     if (i > 0) return stringResource(R.string.storage_compile_cache, name.substring(0, i))
+    if (name == "nemo") return "X-ASR + Nemotron-3"
     return name.removeSuffix("-gguf")
 }
 
@@ -380,7 +381,7 @@ private val COMPONENT_LICENSES = listOf(
     "ggml · llama.cpp (summarization)" to "MIT",
     "X-ASR zh-en model" to "Apache-2.0",
     "Nemotron-3 Diarization model" to "OpenMDW-1.1",
-    "OpenCC (zh-TW)" to "Apache-2.0",
+    "OpenCC (zh-TW / zh-CN)" to "Apache-2.0",
     "NewPipeExtractor (YouTube)" to "GPL-3.0",
     "Jetpack Compose" to "Apache-2.0",
 )

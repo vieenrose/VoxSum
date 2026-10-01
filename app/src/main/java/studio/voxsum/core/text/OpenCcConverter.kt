@@ -124,8 +124,27 @@ class OpenCcConverter private constructor(
             val t2s = HashMap<String, String>(8192)
             loadInto(context, "opencc/TSPhrases.txt", t2s)
             loadInto(context, "opencc/TSCharacters.txt", t2s)
-            return build(listOf(t2s))
+            // The summary model writes Taiwan vocabulary (資訊, 軟體, 搜尋…): map the unambiguous
+            // technical terms first, so a zh-CN reader gets 信息, 软件, 搜索.
+            return build(listOf(taiwanToMainlandStage(context), t2s))
         }
+
+        /**
+         * Unambiguous Taiwan→mainland vocabulary. OpenCC's table reversed wholesale is NOT safe
+         * (it turns 核心 "core" into 內核 "kernel", 智慧 "wisdom" into 智能, 程序 "procedure" into
+         * 進程), so only terms with a single, technical meaning are mapped.
+         */
+        private val TAIWAN_TO_MAINLAND = mapOf(
+            "資訊" to "信息", "軟體" to "軟件", "硬體" to "硬件", "網路" to "網絡", "螢幕" to "屏幕",
+            "程式" to "程序", "搜尋" to "搜索", "影片" to "視頻", "滑鼠" to "鼠標", "檔案" to "文件",
+            "簡訊" to "短信", "訊息" to "消息", "列印" to "打印", "儲存" to "保存", "連結" to "鏈接",
+            "登入" to "登錄", "光碟" to "光盤", "硬碟" to "硬盤", "磁碟" to "磁盤", "晶片" to "芯片",
+            "雷射" to "激光", "資料庫" to "數據庫", "視窗" to "窗口", "選單" to "菜單", "伺服器" to "服務器",
+            "記憶體" to "內存", "頻寬" to "帶寬", "網際網路" to "互聯網", "音訊" to "音頻", "錄影" to "錄像",
+        )
+
+        private fun taiwanToMainlandStage(@Suppress("UNUSED_PARAMETER") context: Context): Map<String, String> =
+            TAIWAN_TO_MAINLAND
 
         private fun build(stages: List<Map<String, String>>): OpenCcConverter {
             val maxKey = stages.asSequence().flatMap { it.keys.asSequence() }.maxOfOrNull { it.length } ?: 1

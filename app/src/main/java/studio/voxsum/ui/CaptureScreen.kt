@@ -83,6 +83,12 @@ fun CaptureScreen(
     onBack: () -> Unit,
 ) {
     val pal = LocalVoxSumPalette.current
+    // A meeting is watched, not touched: keep the screen on while recording.
+    val keepOnView = androidx.compose.ui.platform.LocalView.current
+    androidx.compose.runtime.DisposableEffect(isRecording) {
+        keepOnView.keepScreenOn = isRecording
+        onDispose { keepOnView.keepScreenOn = false }
+    }
     val conf = LocalConfiguration.current
     val landscape = studio.voxsum.ui.components.rememberIsLandscape()
     Column(

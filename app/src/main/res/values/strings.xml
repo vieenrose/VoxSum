@@ -212,7 +212,7 @@
 
     <!-- Interrupted-recording recovery dialog -->
     <string name="recover_title">Recover interrupted recording?</string>
-    <string name="recover_message">A recording of about %d min was interrupted before it finished. Finish transcribing it now?</string>
+    <string name="recover_message">A %s recording was interrupted before it finished. Finish transcribing it now?</string>
     <string name="recover_finish">Finish transcribing</string>
     <string name="recover_discard">Discard</string>
 

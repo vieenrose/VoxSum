@@ -194,7 +194,7 @@
 
     <!-- 中斷錄音的復原 -->
     <string name="recover_title">要复原中断的录音吗？</string>
-    <string name="recover_message">一段约 %d 分钟的录音在完成前被中断。要立即完成转录吗？</string>
+    <string name="recover_message">一段 %s 的录音在完成前被中断。要立即完成转录吗？</string>
     <string name="recover_finish">完成转录</string>
     <string name="recover_discard">丢弃</string>
 

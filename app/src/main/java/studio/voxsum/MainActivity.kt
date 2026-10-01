@@ -1065,11 +1065,12 @@ private fun TranscribeScreen(
         )
     }
     recoveredRec?.let { wav ->
-        val mins = (RecordingRecovery.seconds(wav) + 59) / 60
+        val secs = RecordingRecovery.seconds(wav).toInt()
+        val dur = "%d:%02d".format(secs / 60, secs % 60)
         AlertDialog(
             onDismissRequest = {},
             title = { Text(stringResource(R.string.recover_title)) },
-            text = { Text(stringResource(R.string.recover_message, mins)) },
+            text = { Text(stringResource(R.string.recover_message, dur)) },
             confirmButton = {
                 TextButton(onClick = {
                     recoveredRec = null
@@ -1631,6 +1632,11 @@ private fun TranscribeScreen(
                                 withContext(Dispatchers.IO) { ProcessingQueue.enqueue(context, listOf(id)) }
                                 onProcessQueue()
                                 recentsVersion++
+                                // The meeting just ended: show it finishing (transcript, agent, summary)
+                                // instead of dropping the user on the library — unless they moved on.
+                                if (screen == Screen.Studio) {
+                                    withContext(Dispatchers.IO) { SessionLibrary.byId(context, id) }?.let { watchQueueItem(it) }
+                                }
                             }
                         }
                     }

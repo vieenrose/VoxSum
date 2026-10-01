@@ -50,6 +50,9 @@ class ModelManager(context: Context) {
 
     /** Both GGUFs present at their pinned size and stamped with the pinned revision set. Cheap (no
      *  hashing): the SHA-256 check happens once, at download. */
+    /** Bytes the speech engine's two files weigh — the weight of its share in a combined progress bar. */
+    fun asrDownloadBytes(): Long = NEMO_FILES.values.sumOf { it.bytes }
+
     fun asrReady(): Boolean =
         NEMO_FILES.all { (name, meta) -> File(nemoDir, name).length() == meta.bytes } &&
             runCatching { File(nemoDir, REVISION_MARKER).readText().trim() }.getOrNull() == NEMO_REVISION

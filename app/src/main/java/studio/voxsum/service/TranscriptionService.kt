@@ -349,15 +349,23 @@ class TranscriptionService : LifecycleService() {
      * that drives the same progress bar + status). Throttled to whole-percent changes; uses tryEmit because
      * the download callback is not a suspend context and the events buffer is bounded. [msgRes] takes one %d.
      */
-    private fun reportDownload(gen: Int, msgRes: Int, frac: Float) {
-        val pct = (frac * 100).toInt().coerceIn(0, 100)
+    // Downloads can overlap (the speech engine's and the reader's start together on 8 GB phones):
+    // one combined bar, see [DownloadAggregate].
+    private val downloads = studio.voxsum.core.models.DownloadAggregate()
+    private fun dlBegin(key: String, totalBytes: Long) { downloads.begin(key, totalBytes); lastDlPct = -1 }
+    private fun dlEnd(key: String) = downloads.end(key)
+
+    private fun reportDownload(gen: Int, key: String, msgRes: Int, frac: Float) {
+        val (overall, shared) = downloads.update(key, frac)
+        val pct = (overall * 100).toInt().coerceIn(0, 100)
         if (pct == lastDlPct) return
         lastDlPct = pct
-        val text = getString(msgRes, pct)
+        // One line for several downloads, the specific one when it is alone.
+        val text = getString(if (shared) R.string.svc_downloading_models_pct else msgRes, pct)
         updateNotification(text)
         // Tagged with the run's gen (callers capture it via currentGen()): QUEUE_GEN downloads
         // drive the Studio row's bar/label, and a superseded run's late events get dropped.
-        events.tryEmit(gen to TranscriptEvent.DownloadProgress(frac.coerceIn(0f, 1f), text))
+        events.tryEmit(gen to TranscriptEvent.DownloadProgress(overall.coerceIn(0f, 1f), text))
     }
 
     /** Total media duration in seconds via a cheap metadata read; 0 if unknown/unreadable. */
@@ -1319,7 +1327,10 @@ class TranscriptionService : LifecycleService() {
         if (models.asrReady()) { models.ensureAsrModels { }; return }
         emitEvent(TranscriptEvent.Status(getString(R.string.svc_downloading_models)))
         val gen = currentGen()
-        models.ensureAsrModels { frac -> reportDownload(gen, R.string.svc_downloading_models_pct, frac) }
+        dlBegin("asr", models.asrDownloadBytes())
+        try {
+            models.ensureAsrModels { frac -> reportDownload(gen, "asr", R.string.svc_downloading_models_pct, frac) }
+        } finally { dlEnd("asr") }
     }
 
     /** The streaming ASR + diarization engine (nemo-x-asr-diarizer). */
@@ -1539,7 +1550,10 @@ class TranscriptionService : LifecycleService() {
         if (!models.llmReady(spec)) {
             emitEvent(TranscriptEvent.Status(getString(R.string.svc_downloading_named, spec.displayName)))
             val gen = currentGen()
-            models.ensureLlmModel(spec) { frac -> reportDownload(gen, R.string.svc_summarization_model_pct, frac) }
+            dlBegin("llm", spec.totalBytes)
+            try {
+                models.ensureLlmModel(spec) { frac -> reportDownload(gen, "llm", R.string.svc_summarization_model_pct, frac) }
+            } finally { dlEnd("llm") }
         }
     }
 

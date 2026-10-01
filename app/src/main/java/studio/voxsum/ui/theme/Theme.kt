@@ -207,6 +207,9 @@ private fun schemeFor(pal: VoxSumColors): ColorScheme {
         surfaceContainer = pal.Slate800,
         surfaceContainerHigh = pal.Slate800,
         surfaceContainerHighest = pal.Slate800,
+        inverseSurface = pal.Slate200,
+        inverseOnSurface = pal.Slate900,
+        inversePrimary = if (pal.isDark) pal.Sky else androidx.compose.ui.graphics.Color(0xFF9CC2FF),   // snackbar action: light on the dark bar
         surfaceTint = androidx.compose.ui.graphics.Color.Transparent,
         surfaceVariant = pal.Slate700,
         onSurfaceVariant = pal.Slate400,

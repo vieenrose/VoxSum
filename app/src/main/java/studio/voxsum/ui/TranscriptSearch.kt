@@ -16,7 +16,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
@@ -48,6 +55,9 @@ fun TranscriptSearchBar(
     modifier: Modifier = Modifier,
 ) {
     val pal = LocalVoxSumPalette.current
+    // Opening the bar means "I want to type": focus it and raise the keyboard.
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
     Row(
         modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -58,9 +68,11 @@ fun TranscriptSearchBar(
             value = query,
             onValueChange = onQuery,
             singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { if (matchCount > 0) onNext() }),
             textStyle = MaterialTheme.typography.bodyMedium.copy(color = pal.Slate200),
             cursorBrush = SolidColor(pal.Sky),
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).focusRequester(focus),
             decorationBox = { inner ->
                 if (query.isEmpty()) {
                     Text(

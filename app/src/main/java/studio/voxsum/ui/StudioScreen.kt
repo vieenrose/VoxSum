@@ -601,7 +601,8 @@ private fun SessionRow(
             }
             // In selection mode the leading glyph IS the checkbox, so no trailing control.
             if (!selectionMode) {
-                if (processing) Chip("%d%%".format((processingFraction * 100).toInt()), VoxSumPalette.Warning)
+                // Summarizing reports no fraction (the reader works in windows): no "0 %" chip then.
+                if (processing) { if (processingFraction > 0f) Chip("%d%%".format((processingFraction * 100).toInt()), VoxSumPalette.Warning) }
                 // Visible manage affordance for EVERY non-processing row (no hidden long-press-only menu).
                 else IconButton(onClick = onManage, modifier = Modifier.size(36.dp)) {
                     Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.cd_manage), tint = pal.Slate400)
@@ -609,10 +610,12 @@ private fun SessionRow(
             }
         }
         if (processing) {
-            LinearProgressIndicator(
-                progress = { processingFraction }, color = VoxSumPalette.Warning, trackColor = pal.Slate700,
-                modifier = Modifier.fillMaxWidth().padding(top = 10.dp).clip(RoundedCornerShape(2.dp)),
-            )
+            val barMod = Modifier.fillMaxWidth().padding(top = 10.dp).clip(RoundedCornerShape(2.dp))
+            // No fraction (summarizing) → indeterminate bar instead of an empty one that looks stuck;
+            // e-ink keeps a static bar (an endless animation repaints the panel).
+            if (processingFraction > 0f || pal.isEink) LinearProgressIndicator(
+                progress = { processingFraction }, color = VoxSumPalette.Warning, trackColor = pal.Slate700, modifier = barMod,
+            ) else LinearProgressIndicator(color = VoxSumPalette.Warning, trackColor = pal.Slate700, modifier = barMod)
         }
     }
 }

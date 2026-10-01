@@ -1150,6 +1150,10 @@ class TranscriptionService : LifecycleService() {
                             // Background processing finished while the user may be elsewhere — tell
                             // them the session is ready, by its recognized title.
                             notifySessionReady(updated.title ?: SessionLibrary.defaultTitle(updated.createdAt))
+                        } else {
+                            // The session could not be written (unreadable / truncated audio, disk full):
+                            // say so instead of leaving the entry "new" with no explanation.
+                            notifyItemFailed(entry.title ?: SessionLibrary.defaultTitle(entry.createdAt))
                         }
                     } catch (ce: CancellationException) {
                         throw ce   // superseded/stopped: sidecar + queue entry survive → resume summarize-only

@@ -82,5 +82,5 @@ re-running the final pass with the same inferred timing (`--timing 2`) moves agr
 `--sweep-settle 0,1,2,3,5,8,10,15,20,25,30` with `--diar-opt` geometries from the ~1 s `low` profile to
 27 s chunks, 4 meetings (ES2004a, IS1009a, L_R003S01C02, M_R003S05C01). Word-level latency and the
 accuracy of the displayed tags are in `latency/results_4meetings.json`; `latency/plot.py` draws
-`docs/figures/latency_accuracy.png` (shown in the root README). Phone RTF per geometry:
+[`docs/figures/latency_accuracy.png`](../../docs/figures/latency_accuracy.png). Phone RTF per geometry:
 `bench_on_device.sh <serial> <x-asr.gguf> <nemotron.gguf> <clip.wav>`.

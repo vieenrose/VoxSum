@@ -337,4 +337,13 @@
     <plurals name="podcast_episodes">
         <item quantity="other">%d 集</item>
     </plurals>
+    <string name="lic_nemo">nemo-x-asr-diarizer（串流語音辨識與語者分離）</string>
+    <string name="lic_crispasr">CrispASR（X-ASR 執行環境）</string>
+    <string name="lic_audiocpp">audio.cpp（Nemotron-3 語者分離執行環境）</string>
+    <string name="lic_ggml">ggml · llama.cpp（摘要）</string>
+    <string name="lic_xasr">X-ASR 中英模型</string>
+    <string name="lic_nemotron">Nemotron-3 語者分離模型</string>
+    <string name="lic_opencc">OpenCC（繁體 / 簡體）</string>
+    <string name="lic_newpipe">NewPipeExtractor（YouTube）</string>
+    <string name="lic_compose" translatable="false">Jetpack Compose</string>
 </resources>

@@ -343,4 +343,13 @@
         <item quantity="one">%d episode</item>
         <item quantity="other">%d episodes</item>
     </plurals>
+    <string name="lic_nemo">nemo-x-asr-diarizer (streaming ASR + diarization)</string>
+    <string name="lic_crispasr">CrispASR (X-ASR runtime)</string>
+    <string name="lic_audiocpp">audio.cpp (Nemotron-3 diarization runtime)</string>
+    <string name="lic_ggml">ggml · llama.cpp (summarization)</string>
+    <string name="lic_xasr">X-ASR zh-en model</string>
+    <string name="lic_nemotron">Nemotron-3 Diarization model</string>
+    <string name="lic_opencc">OpenCC (zh-TW / zh-CN)</string>
+    <string name="lic_newpipe">NewPipeExtractor (YouTube)</string>
+    <string name="lic_compose" translatable="false">Jetpack Compose</string>
 </resources>

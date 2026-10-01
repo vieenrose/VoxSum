@@ -355,7 +355,8 @@ private fun AboutContent(onUpdateFound: (UpdateInfo) -> Unit) {
         color = pal.Slate400,
     )
     Column(Modifier.padding(top = 4.dp)) {
-        COMPONENT_LICENSES.forEach { (name, license) ->
+        COMPONENT_LICENSES.forEach { (nameRes, license) ->
+            val name = stringResource(nameRes)
             Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
                 Text(name, style = MaterialTheme.typography.bodySmall,
                     color = pal.Slate200, modifier = Modifier.weight(1f))
@@ -375,15 +376,15 @@ private fun AboutContent(onUpdateFound: (UpdateInfo) -> Unit) {
 }
 
 private val COMPONENT_LICENSES = listOf(
-    "nemo-x-asr-diarizer (streaming ASR + diarization)" to "Apache-2.0",
-    "CrispASR (X-ASR runtime)" to "MIT",
-    "audio.cpp (Nemotron-3 diarization runtime)" to "Apache-2.0",
-    "ggml · llama.cpp (summarization)" to "MIT",
-    "X-ASR zh-en model" to "Apache-2.0",
-    "Nemotron-3 Diarization model" to "OpenMDW-1.1",
-    "OpenCC (zh-TW / zh-CN)" to "Apache-2.0",
-    "NewPipeExtractor (YouTube)" to "GPL-3.0",
-    "Jetpack Compose" to "Apache-2.0",
+    R.string.lic_nemo to "Apache-2.0",
+    R.string.lic_crispasr to "MIT",
+    R.string.lic_audiocpp to "Apache-2.0",
+    R.string.lic_ggml to "MIT",
+    R.string.lic_xasr to "Apache-2.0",
+    R.string.lic_nemotron to "OpenMDW-1.1",
+    R.string.lic_opencc to "Apache-2.0",
+    R.string.lic_newpipe to "GPL-3.0",
+    R.string.lic_compose to "Apache-2.0",
 )
 
 @Composable

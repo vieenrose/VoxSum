@@ -342,6 +342,7 @@ class MainActivity : ComponentActivity() {
             val langController = LanguageController(langCode) { code ->
                 langCode = code
                 studio.voxsum.core.config.AppLanguage.save(this, code)
+                studio.voxsum.core.config.AppLanguage.applyTo(this, code)
             }
             val localized = remember(langCode) { studio.voxsum.core.config.AppLanguage.wrap(this, langCode) }
             CompositionLocalProvider(

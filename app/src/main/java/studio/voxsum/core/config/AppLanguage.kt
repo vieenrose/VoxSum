@@ -33,7 +33,7 @@ object AppLanguage {
         val stored = p.getString("summaryScript", null)
         val code = when {
             stored == null -> AUTO
-            stored == SummaryScript.defaultFor(Locale.getDefault()).id -> AUTO
+            stored == SummaryScript.defaultFor(systemLocale()).id -> AUTO
             stored == SummaryScript.SIMPLIFIED.id -> ZH_CN
             else -> ZH_TW
         }
@@ -57,13 +57,27 @@ object AppLanguage {
      * follows the device region; English keeps whatever script was in use (an English interface
      * says nothing about Traditional versus Simplified).
      */
-    fun scriptFor(code: String, current: SummaryScript, system: Locale = Locale.getDefault()): SummaryScript =
+    fun scriptFor(code: String, current: SummaryScript, system: Locale = systemLocale()): SummaryScript =
         when (code) {
             ZH_CN -> SummaryScript.SIMPLIFIED
             ZH_TW -> SummaryScript.TRADITIONAL
             EN -> current
             else -> SummaryScript.defaultFor(system)
         }
+
+    /** The device's own language, whatever this app has been told to show. */
+    fun systemLocale(): Locale = Resources.getSystem().configuration.locales[0]
+
+    /**
+     * Switch the strings of an already running [activity] (and of every window it opens: menus,
+     * sheets and dialogs build their own Compose roots from the activity's resources).
+     */
+    @Suppress("DEPRECATION")
+    fun applyTo(activity: Context, code: String) {
+        val res = activity.resources
+        val cfg = Configuration(res.configuration).apply { setLocale(localeFor(code) ?: systemLocale()) }
+        res.updateConfiguration(cfg, res.displayMetrics)
+    }
 
     /** The resources for [code]; [base] untouched when it is "auto". */
     fun resourcesFor(base: Context, code: String): Resources {

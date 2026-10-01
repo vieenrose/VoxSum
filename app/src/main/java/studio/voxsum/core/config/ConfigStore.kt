@@ -18,7 +18,7 @@ object ConfigStore {
         // deliberately not migrated — reading them would carry a translation preference into a build
         // that cannot honour it. A fresh read falls back to the device locale.
         val summaryScript = p.getString("summaryScript", null)
-            ?: SummaryScript.defaultFor(java.util.Locale.getDefault()).id
+            ?: SummaryScript.defaultFor(AppLanguage.systemLocale()).id
         return TranscriptionConfig(
             asrBackend = p.getString("asrBackend", d.asrBackend) ?: d.asrBackend,
             asrModelId = p.getString("asrModelId", d.asrModelId) ?: d.asrModelId,

@@ -254,7 +254,7 @@ object VoxsumSession {
         dir.mkdirs()
         val audio = File(dir, "session.bin")
         context.contentResolver.openInputStream(src)?.use { ins -> audio.outputStream().use { ins.copyTo(it) } }
-            ?: error("Could not open file")
+            ?: error(context.getString(studio.voxsum.R.string.err_open_file))
         // Sessions live in MP4/M4A ("ftyp" at offset 4). Anything else is treated as plain
         // audio: it still plays, it just carries no embedded transcript.
         val isM4a = isMp4(audio)
@@ -437,7 +437,7 @@ object VoxsumSession {
                 val n = gz.read(buf)
                 if (n < 0) break
                 total += n
-                if (total > MAX_JSON_BYTES) error("Session metadata too large")
+                if (total > MAX_JSON_BYTES) error("Session metadata too large")  // internal: only reachable with a hostile file
                 out.write(buf, 0, n)
             }
         }

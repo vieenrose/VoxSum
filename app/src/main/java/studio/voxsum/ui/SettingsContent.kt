@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import studio.voxsum.BuildConfig
 import studio.voxsum.R
+import studio.voxsum.core.config.AppLanguage
 import studio.voxsum.core.config.SummaryScript
 import studio.voxsum.core.config.ThemeMode
 import studio.voxsum.core.config.TranscriptionConfig
@@ -65,6 +66,7 @@ import studio.voxsum.core.models.LlmRegistry
 import studio.voxsum.core.update.UpdateChecker
 import studio.voxsum.core.update.UpdateInfo
 import studio.voxsum.ui.theme.LocalThemeController
+import studio.voxsum.ui.theme.LocalLanguageController
 import studio.voxsum.ui.theme.LocalVoxSumPalette
 import studio.voxsum.ui.theme.voxSumSliderColors
 import studio.voxsum.ui.theme.voxSumSwitchColors
@@ -89,26 +91,40 @@ fun SettingsContent(
         Section(stringResource(R.string.settings_appearance))
         AppearanceSelector(enabled)
 
-        // Chinese script of ALL generated and transcribed text (not just the summary).
+        // One choice for the interface AND every Chinese text the app produces: the strings switch
+        // live, and the Han script (Traditional / Simplified) follows the language.
         Section(stringResource(R.string.settings_language))
-        LabeledRow(stringResource(R.string.settings_summary_language)) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                SummaryScript.entries.forEach { s ->
-                    val label = s.autonym
-                    FilterChip(
-                        selected = config.summaryScript == s.id,
-                        enabled = enabled,
-                        onClick = { onChange(config.copy(summaryScript = s.id)) },
-                        label = { Text(label) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = pal.Sky.copy(alpha = 0.15f),
-                            selectedLabelColor = pal.Sky,
-                            labelColor = pal.Slate400,
-                        ),
-                    )
-                }
+        val lang = LocalLanguageController.current
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf(
+                AppLanguage.AUTO to stringResource(R.string.lang_auto),
+                AppLanguage.EN to "English",
+                AppLanguage.ZH_TW to "繁體中文",
+                AppLanguage.ZH_CN to "简体中文",
+            ).forEach { (code, label) ->
+                FilterChip(
+                    selected = lang.code == code,
+                    enabled = enabled,
+                    onClick = {
+                        lang.set(code)
+                        val script = AppLanguage.scriptFor(code, SummaryScript.fromId(config.summaryScript))
+                        if (script.id != config.summaryScript) onChange(config.copy(summaryScript = script.id))
+                    },
+                    label = { Text(label) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = pal.Sky.copy(alpha = 0.15f),
+                        selectedLabelColor = pal.Sky,
+                        labelColor = pal.Slate400,
+                    ),
+                )
             }
         }
+        Text(
+            stringResource(R.string.settings_language_hint),
+            style = MaterialTheme.typography.labelSmall,
+            color = pal.Slate400,
+            modifier = Modifier.padding(top = 2.dp),
+        )
 
         // Recording.
         Section(stringResource(R.string.settings_recording))

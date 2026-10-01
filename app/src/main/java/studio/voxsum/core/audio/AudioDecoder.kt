@@ -145,14 +145,14 @@ object AudioDecoder {
             val dec = try {
                 MediaCodec.createDecoderByType(mime)
             } catch (e: Exception) {
-                throw IllegalStateException("This device has no decoder for $mime audio", e)
+                throw IllegalStateException(context.getString(studio.voxsum.R.string.err_no_decoder, mime), e)
             }
             codec = dec
             try {
                 dec.configure(inFormat, null, null, 0)
                 dec.start()
             } catch (e: Exception) {
-                throw IllegalStateException("This device could not decode $mime audio", e)
+                throw IllegalStateException(context.getString(studio.voxsum.R.string.err_decode_failed, mime), e)
             }
             // Resample to 16 kHz DURING decode so we never hold the full source-rate waveform.
             decodeResampledMono(extractor, dec, srcChannels, srcRate, sink)

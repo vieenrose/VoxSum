@@ -171,6 +171,11 @@ val LocalVoxSumPalette = staticCompositionLocalOf { DarkColors }
 /** Lets deep UI (Settings) read the current theme and switch it. Provided by MainActivity. */
 data class ThemeController(val mode: ThemeMode, val setMode: (ThemeMode) -> Unit)
 
+/** The interface language ([studio.voxsum.core.config.AppLanguage] code) and how to change it live. */
+data class LanguageController(val code: String, val set: (String) -> Unit)
+
+val LocalLanguageController = staticCompositionLocalOf { LanguageController("auto") {} }
+
 val LocalThemeController = staticCompositionLocalOf { ThemeController(ThemeMode.AUTO) {} }
 
 /**

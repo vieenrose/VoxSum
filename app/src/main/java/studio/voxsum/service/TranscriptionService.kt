@@ -50,6 +50,7 @@ import studio.voxsum.core.events.TranscriptEvent
 import studio.voxsum.core.library.ProcessingQueue
 import studio.voxsum.core.library.SessionLibrary
 import studio.voxsum.core.reader.AgentEvent
+import studio.voxsum.core.reader.mapText
 import studio.voxsum.core.reader.AgentState
 import studio.voxsum.core.reader.ReaderLane
 import studio.voxsum.core.models.LlmRegistry
@@ -78,6 +79,11 @@ private const val LIVE_READER_MIN_RAM = 7L * 1024 * 1024 * 1024
  * before loading the LLM for summarization (small devices; with ~8 GB the reader runs alongside).
  */
 class TranscriptionService : LifecycleService() {
+
+    /** Notifications and status texts in the language chosen in Settings. */
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(studio.voxsum.core.config.AppLanguage.wrap(newBase))
+    }
 
     companion object {
 
@@ -795,7 +801,7 @@ class TranscriptionService : LifecycleService() {
         summarizeAfter: Boolean = true,
     ): Pair<List<TranscriptEvent.Utterance>, SummaryResult>? {
         val uri = audioUri?.let(Uri::parse)
-            ?: run { emitEvent(TranscriptEvent.Failed("No audio source")); return null }
+            ?: run { emitEvent(TranscriptEvent.Failed(getString(R.string.err_no_audio_source))); return null }
         val cfg = TranscriptionConfig.Holder.config
 
         val models = ModelManager(this)
@@ -1429,7 +1435,11 @@ class TranscriptionService : LifecycleService() {
                 sampler = spec.sampler, kvQ8 = studio.voxsum.core.llm.TextGen.KV_Q8, swaFull = spec.swaFull,
             )
         }
-        val emit: (AgentEvent) -> Unit = { ev -> events.tryEmit(gen to TranscriptEvent.Agent(ev)) }
+        // The notes are model-written Chinese: they follow the same script as the summary.
+        val conv = outputConverter(TranscriptionConfig.Holder.config)
+        val emit: (AgentEvent) -> Unit = { ev ->
+            events.tryEmit(gen to TranscriptEvent.Agent(if (conv == null) ev else ev.mapText(conv::convert)))
+        }
         val lane = ReaderLane(engine, system, emit)
         lane.start()
         return OpenReader(engine, lane, system, emit)

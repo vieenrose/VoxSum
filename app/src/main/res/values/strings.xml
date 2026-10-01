@@ -5,7 +5,6 @@
     <!-- Top bar -->
     <string name="cd_settings">Settings</string>
     <string name="cd_export">Export</string>
-    <string name="badge_on_device">On-device</string>
 
     <!-- Empty / home state -->
     <string name="empty_status">Pick an audio file to begin.</string>
@@ -22,14 +21,10 @@
 
     <!-- Source bar / add-source sheet -->
     <string name="add_audio">Add audio</string>
-    <string name="re_run">Re-run</string>
     <string name="re_transcribe">Re-transcribe</string>
     <string name="re_summarize">Re-summarize</string>
     <!-- MOSS-TD transcribes + diarizes in one pass, so its two re-run actions collapse into one. -->
-    <string name="pick_audio">Pick audio…</string>
     <string name="stop">Stop</string>
-    <string name="cd_stop_recording">Stop recording</string>
-    <string name="cd_recording">recording</string>
     <string name="source_audio_file">Audio file</string>
     <string name="source_audio_file_desc">Pick a file from your device</string>
     <string name="source_record">Record</string>
@@ -47,18 +42,13 @@
     <string name="theme_dark">Dark</string>
     <string name="theme_eink">E-ink</string>
     <string name="theme_eink_hint">E-ink is a flat high-contrast theme for e-paper devices; select it manually.</string>
-    <string name="settings_llm_backend">Inference hardware</string>
-    <string name="settings_backend_cpu">CPU</string>
-    <string name="settings_backend_gpu">GPU (experimental)</string>
-    <string name="settings_itn">Inverse text normalization</string>
     <string name="settings_recording">Recording</string>
     <string name="settings_speaker_delay">Live speaker delay</string>
     <string name="settings_seconds">%1$d s</string>
     <string name="settings_speaker_delay_hint">While recording, words appear at once; speaker names follow at least this long after. Longer = more accurate names. The saved transcript is not affected.</string>
+    <string name="lang_auto">System default</string>
+    <string name="settings_language_hint">Sets the interface and the script of the transcript, summary and notes.</string>
     <string name="settings_language">Language</string>
-    <string name="settings_summary_language">Chinese script</string>
-    <string name="summary_language_auto">Match transcript</string>
-    <string name="settings_summary_prompt">Summary prompt</string>
     <string name="settings_storage">Storage</string>
     <string name="storage_total">Models on device: %1$s</string>
     <string name="storage_model_pending">Summary model not downloaded yet (%1$d MB) — it downloads on first use.</string>
@@ -85,7 +75,6 @@
     <string name="youtube_search_hint">Search videos or paste a link</string>
     <string name="youtube_go">Go</string>
     <string name="youtube_search">Search</string>
-    <string name="youtube_working">Working…</string>
 
     <!-- Download / fetch progress -->
     <string name="dl_searching">Searching…</string>
@@ -98,10 +87,7 @@
     <!-- Placeholder-model caution: the shipped summarizer runs un-fine-tuned base weights and can
          state facts backwards. Revisit (soften or drop) once the fine-tuned model ships. -->
     <string name="summary_ai_caution">AI summary — may contain errors; check against the transcript.</string>
-    <string name="card_title">Title</string>
     <string name="speaker_n">Speaker %d</string>
-    <string name="detect_speaker_names">Detect speaker names</string>
-    <string name="detecting">Detecting…</string>
     <plurals name="speaker_count">
         <item quantity="one">%d speaker</item>
         <item quantity="other">%d speakers</item>
@@ -124,7 +110,6 @@
     <string name="status_recording">Recording…</string>
     <string name="status_done">Done</string>
     <string name="status_no_speech">No speech detected</string>
-    <string name="status_transcribing">Transcribing %d%%</string>
     <string name="status_transcript_lines">Transcript: %d lines</string>
     <string name="status_transcript_lines_speakers">Transcript: %1$d lines, %2$d speakers</string>
     <string name="status_error">Error: %1$s</string>
@@ -141,7 +126,6 @@
     <string name="svc_downloading_named">Downloading %1$s…</string>
     <string name="svc_summarization_model_pct">Summarization model… %d%%</string>
     <string name="svc_summarizing">Summarizing…</string>
-    <string name="svc_summarizing_eta">Summarizing… %1$s</string>
     <string name="show_more">Show more</string>
     <string name="show_less">Show less</string>
     <string name="eta_minutes">≈%1$d min left</string>
@@ -161,8 +145,6 @@
     <!-- Session as a self-describing .ogg + share -->
     <string name="source_session">Open session (.ogg / .m4a)</string>
     <string name="source_session_desc">Reload a saved .ogg or .m4a to keep editing the transcript</string>
-    <string name="session_save">Save session (.ogg)</string>
-    <string name="session_share">Share session (.ogg)</string>
     <string name="session_save_m4a">Save session (.m4a)</string>
     <string name="session_share_m4a">Share session (.m4a)</string>
     <string name="session_saved">Session saved</string>
@@ -176,7 +158,6 @@
     <string name="exporting">Exporting session…</string>
     <string name="exporting_hint">Continues in the background — you can keep using the app</string>
     <string name="export_interrupted">Export was interrupted — please try again.</string>
-    <string name="cover_menu">Cover…</string>
     <string name="export_sheet_title">Export</string>
     <string name="export_menu_entry">Export &amp; share…</string>
     <string name="export_group_session">VoxSum session (.m4a)</string>
@@ -202,10 +183,6 @@
     <string name="transcript_copied">Transcript copied</string>
     <string name="status_importing">Importing shared audio…</string>
     <string name="import_failed">Couldn\'t import that file</string>
-    <string name="settings_summary_style">Summary style</string>
-    <string name="summary_style_bullet">Bullets</string>
-    <string name="summary_style_executive">Executive</string>
-    <string name="summary_style_narrative">Narrative</string>
     <string name="recent_sessions">Recent</string>
     <string name="recent_untitled">Untitled session</string>
     <string name="search_transcript">Search transcript</string>
@@ -217,18 +194,11 @@
     <string name="search_close">Close search</string>
     <string name="notif_finish_recording">Finish</string>
     <string name="svc_transcribing">Transcribing…</string>
-    <string name="svc_extracting_actions">Extracting action items…</string>
     <string name="card_action_items">Action items</string>
     <string name="action_items_copied">Action items copied</string>
-    <string name="cd_reassign_speaker">Change speaker for this line</string>
     <string name="cd_line_actions">Line actions</string>
     <string name="speaker_move_line">Move line to</string>
     <string name="speaker_merge_into">Merge speaker into</string>
-    <string name="cover_title">Session cover</string>
-    <string name="cover_none">No cover</string>
-    <string name="cover_regenerate">Regenerate</string>
-    <string name="cover_remove">Remove</string>
-    <string name="cover_use">Use</string>
     <string name="status_session_loaded">Loaded session — %d lines</string>
 
     <!-- Background reliability (Settings section) -->
@@ -250,19 +220,12 @@
     <string name="cd_next_talk">Next talk (save and record the next one)</string>
     <string name="status_saved_for_later">Recording saved — process it later from Add audio</string>
     <string name="source_process_all">Process pending (%d)</string>
-    <string name="source_process_all_desc">Transcribe and summarize the saved recordings one by one</string>
     <string name="svc_processing_queue">Processing %1$s (%2$d left)</string>
     <string name="svc_queue_item_failed">Could not process %s — kept in the library</string>
     <string name="svc_queue_item_failed_hint">Tap to open VoxSum and try again.</string>
     <string name="svc_paused_time_limit">Processing paused by the system time limit — reopen VoxSum to resume.</string>
 
-    <string name="library_title">Recorded sessions</string>
     <string name="library_empty">No saved recordings yet — every recording is saved here automatically.</string>
-    <string name="lib_status_done">Done</string>
-    <string name="lib_status_queued">Queued</string>
-    <string name="lib_status_recorded">Not processed</string>
-    <string name="source_library">Recorded sessions (%d)</string>
-    <string name="source_library_desc">Every auto-saved recording and its processing status</string>
 
     <!-- Studio refonte -->
     <string name="back">Back</string>
@@ -272,9 +235,7 @@
     <string name="capture_stop">Stop &amp; save</string>
     <string name="capture_live_transcript">Live transcript</string>
     <string name="capture_live_waiting">Listening…</string>
-    <string name="studio_recording_banner">Recording — %s (tap to return)</string>
     <string name="studio_return_capture">Recording… (return)</string>
-    <string name="lib_status_processing">Processing</string>
     <string name="action_process_now">Process now</string>
     <string name="action_open">Open</string>
     <string name="action_rename">Rename</string>
@@ -286,7 +247,6 @@
 
     <string name="studio_search_hint">Search sessions…</string>
     <string name="studio_no_match">No session matches your search.</string>
-    <string name="chip_new">New</string>
     <string name="day_today">TODAY</string>
     <string name="day_yesterday">YESTERDAY</string>
 
@@ -337,7 +297,6 @@
     <string name="agent_reading">Reading window %1$d and writing notes…</string>
     <string name="agent_restarting">Context full (%1$d tokens) — restarting from the compacted notes…</string>
     <string name="agent_done">Done · %1$d notes</string>
-    <string name="agent_notes">Live notes (%1$d)</string>
     <string name="agent_notes_caution">Working notes, not minutes — about 1 in 5 may be wrong.</string>
     <string name="agent_show_log">Show activity (%1$d)</string>
     <string name="agent_hide_log">Hide activity (%1$d)</string>
@@ -372,4 +331,9 @@
     <string name="agent_tag_proposal">Proposal</string>
     <string name="agent_verify">Verify</string>
     <string name="actions_verify_hint">About 1 item in 5 may not be supported by the transcript — tap a time to hear what was said.</string>
+    <string name="err_no_audio_source">No audio source</string>
+    <string name="err_open_file">Could not open the file</string>
+    <string name="err_no_decoder">This device has no decoder for %1$s audio</string>
+    <string name="err_decode_failed">This device could not decode %1$s audio</string>
+    <string name="err_youtube_no_stream">No audio stream available for this video (it may be region- or login-gated).</string>
 </resources>

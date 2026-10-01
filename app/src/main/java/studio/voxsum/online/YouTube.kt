@@ -114,12 +114,12 @@ object YouTube {
      *
      * Streams that report no bitrate at all are a last resort (we can't rank them).
      */
-    suspend fun resolve(url: String): YouTubeAudio = withContext(Dispatchers.IO) {
+    suspend fun resolve(ctx: Context, url: String): YouTubeAudio = withContext(Dispatchers.IO) {
         ensureInit()
         val info = StreamInfo.getInfo(ServiceList.YouTube, url.trim())
         val streams = info.audioStreams.filter { !it.content.isNullOrBlank() }
         if (streams.isEmpty()) {
-            error("No audio stream available for this video (it may be region- or login-gated).")
+            error(ctx.getString(studio.voxsum.R.string.err_youtube_no_stream))
         }
         val playable = streams.filter { deviceCanDecode(it.format) }
         val best = playable.filter { it.averageBitrate > 0 }.minByOrNull { it.averageBitrate }

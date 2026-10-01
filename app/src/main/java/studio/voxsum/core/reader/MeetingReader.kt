@@ -158,6 +158,15 @@ class MeetingReader(
     }
 }
 
+/** The same event with every piece of model-written text passed through [f] (script conversion). */
+fun AgentEvent.mapText(f: (String) -> String): AgentEvent = when (this) {
+    is AgentEvent.TurnToken -> copy(piece = f(piece))
+    is AgentEvent.TurnDone -> copy(reply = f(reply))
+    is AgentEvent.NoteKept -> copy(note = note.copy(text = f(note.text)))
+    is AgentEvent.NoteDropped -> copy(line = f(line))
+    else -> this
+}
+
 enum class AgentState { STARTING, LISTENING, READING, RESTARTING, DONE }
 
 enum class DropReason { PARSE, CITATION, CAP, DUPLICATE }

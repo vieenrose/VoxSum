@@ -419,7 +419,7 @@ class ModelManager(context: Context) {
         )
 
         /** Meeting-agent v3 (root GGUF), replaced by v5; reclaimed after v5 verifies. */
-        private val RETIRED_LLM_DIRS = listOf("gemma4-meeting-agent-gguf")
+        private val RETIRED_LLM_DIRS = listOf("gemma4-meeting-agent-gguf", "gemma4-meeting-agent")
 
         /** Retired by the nemo switch; reclaimed only after the new models verify. */
         private val LITERT_RETIRED = setOf(

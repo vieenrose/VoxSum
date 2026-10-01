@@ -68,7 +68,7 @@ fun YouTubeSheet(onAudioReady: (Uri, String?) -> Unit, onDismiss: () -> Unit) {
         busy = true; error = null; progress = null; statusRes = R.string.dl_resolving
         scope.launch {
             runCatching {
-                val audio = YouTube.resolve(url)
+                val audio = YouTube.resolve(context, url)
                 statusRes = R.string.dl_downloading        // resolved → now streaming the audio
                 YouTube.download(context, audio) { p -> progress = p } to audio.title
             }

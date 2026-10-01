@@ -1,6 +1,7 @@
 package studio.voxsum
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
@@ -93,6 +94,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
@@ -197,6 +199,8 @@ import studio.voxsum.ui.SpeakerStatsPanel
 import studio.voxsum.ui.TranscriptSearchBar
 import studio.voxsum.ui.highlightedTranscript
 import studio.voxsum.ui.YouTubeSheet
+import studio.voxsum.ui.theme.LanguageController
+import studio.voxsum.ui.theme.LocalLanguageController
 import studio.voxsum.ui.theme.LocalThemeController
 import studio.voxsum.ui.theme.LocalVoxSumPalette
 import studio.voxsum.ui.theme.ThemeController
@@ -305,6 +309,11 @@ private fun copyToAppAudio(context: android.content.Context, uri: Uri): File {
 
 class MainActivity : ComponentActivity() {
 
+    /** Strings in the language chosen in Settings (the Compose tree re-wraps live, see below). */
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(studio.voxsum.core.config.AppLanguage.wrap(newBase))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         maybeRequestNotifications()
@@ -327,7 +336,20 @@ class MainActivity : ComponentActivity() {
                 themeMode = mode
                 ThemeStore.save(this, mode)
             }
-            CompositionLocalProvider(LocalThemeController provides controller) {
+            // The interface language switches live, no recreation: re-provide the context whose
+            // resources carry the chosen locale, and Compose's stringResource follows it.
+            var langCode by remember { mutableStateOf(studio.voxsum.core.config.AppLanguage.load(this)) }
+            val langController = LanguageController(langCode) { code ->
+                langCode = code
+                studio.voxsum.core.config.AppLanguage.save(this, code)
+            }
+            val localized = remember(langCode) { studio.voxsum.core.config.AppLanguage.wrap(this, langCode) }
+            CompositionLocalProvider(
+                LocalThemeController provides controller,
+                LocalLanguageController provides langController,
+                androidx.compose.ui.platform.LocalContext provides localized,
+                androidx.compose.ui.platform.LocalConfiguration provides localized.resources.configuration,
+            ) {
                 VoxSumTheme(themeMode) {
                     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                         if (!studio.voxsum.core.power.CpuSupport.hasDotProd) {
@@ -1770,10 +1792,12 @@ private fun TranscribeScreen(
             val newNames = if (transcriptOnly) names0 else
                 withContext(Dispatchers.Default) { names0.mapValues { (_, n) -> n.copy(name = cc.convert(n.name)) } }
             if (seq != scriptSeq || gen != sessionGen || edit0 != editSeq) return@launch   // superseded / session changed / edited → drop
+            val changed = newUtts != utts0 || newTitle != title0 || newSummary != summary0 ||
+                newActions != actions0 || newNames != names0
             for (i in newUtts.indices) if (i < utterances.size) utterances[i] = newUtts[i]
             title = newTitle; summary = newSummary; actionItems = newActions
             newNames.forEach { (id, n) -> speakerNames[id] = n }
-            sessionDirty = true
+            if (changed) sessionDirty = true
         }
     }
 
@@ -2093,8 +2117,17 @@ private fun TranscribeScreen(
         Screen.Studio -> {
             val studioEntries = remember(recentsVersion, queueItemId) { SessionLibrary.list(context) }
             val studioQueuedIds = remember(recentsVersion, queueItemId) { ProcessingQueue.ids(context).toSet() }
+            // Titles saved in the other script read in the chosen one (the file itself is untouched).
+            val titleConv by produceState<OpenCcConverter?>(null, config.summaryScript) {
+                value = withContext(Dispatchers.IO) {
+                    runCatching { OpenCcConverter.get(context, SummaryScript.scriptFor(config.summaryScript, context)) }.getOrNull()
+                }
+            }
+            val shownEntries = remember(studioEntries, titleConv) {
+                titleConv?.let { c -> studioEntries.map { e -> e.copy(title = e.title?.let(c::convert)) } } ?: studioEntries
+            }
             StudioScreen(
-                entries = studioEntries,
+                entries = shownEntries,
                 queuedIds = studioQueuedIds,
                 processingId = queueItemId,
                 processingLabel = queueLabel,
@@ -2329,6 +2362,13 @@ private fun TranscribeScreen(
             )
             transcriptDirty = false
             if (res == SnackbarResult.ActionPerformed) regenerateStaleChildren()
+        }
+    }
+    // A session saved in the other script (or by an older build) reads in the chosen one as soon as
+    // it is opened. A no-op, and no rewrite of the file, when it already matches.
+    LaunchedEffect(sessionGen) {
+        if (utterances.isNotEmpty() && !running) {
+            applyChineseScript(SummaryScript.scriptFor(config.summaryScript, context))
         }
     }
     // When Settings closes after a change that needs the LLM (and a summary exists), offer a one-tap

@@ -106,8 +106,8 @@ private enum class RowStatus { New, Queued, Processing, Done }
 
 /** Two shared, locale-bound formatters (composition is main-thread, so a single instance is safe)
  *  — avoids re-allocating a DateFormat per row/day-header composition. */
-private val TIME_FMT: DateFormat = DateFormat.getTimeInstance(DateFormat.SHORT)
-private val DATE_FMT: DateFormat = DateFormat.getDateInstance(DateFormat.MEDIUM)
+private var TIME_FMT: DateFormat = DateFormat.getTimeInstance(DateFormat.SHORT)
+private var DATE_FMT: DateFormat = DateFormat.getDateInstance(DateFormat.MEDIUM)
 
 /**
  * The studio home — VoxSum 2.0 "session shelf". Sessions grouped by day; status carried by a
@@ -146,6 +146,12 @@ fun StudioScreen(
     onSettings: () -> Unit,
     updateBanner: @Composable () -> Unit = {},
 ) {
+    // Times and dates follow the interface language (it can differ from the device's).
+    val uiLocale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
+    remember(uiLocale) {
+        TIME_FMT = DateFormat.getTimeInstance(DateFormat.SHORT, uiLocale)
+        DATE_FMT = DateFormat.getDateInstance(DateFormat.MEDIUM, uiLocale)
+    }
     val pal = LocalVoxSumPalette.current
     var actionsFor by remember { mutableStateOf<SessionLibrary.Entry?>(null) }
     var renameFor by remember { mutableStateOf<SessionLibrary.Entry?>(null) }

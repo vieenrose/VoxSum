@@ -318,8 +318,7 @@ private fun CaptureButtons(
             enabled = isRecording,
             shape = RoundedCornerShape(20.dp),
             colors = ButtonDefaults.buttonColors(containerColor = pal.Sky),
-            // On a batch day ⏭ is tapped ten times for every ⏹ — it gets the primary width.
-            modifier = Modifier.weight(1.5f).height(buttonHeight),
+            modifier = Modifier.weight(1f).height(buttonHeight),
             // Minimal padding: on narrow phones the default 24dp sides forced CJK labels to wrap.
             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
         ) {

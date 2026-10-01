@@ -69,14 +69,15 @@ class CaptureShowcase {
                 agent.apply(AgentEvent.Fed(1, "segment", 120, 300, 1331 + 120 * (i + 1)))
             }
             Thread.sleep(1500)
-        }
-        ui {
-            agent.apply(AgentEvent.State(AgentState.READING, window = 1, ctxTokens = 2400))
-            agent.apply(AgentEvent.TurnToken(1, "NOTE [0:11] (OPEN-ISSUE) 物業推卸監控責任"))
-            agent.apply(AgentEvent.NoteKept(Note(1, 1, "0:11", "OPEN-ISSUE", "物業推卸監控責任，住戶要求調閱監控")))
-            agent.apply(AgentEvent.TurnDone(1, "", 1, 30_000))
-            agent.apply(AgentEvent.State(AgentState.LISTENING, window = 2, ctxTokens = 2600, notes = 1))
-            secs = 131
+            if (i == 4) {
+                ui {
+                    agent.apply(AgentEvent.State(AgentState.READING, window = 1, ctxTokens = 2400))
+                    agent.apply(AgentEvent.TurnToken(1, "NOTE [0:11] (OPEN-ISSUE) 物業推卸監控責任"))
+                    agent.apply(AgentEvent.NoteKept(Note(1, 1, "0:11", "OPEN-ISSUE", "物業推卸監控責任，住戶要求調閱監控")))
+                    agent.apply(AgentEvent.TurnDone(1, "", 1, 30_000))
+                    agent.apply(AgentEvent.State(AgentState.LISTENING, window = 2, ctxTokens = 2600, notes = 1))
+                }
+            }
         }
         Thread.sleep((args.getString("holdMs") ?: "20000").toLong())
     }

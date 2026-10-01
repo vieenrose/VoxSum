@@ -61,7 +61,7 @@
     <string name="settings_seconds">%1$d 秒</string>
     <string name="settings_speaker_delay_hint">錄音時文字會立即顯示；語者標註則至少在此延遲之後才出現。延遲越長，語者標註越準確。不影響最後儲存的逐字稿。</string>
     <string name="settings_summary_options">摘要選項</string>
-    <string name="settings_summary_language">中文字形</string>
+    <string name="settings_summary_language">中文字型</string>
     <string name="summary_language_auto">與逐字稿相同</string>
     <string name="settings_summary_prompt">摘要提示詞</string>
     <string name="settings_storage">儲存空間</string>
@@ -364,4 +364,17 @@
     <string name="agent_tag_proposal">提議</string>
     <string name="agent_verify">核對</string>
     <string name="actions_verify_hint">約五分之一的項目可能與逐字稿不符——點時間即可聽原話核對。</string>
+    <string name="export_interrupted">匯出中斷，請再試一次。</string>
+    <string name="export_sheet_title">匯出</string>
+    <string name="export_group_session">VoxSum 工作階段（.m4a）</string>
+    <string name="export_group_session_desc">音訊、逐字稿、語者、摘要與行動項目合為一個檔案。可在 VoxSum 重新開啟，任何播放器都能播放。</string>
+    <string name="export_group_document">文件</string>
+    <string name="export_group_document_desc">標題、摘要、行動項目與含時間戳的逐字稿。</string>
+    <string name="export_group_subtitles">字幕</string>
+    <string name="export_group_subtitles_desc">含語者標籤的時間軸字幕，適用於影音播放器。</string>
+    <string name="export_action_save">儲存</string>
+    <string name="export_action_share">分享</string>
+    <string name="export_heading_actions">行動項目</string>
+    <string name="export_share_failed">無法準備要分享的檔案</string>
+    <string name="asr_language_changed">語言已變更 —— 請用「重新轉錄」（⋮ 選單）套用。</string>
 </resources>

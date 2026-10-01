@@ -9,7 +9,7 @@ VoxSum's defining pattern is the **NDJSON streaming contract**: long endpoints r
 `StreamingResponse` of typed JSON lines, and `frontend/app.js` renders incrementally.
 
 On-device there is no HTTP. The same typed events become
-[`TranscriptEvent`](app/src/main/java/studio/voxsum/core/events/TranscriptEvent.kt), emitted
+[`TranscriptEvent`](../app/src/main/java/studio/voxsum/core/events/TranscriptEvent.kt), emitted
 as a `Flow` from a **foreground service** and collected by Compose. Incremental rendering
 (append new utterances, never full rebuild) is preserved.
 

@@ -93,7 +93,7 @@
 
 語音辨識與語者分離是同一個串流引擎（[nemo-x-asr-diarizer](https://github.com/vieenrose/nemo-x-asr-diarizer.cpp)：X-ASR ＋ Nemotron-3）；摘要由 [llama.cpp](https://github.com/ggml-org/llama.cpp) 執行的 [Gemma-4-E2B 會議代理](https://huggingface.co/Luigi/gemma-4-E2B-meeting-agent-zh-GGUF) 完成。兩者同時運作：語音辨識優先，代理在背景預填逐字稿，每約 4 分鐘的語音讀一次並寫筆記。
 
-在 OPPO Reno7（8 GB）上，10 分鐘會議的摘要於錄音結束後 87 秒完成，記憶體峰值 3.0 GB。模組對應見 [`ARCHITECTURE.md`](ARCHITECTURE.md)，準確度評測見 [`tools/nemo-eval`](tools/nemo-eval/README.md)。
+在 OPPO Reno7（8 GB）上，10 分鐘會議的摘要於錄音結束後 87 秒完成，記憶體峰值 3.0 GB。模組對應見 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)，準確度評測見 [`tools/nemo-eval`](tools/nemo-eval/README.md)。
 
 ## 從原始碼建置
 

@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-VoxSum for Android: a fully offline audio → speaker-labelled transcript → summary app (Kotlin + Jetpack Compose, native llama.cpp via JNI). A port of a Python/FastAPI app; `ARCHITECTURE.md` maps each Python piece to its Android counterpart.
+VoxSum for Android: a fully offline audio → speaker-labelled transcript → summary app (Kotlin + Jetpack Compose, native llama.cpp via JNI). A port of a Python/FastAPI app; `docs/ARCHITECTURE.md` maps each Python piece to its Android counterpart.
 
 ## Commands
 

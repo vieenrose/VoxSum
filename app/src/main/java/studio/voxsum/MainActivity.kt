@@ -3154,10 +3154,17 @@ private fun UtteranceRow(
     ) {
         if (isEditing || editingThisSpeaker) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("[${fmt(utt.startSec)}]", style = MaterialTheme.typography.labelMedium,
-                    color = pal.Slate400)
-                Spacer(Modifier.width(6.dp))
-                utt.speaker?.let { sid ->
+                // Same header as the reading layout (speaker · time); the chip only while renaming.
+                if (!editingThisSpeaker) {
+                    utt.speaker?.let { sid ->
+                        Text(speakerNames[sid]?.name ?: stringResource(R.string.speaker_n, sid + 1),
+                            style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold,
+                            color = Color(speakerColorOn(sid, pal.isDark)))
+                        Text(" · ", style = MaterialTheme.typography.labelMedium, color = pal.Slate400)
+                    }
+                    Text(fmt(utt.startSec), style = MaterialTheme.typography.labelMedium, color = pal.Slate400)
+                }
+                if (editingThisSpeaker) utt.speaker?.let { sid ->
                     SpeakerTag(
                         speakerId = sid,
                         label = speakerNames[sid]?.name ?: stringResource(R.string.speaker_n, sid + 1),

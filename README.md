@@ -91,7 +91,32 @@
 
 ## 運作方式
 
-語音辨識與語者分離是同一個串流引擎（[nemo-x-asr-diarizer](https://github.com/vieenrose/nemo-x-asr-diarizer.cpp)：X-ASR ＋ Nemotron-3）；摘要由 [llama.cpp](https://github.com/ggml-org/llama.cpp) 執行的 [Gemma-4-E2B 會議代理](https://huggingface.co/Luigi/gemma-4-E2B-meeting-agent-zh-GGUF) 完成。兩者同時運作：語音辨識優先，代理在背景預填逐字稿，每約 4 分鐘的語音讀一次並寫筆記。
+語音辨識與語者分離是同一個串流引擎（[nemo-x-asr-diarizer](https://github.com/vieenrose/nemo-x-asr-diarizer.cpp)：X-ASR ＋ Nemotron-3）；摘要由 [llama.cpp](https://github.com/ggml-org/llama.cpp) 執行的 [Gemma-4-E2B 會議代理](https://huggingface.co/Luigi/gemma-4-E2B-meeting-agent-zh-GGUF) 完成。兩者同時運作（RAM 8 GB 以上的手機）：
+
+```mermaid
+gantt
+    title OPPO Reno7 上的 10 分鐘會議：各元件何時工作
+    dateFormat mm:ss
+    axisFormat %M:%S
+    section 語音辨識
+    說話後約 0.4 秒文字上螢幕                :active, a1, 00:00, 10:00
+    section 語者辨識
+    語者輪次落後音訊約 5 秒確定              :active, d1, 00:05, 10:00
+    語者標籤確定後才顯示（延遲 15 秒）        :d2, 00:15, 10:15
+    section 會議代理
+    載入模型（約 8 秒）                      :g0, 00:00, 00:08
+    預填已確定的句子，每 20 秒一段            :active, g1, 00:15, 04:00
+    閱讀一輪並寫筆記（第 1 窗）               :crit, g2, 04:00, 04:45
+    預填                                    :active, g3, 04:45, 08:00
+    閱讀一輪並寫筆記（第 2 窗）               :crit, g4, 08:00, 08:25
+    預填                                    :active, g5, 08:25, 10:15
+    最後一窗與摘要（停止後）                  :crit, g6, 10:15, 11:27
+    section 你
+    停止錄音                                :milestone, m1, 10:00, 0s
+    摘要完成（停止後 87 秒）                  :milestone, m2, 11:27, 0s
+```
+
+語音辨識優先，因為它是唯一落後就會漏掉音訊的元件；代理在大家說話時於背景預填逐字稿，每約 4 分鐘的語音才做一次真正的閱讀（手機上 17–45 秒）。它不會讀到語者還可能改變的句子，錄音停止時只剩最後一窗要讀。RAM 較小的手機則在錄音結束後才讀。
 
 在 OPPO Reno7（8 GB）上，10 分鐘會議的摘要於錄音結束後 87 秒完成，記憶體峰值 3.0 GB。模組對應見 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)，準確度評測見 [`tools/nemo-eval`](tools/nemo-eval/README.md)。
 
@@ -109,4 +134,13 @@ scripts/test-on-device.sh             # 裝置上的儀器測試（獨立 app ID
 
 ## 授權
 
-[GPL-3.0-or-later](LICENSE)。模型各依其授權：X-ASR（Apache-2.0）、Nemotron-3 Diarization（OpenMDW-1.1）、Gemma-4-E2B 會議代理（Apache-2.0）。
+應用程式以 [GPL-3.0-or-later](LICENSE) 授權。使用的模型各依其授權：
+
+| 元件 | 授權 |
+|---|---|
+| VoxSum（本專案） | GPL-3.0-or-later |
+| X-ASR（語音辨識） | Apache-2.0 |
+| Nemotron-3 Diarization（語者分離） | OpenMDW-1.1 |
+| Gemma-4-E2B 會議代理（摘要） | Apache-2.0 |
+
+示範音訊：AISHELL-4（CC BY-SA 4.0）、AMI（CC BY 4.0）。

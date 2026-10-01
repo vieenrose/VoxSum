@@ -19,6 +19,8 @@ data class TranscriptionConfig(
     // 95.8% at 30 s (tools/nemo-eval). Text itself is always shown immediately. The final
     // transcript does not depend on this.
     val speakerDelaySec: Int = 15,
+    /** Experimental: show the model's action items under the summary (off by default — not reliable enough). */
+    val showActionItems: Boolean = false,
 
     // --- Summarization ---
     // The actually-used summary model. MUST track LlmRegistry.DEFAULT_ID — hardcoding it here (it was

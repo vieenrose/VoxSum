@@ -26,6 +26,7 @@ object ConfigStore {
                 .coerceIn(TranscriptionConfig.SPEAKER_DELAY_MIN, TranscriptionConfig.SPEAKER_DELAY_MAX),
             llmModelId = p.getString("llmModelId", d.llmModelId) ?: d.llmModelId,
             summaryScript = summaryScript,
+            showActionItems = p.getBoolean("showActionItems", d.showActionItems),
         )
     }
 
@@ -36,6 +37,7 @@ object ConfigStore {
             putInt("speakerDelaySec", c.speakerDelaySec)
             putString("llmModelId", c.llmModelId)
             putString("summaryScript", c.summaryScript)
+            putBoolean("showActionItems", c.showActionItems)
             // Settings of retired engines (hotwords, VAD, speaker-count hint, precise diarization, ASR
             // hardware) — nothing reads them any more.
             RETIRED_KEYS.forEach(::remove)

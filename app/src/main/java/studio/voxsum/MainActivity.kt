@@ -1981,6 +1981,22 @@ private fun TranscribeScreen(
                     },
                     onSeek = anchorSeek, showHeading = twoPane)
             }
+            // Action items are a short follow-up section under the summary, not a tab of their own:
+            // the model's extraction is not reliable enough to be presented as a to-do list (they
+            // repeat summary points, carry no owner, ~1 in 5 is off). Experimental, opt-in in Settings.
+            val hasActions = actionItems?.trim()?.let { it.isNotEmpty() && it != "-" } == true
+            if (config.showActionItems && (hasActions || editingActions)) actionItems?.let { ai ->
+                ActionItemsCard(ai, editingActions,
+                    onBeginEdit = { editingActions = true },
+                    onSave = { actionItems = it; editingActions = false; editSeq++; sessionDirty = true },
+                    onCancel = { editingActions = false },
+                    onCopy = {
+                        val cm = context.getSystemService(android.content.ClipboardManager::class.java)
+                        cm?.setPrimaryClip(android.content.ClipData.newPlainText("VoxSum action items", ai))
+                        scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.action_items_copied)) }
+                    },
+                    onSeek = anchorSeek)
+            }
             // Sections the v2 NOTES format adds and the older prose summary never had. Rendered
             // only when non-empty: the format requires all six keys to be present, so a meeting
             // with no decisions still emits "DECISIONS:\n-", and an empty card would be noise.
@@ -2010,31 +2026,9 @@ private fun TranscribeScreen(
             }
         }
     }
-    val actionsCards: @Composable () -> Unit = {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            val noActions = actionItems?.trim()?.let { it.isEmpty() || it == "-" } == true && !editingActions
-            if (noActions) Text(stringResource(R.string.actions_none), color = pal.Slate400, modifier = Modifier.padding(top = 24.dp))
-            else actionItems?.let { ai ->
-                ActionItemsCard(ai, editingActions,
-                    onBeginEdit = { editingActions = true },
-                    onSave = { actionItems = it; editingActions = false; editSeq++; sessionDirty = true },
-                    onCancel = { editingActions = false },
-                    onCopy = {
-                        val cm = context.getSystemService(android.content.ClipboardManager::class.java)
-                        cm?.setPrimaryClip(android.content.ClipData.newPlainText("VoxSum action items", ai))
-                        scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.action_items_copied)) }
-                    },
-                    onSeek = anchorSeek, showHeading = twoPane)
-            }
-            if (actionItems == null) {
-                Text(stringResource(if (utterances.isEmpty() && !running) R.string.status_no_speech else R.string.actions_pending_hint), color = pal.Slate400, modifier = Modifier.padding(top = 24.dp))
-            }
-        }
-    }
     val overviewCards: @Composable () -> Unit = {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             summaryCards()
-            if (actionItems != null) actionsCards()
         }
     }
 
@@ -2328,7 +2322,7 @@ private fun TranscribeScreen(
                     }
                 }
             } else {
-                // Portrait: Summary · Transcript · Actions tabs — each job gets a shallow room
+                // Portrait: Summary · Transcript tabs — each job gets a shallow room
                 // instead of one long scroll (VoxSum 2.0).
                 SessionTabs(selected = sessTab, onSelect = { sessTab = it })
                 Spacer(Modifier.height(8.dp))
@@ -2336,9 +2330,6 @@ private fun TranscribeScreen(
                     0 -> Column(
                         Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
                     ) { summaryCards(); Spacer(Modifier.height(8.dp)) }
-                    2 -> Column(
-                        Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
-                    ) { actionsCards(); Spacer(Modifier.height(8.dp)) }
                     else -> {
                         if (searchActive) TranscriptSearchBar(
                             query = searchQuery, onQuery = { searchQuery = it },

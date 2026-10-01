@@ -145,6 +145,17 @@ fun SettingsContent(
             color = pal.Slate400,
         )
 
+        // Experimental — features whose output is not reliable enough to be on by default.
+        Section(stringResource(R.string.settings_experimental))
+        SwitchRow(stringResource(R.string.settings_show_actions), config.showActionItems, enabled) {
+            onChange(config.copy(showActionItems = it))
+        }
+        Text(
+            stringResource(R.string.settings_show_actions_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = pal.Slate400,
+        )
+
         // (6) Storage — downloaded models, per-item delete (each re-downloads on next use).
         Section(stringResource(R.string.settings_storage))
         StoragePanel(enabled, summaryReady = LlmRegistry.byId(config.llmModelId).id in readyLlm)

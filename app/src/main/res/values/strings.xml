@@ -250,11 +250,8 @@
 
     <string name="tab_summary">Summary</string>
     <string name="tab_transcript">Transcript</string>
-    <string name="tab_actions">Actions</string>
     <string name="summary_pending_hint">No summary yet — it appears here once processing finishes.</string>
     <string name="summary_missing_hint">No summary for this session — choose Re-summarize in the ⋮ menu to try again.</string>
-    <string name="actions_pending_hint">No action items yet.</string>
-    <string name="actions_none">No action items in this meeting.</string>
 
     <string name="mic_capture_failed">Microphone failed — nothing was recorded. Close other apps using the mic and try again.</string>
     <string name="rec_storage_failed">Recording stopped — storage is full. Free some space and try again.</string>
@@ -350,4 +347,7 @@
     <string name="lic_opencc">OpenCC (zh-TW / zh-CN)</string>
     <string name="lic_newpipe">NewPipeExtractor (YouTube)</string>
     <string name="lic_compose" translatable="false">Jetpack Compose</string>
+    <string name="settings_experimental">Experimental</string>
+    <string name="settings_show_actions">Show action items</string>
+    <string name="settings_show_actions_hint">Lists the action items the model extracts under the summary. About one in five may not match the transcript — tap a time to check.</string>
 </resources>

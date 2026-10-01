@@ -215,7 +215,6 @@ fun SessionTabs(selected: Int, onSelect: (Int) -> Unit) {
     val labels = listOf(
         stringResource(R.string.tab_summary),
         stringResource(R.string.tab_transcript),
-        stringResource(R.string.tab_actions),
     )
     Row(
         Modifier

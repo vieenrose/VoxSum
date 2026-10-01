@@ -2024,7 +2024,7 @@ private fun TranscribeScreen(
                     onSeek = anchorSeek, showHeading = twoPane)
             }
             if (actionItems == null) {
-                Text(stringResource(R.string.actions_pending_hint), color = pal.Slate400, modifier = Modifier.padding(top = 24.dp))
+                Text(stringResource(if (utterances.isEmpty() && !running) R.string.status_no_speech else R.string.actions_pending_hint), color = pal.Slate400, modifier = Modifier.padding(top = 24.dp))
             }
         }
     }

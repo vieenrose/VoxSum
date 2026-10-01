@@ -58,6 +58,7 @@ class OpenCcConverter private constructor(
         @Volatile private var traditional: OpenCcConverter? = null
         @Volatile private var simplified: OpenCcConverter? = null
         @Volatile private var traditionalConservative: OpenCcConverter? = null
+        @Volatile private var transcriptSimplified: OpenCcConverter? = null
 
         /**
          * Conservative Simplified→Traditional for TRANSCRIPTS (every ASR backend): `s2t` plus
@@ -75,6 +76,23 @@ class OpenCcConverter private constructor(
             traditionalConservative ?: synchronized(this) {
                 traditionalConservative ?: buildTraditionalConservative(context)
                     .also { traditionalConservative = it }
+            }
+
+        /**
+         * Character-level Traditional→Simplified for TRANSCRIPTS: plain `t2s` (TSPhrases +
+         * TSCharacters, which only disambiguate how a character is written) with NO reversal of the
+         * Taiwan vocabulary. Same phonetic-vs-semantic rule as [getTranscriptTraditional]: ASR
+         * records what was said, so the word must stay the same word. [get] with SIMPLIFIED
+         * (`tw2sp`) is for generated text.
+         */
+        fun getTranscriptSimplified(context: Context): OpenCcConverter =
+            transcriptSimplified ?: synchronized(this) {
+                transcriptSimplified ?: run {
+                    val t2s = HashMap<String, String>(8192)
+                    loadInto(context, "opencc/TSPhrases.txt", t2s)
+                    loadInto(context, "opencc/TSCharacters.txt", t2s)
+                    build(listOf(t2s))
+                }.also { transcriptSimplified = it }
             }
 
         private fun buildTraditionalConservative(context: Context): OpenCcConverter {

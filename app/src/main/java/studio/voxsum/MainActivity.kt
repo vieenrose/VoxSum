@@ -1788,8 +1788,10 @@ private fun TranscribeScreen(
             // in-place re-render matches exactly what a fresh transcription would have produced —
             // see TranscriptionService.transcriptConverter. Generated text (title / summary /
             // actions / names) keeps the localising converter, where vocabulary mapping is wanted.
-            val ccTranscript = if (newScript == ChineseScript.TRADITIONAL)
-                withContext(Dispatchers.IO) { OpenCcConverter.getTranscriptTraditional(context) } else cc
+            val ccTranscript = withContext(Dispatchers.IO) {
+                if (newScript == ChineseScript.TRADITIONAL) OpenCcConverter.getTranscriptTraditional(context)
+                else OpenCcConverter.getTranscriptSimplified(context)
+            }
             val newUtts = withContext(Dispatchers.Default) { utts0.map { it.copy(text = ccTranscript.convert(it.text)) } }
             // [transcriptOnly]: the spoken-language pick changed, which says nothing about the
             // language the summary should be written in — that is Target language's job. Leave

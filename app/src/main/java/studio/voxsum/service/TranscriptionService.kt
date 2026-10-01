@@ -1620,7 +1620,7 @@ class TranscriptionService : LifecycleService() {
     private fun transcriptConverter(): OpenCcConverter? =
         when (SummaryScript.scriptFor(TranscriptionConfig.Holder.config.summaryScript, this)) {
             ChineseScript.TRADITIONAL -> OpenCcConverter.getTranscriptTraditional(this)
-            ChineseScript.SIMPLIFIED -> OpenCcConverter.get(this, ChineseScript.SIMPLIFIED)
+            ChineseScript.SIMPLIFIED -> OpenCcConverter.getTranscriptSimplified(this)
         }
 
     /** Small thread budget — phone big-core count, not all cores (cf. num_vcpus). */

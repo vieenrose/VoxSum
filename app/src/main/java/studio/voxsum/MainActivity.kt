@@ -657,7 +657,6 @@ private fun TranscribeScreen(
         }
     }
     // User-typed session name on the Capture screen — outranks the LLM title for that entry.
-    var captureName by remember { mutableStateOf("") }
     // ⏹ Stop & save: after the capture is confirmed saved (RecordingSaved), auto-enqueue it and
     // start the queue — stop always defers, processing is always the queue's job now.
     var pendingAutoProcess by remember { mutableStateOf(false) }
@@ -1134,7 +1133,7 @@ private fun TranscribeScreen(
         TranscriptionConfig.Holder.config = config
         clearSession()
         audioUri = null; libraryDir = null; recordingRun = true; running = true; transcriptReady = false; isRecording = true; progress = 0f
-        captureName = ""; screen = Screen.Capture
+        screen = Screen.Capture
         status = context.getString(R.string.status_recording); onRecord(sessionGen)
     }
     val recordPermission = rememberLauncherForActivityResult(
@@ -1624,16 +1623,7 @@ private fun TranscribeScreen(
                     // session to its entry so title changes propagate.
                     libraryDir = SessionLibrary.entryDirOf(context, newUri) ?: libraryDir
                     recentsVersion++
-                    // A user-typed capture name outranks the LLM title — write it into the entry
-                    // NOW (the rename effect can't: next-talk resets title/libraryDir right below).
                     val savedDir = SessionLibrary.entryDirOf(context, newUri)
-                    val givenName = captureName.trim()
-                    if (savedDir != null && givenName.isNotBlank()) {
-                        scope.launch {
-                            withContext(Dispatchers.IO) { SessionLibrary.rename(context, savedDir, givenName) }
-                            recentsVersion++
-                        }
-                    }
                     // ⏹ Stop & save: the capture is safe — auto-enqueue it and start the queue.
                     if (pendingAutoProcess) {
                         pendingAutoProcess = false
@@ -2199,8 +2189,6 @@ private fun TranscribeScreen(
             isRecording = isRecording,
             recSeconds = recSeconds,
             micLevel = micLevel,
-            sessionName = captureName,
-            onSessionName = { captureName = it },
             utterances = utterances,
             stable = liveStable,
             agent = agent,

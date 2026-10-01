@@ -230,7 +230,6 @@
     <!-- Studio refonte -->
     <string name="back">Back</string>
     <string name="capture_title">Record</string>
-    <string name="capture_session_name">Session name (optional)</string>
     <string name="capture_next_talk">Next talk</string>
     <string name="capture_stop">Stop &amp; save</string>
     <string name="capture_live_transcript">Live transcript</string>

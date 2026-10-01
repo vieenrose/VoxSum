@@ -212,7 +212,6 @@
     <!-- Studio refonte -->
     <string name="back">返回</string>
     <string name="capture_title">录音</string>
-    <string name="capture_session_name">场次名称（选填）</string>
     <string name="capture_next_talk">下一场</string>
     <string name="capture_stop">停止并保存</string>
     <string name="capture_live_transcript">实时转写文本</string>

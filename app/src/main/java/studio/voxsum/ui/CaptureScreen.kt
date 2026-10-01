@@ -39,8 +39,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -81,8 +79,6 @@ fun CaptureScreen(
     isRecording: Boolean,
     recSeconds: Int,
     micLevel: Float,
-    sessionName: String,
-    onSessionName: (String) -> Unit,
     utterances: List<TranscriptEvent.Utterance>,
     /** Leading [utterances] that are settled; the rest are provisional (speaker may still change). */
     stable: Int = 0,
@@ -127,7 +123,6 @@ fun CaptureScreen(
                 Column(Modifier.weight(1f).fillMaxHeight()) {
                     TimerRow(recSeconds, micLevel, Modifier.align(Alignment.CenterHorizontally))
                     Spacer(Modifier.height(12.dp))
-                    NameField(sessionName, onSessionName)
                     Spacer(Modifier.weight(1f))
                     CaptureButtons(isRecording, onNextTalk, onStop, buttonHeight = 72.dp)
                 }
@@ -140,8 +135,6 @@ fun CaptureScreen(
             Spacer(Modifier.height(12.dp))
         } else {
             TimerRow(recSeconds, micLevel, Modifier.align(Alignment.CenterHorizontally))
-            Spacer(Modifier.height(16.dp))
-            NameField(sessionName, onSessionName)
             Spacer(Modifier.height(16.dp))
             // Live transcript: a first-class panel filling everything between the name field and
             // the buttons — the full running transcript, auto-following the newest line.
@@ -183,28 +176,6 @@ private fun TimerRow(recSeconds: Int, micLevel: Float, modifier: Modifier = Modi
         // 2x: at 1x the bars are a speck beside 64sp digits — scale to visually balance them.
         MicLevelBars(micLevel, pal.Sky, scale = 2f)
     }
-}
-
-@Composable
-private fun NameField(sessionName: String, onSessionName: (String) -> Unit) {
-    val pal = LocalVoxSumPalette.current
-    OutlinedTextField(
-        value = sessionName,
-        onValueChange = onSessionName,
-        singleLine = true,
-        // Placeholder, not a floating label: the booth is about the timer and the live text, so the
-        // optional name stays one quiet line.
-        placeholder = { Text(stringResource(R.string.capture_session_name), color = pal.Slate400) },
-        textStyle = MaterialTheme.typography.bodyLarge,
-        shape = RoundedCornerShape(12.dp),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedTextColor = pal.Slate200, unfocusedTextColor = pal.Slate200,
-            focusedBorderColor = pal.Sky,
-            // Slate700 is an inactive-track grey: on the light ground the field's edge all but vanished.
-            unfocusedBorderColor = if (pal.isEink) pal.Slate600 else pal.Slate600.copy(alpha = 0.5f),
-        ),
-        modifier = Modifier.fillMaxWidth(),
-    )
 }
 
 @Composable

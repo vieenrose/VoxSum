@@ -271,13 +271,8 @@ fun StudioScreen(
                 }
             }
 
-            if (isRecording) {
-                Banner(
-                    icon = Icons.Filled.FiberManualRecord, tint = VoxSumPalette.Red,
-                    text = stringResource(R.string.studio_recording_banner, "%d:%02d".format(recSeconds / 60, recSeconds % 60)),
-                    onClick = onResumeCapture,
-                )
-            } else if (foregroundRun) {
+            // While recording, the big bottom button already says so (and returns to the booth).
+            if (foregroundRun && !isRecording) {
                 Banner(
                     icon = Icons.Filled.PlaylistPlay, tint = pal.Sky,
                     text = stringResource(R.string.studio_processing_banner, foregroundLabel),
@@ -592,7 +587,7 @@ private fun SessionRow(
                     append("%d:%02d".format(entry.durationSec / 60, entry.durationSec % 60))
                     if (processing && processingLabel.isNotBlank()) { append(" · "); append(processingLabel) }
                 }
-                Text(meta, color = pal.Slate400, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.labelMedium, maxLines = 2)
+                Text(meta, color = pal.Slate400, style = MaterialTheme.typography.labelMedium, maxLines = 2)
             }
             // In selection mode the leading glyph IS the checkbox, so no trailing control.
             if (!selectionMode) {

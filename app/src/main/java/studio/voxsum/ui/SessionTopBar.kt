@@ -7,6 +7,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -152,6 +154,9 @@ fun SessionTopBar(
                 color = if (idle) pal.Slate400 else statusColor(running, transcriptAvailable, statusIsError),
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
             )
+        } else if (status.isNotBlank() && !running && !statusIsError) {
+            // The idle line has faded: keep its height so the tabs below don't jump up.
+            Spacer(Modifier.height(16.dp))
         }
         if (running) {
             LinearProgressIndicator(
@@ -232,7 +237,7 @@ fun SessionTabs(selected: Int, onSelect: (Int) -> Unit) {
                 Modifier
                     .weight(1f)
                     .clip(seg)
-                    .background(if (on) pal.Sky else Color.Transparent)
+                    .background(if (on) (if (pal.isEink) pal.Sky else pal.ActiveTint) else Color.Transparent)
                     .clickable { onSelect(i) }
                     .padding(vertical = 9.dp),
                 contentAlignment = Alignment.Center,
@@ -241,7 +246,7 @@ fun SessionTabs(selected: Int, onSelect: (Int) -> Unit) {
                     label,
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
-                    color = if (on) Color.White else pal.Slate400,
+                    color = if (on) (if (pal.isEink) Color.White else pal.Sky) else pal.Slate400,
                 )
             }
         }

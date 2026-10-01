@@ -55,6 +55,8 @@ data class VoxSumColors(
     val Hairline: Color,
     val ActiveTint: Color,
     val ActiveBar: Color,
+    /** Amber for TEXT on the panel surface (the status [VoxSumPalette.Warning] is too light on white). */
+    val WarningText: Color,
 )
 
 /**
@@ -99,6 +101,7 @@ val DarkColors = VoxSumColors(
     Hairline = Color(0xFF93A0B8).copy(alpha = 0.18f),
     ActiveTint = Color(0xFF7DA2FF).copy(alpha = 0.16f),
     ActiveBar = Color(0xFF7DA2FF),
+    WarningText = Color(0xFFE08A0B),
 )
 
 /**
@@ -126,6 +129,7 @@ val LightColors = VoxSumColors(
     Hairline = Color(0xFF17263F).copy(alpha = 0.10f),
     ActiveTint = Color(0xFF2F6BFF).copy(alpha = 0.12f),
     ActiveBar = Color(0xFF2F6BFF),
+    WarningText = Color(0xFF9A5B00),
 )
 
 /**
@@ -158,6 +162,7 @@ val EinkColors = VoxSumColors(
     Hairline = Color(0xFF000000).copy(alpha = 0.38f),
     ActiveTint = Color(0xFF0B5CAD).copy(alpha = 0.12f),
     ActiveBar = Color(0xFF0B5CAD),
+    WarningText = Color(0xFF000000),
 )
 
 /** Ambient palette. Defaults to dark so previews / stray reads outside [VoxSumTheme] still resolve. */

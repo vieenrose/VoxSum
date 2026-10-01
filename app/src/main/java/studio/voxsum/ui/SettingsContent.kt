@@ -252,7 +252,7 @@ private fun StoragePanel(enabled: Boolean) {
 private fun prettyModelName(name: String): String {
     val i = name.indexOf(".xnnpack_cache")
     if (i > 0) return stringResource(R.string.storage_compile_cache, name.substring(0, i))
-    return name
+    return name.removeSuffix("-gguf")
 }
 
 @Composable

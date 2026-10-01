@@ -2222,7 +2222,8 @@ private fun TranscribeScreen(
         topBar = {
             SessionTopBar(
                 cover = null,   // no per-session art (the generated identicon was removed)
-                title = title,
+                // The editable title card heads the Summary tab: don't say it twice.
+                title = if (!twoPane && sessTab == 0 && !title.isNullOrBlank()) "" else title,
                 status = status,
                 running = running,
                 progress = progress,
@@ -2700,7 +2701,6 @@ private fun SummaryCard(
                 EditPencil(onBeginEdit)
             }
         }
-        Text("via $llm", style = MaterialTheme.typography.labelSmall, color = pal.Slate400)
         Spacer(Modifier.height(8.dp))
         if (isEditing) {
             UtteranceTextEditor(initial = summary, onSave = onSave, onCancel = onCancel, minLines = 4)
@@ -2756,7 +2756,7 @@ private fun ActionItemsCard(
             Text(
                 stringResource(R.string.actions_verify_hint),
                 style = MaterialTheme.typography.labelSmall,
-                color = studio.voxsum.ui.theme.VoxSumPalette.Warning,
+                color = LocalVoxSumPalette.current.WarningText,
             )
         }
     }

@@ -398,7 +398,7 @@ private fun NoteCard(n: Note, onSeek: ((Int) -> Unit)?) {
             Text(
                 stringResource(R.string.agent_verify),
                 style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold,
-                color = VoxSumPalette.Warning,
+                color = pal.WarningText,
                 modifier = Modifier.clip(RoundedCornerShape(50)).border(1.dp, VoxSumPalette.Warning.copy(alpha = 0.5f), RoundedCornerShape(50))
                     .clickable { ReaderProtocol.parseTs(n.ts)?.let { onSeek?.invoke(it * 1000) } }
                     .padding(horizontal = 6.dp, vertical = 1.dp),

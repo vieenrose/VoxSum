@@ -43,7 +43,7 @@ android {
     }
 
     // Release signing is driven by env vars so CI can inject a keystore from secrets and
-    // local/debug builds still work without any. See RELEASING.md.
+    // local/debug builds still work without any.
     val keystorePath = System.getenv("VOXSUM_KEYSTORE")
     signingConfigs {
         if (keystorePath != null) {

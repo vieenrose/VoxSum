@@ -107,8 +107,6 @@ git submodule update --init           # 不要加 --recursive
 scripts/test-on-device.sh             # 裝置上的儀器測試（獨立 app ID，不影響正式版）
 ```
 
-發版流程見 [`RELEASING.md`](RELEASING.md)。
-
 ## 授權
 
 [GPL-3.0-or-later](LICENSE)。模型各依其授權：X-ASR（Apache-2.0）、Nemotron-3 Diarization（OpenMDW-1.1）、Gemma-4-E2B 會議代理（Apache-2.0）。

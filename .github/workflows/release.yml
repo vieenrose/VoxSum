@@ -3,7 +3,7 @@ name: Build & release APK
 # Two modes:
 #  - workflow_dispatch: dry run — builds the app and uploads the APK as an artifact.
 #  - push tag v*: builds a SIGNED APK and attaches it to a GitHub Release (needs secrets
-#    KEYSTORE_BASE64/KEYSTORE_PASSWORD/KEY_ALIAS/KEY_PASSWORD). See RELEASING.md.
+#    KEYSTORE_BASE64/KEYSTORE_PASSWORD/KEY_ALIAS/KEY_PASSWORD).
 
 on:
   push:

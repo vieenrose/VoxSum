@@ -37,7 +37,7 @@ as a `Flow` from a **foreground service** and collected by Compose. Incremental 
   removes a native dependency and a license question.
 - **Podcast/YouTube are optional.** Network ingestion (`online/`, NewPipeExtractor from JitPack)
   can't be offline anyway; the only other network traffic is the model download and a daily
-  update check. Releases are GitHub APKs only (`RELEASING.md`).
+  update check. Releases are GitHub APKs only (`.github/workflows/release.yml`).
 - **Models are openly licensed.** ASR: X-ASR zh-en (Apache-2.0); diarization: Nemotron-3
   Diarization (OpenMDW-1.1); summarizer: the Gemma-4-E2B meeting agent (Apache-2.0).
 

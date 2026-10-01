@@ -2201,11 +2201,16 @@ private fun TranscribeScreen(
         modifier = Modifier.fillMaxSize().background(pal.Slate900Grad),
         containerColor = Color.Transparent,
         topBar = {
+            // No generated title yet (just recorded / still processing): show the entry's provisional
+            // name, as the library row does, rather than the app name.
+            val entryTitle = remember(libraryDir, recentsVersion) {
+                libraryDir?.let { d -> SessionLibrary.byId(context, d.name) }?.let { it.title ?: SessionLibrary.defaultTitle(it.createdAt) }
+            }
             SessionTopBar(
                 cover = null,   // no per-session art (the generated identicon was removed)
                 // The title lives in the top bar on every tab (tap it to edit); the two-pane overview
                 // carries its own title card, so the bar stays blank there.
-                title = if (twoPane && !title.isNullOrBlank()) "" else title,
+                title = if (twoPane && !title.isNullOrBlank()) "" else title ?: entryTitle,
                 onTitleClick = if (!twoPane && !title.isNullOrBlank() && !running) ({ sessTab = 0; editingTitle = true }) else null,
                 status = status,
                 running = running,

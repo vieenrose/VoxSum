@@ -91,7 +91,12 @@
 
 ## 運作方式
 
-語音辨識與語者分離是同一個串流引擎（[nemo-x-asr-diarizer](https://github.com/vieenrose/nemo-x-asr-diarizer.cpp)：X-ASR ＋ Nemotron-3）；摘要由 [llama.cpp](https://github.com/ggml-org/llama.cpp) 執行的 [Gemma-4-E2B 會議代理](https://huggingface.co/Luigi/gemma-4-E2B-meeting-agent-zh-GGUF) 完成。兩者同時運作（RAM 8 GB 以上的手機）：
+兩個元件在手機上同時運作：
+
+- **聽寫**：[nemo-x-asr-diarizer](https://github.com/vieenrose/nemo-x-asr-diarizer.cpp) 是單一串流引擎，同一條時間軸上完成語音辨識（X-ASR）與語者分離（Nemotron-3）。
+- **摘要**：[Gemma-4-E2B 會議代理](https://huggingface.co/Luigi/gemma-4-E2B-meeting-agent-zh-GGUF) 在 [llama.cpp](https://github.com/ggml-org/llama.cpp) 上執行，邊聽邊讀、邊寫筆記。
+
+下圖是 RAM 8 GB 以上的手機錄一場 10 分鐘會議時，各元件何時工作：
 
 ```mermaid
 gantt
@@ -116,7 +121,13 @@ gantt
     摘要完成（停止後 87 秒）                  :milestone, m2, 11:27, 0s
 ```
 
-語音辨識優先，因為它是唯一落後就會漏掉音訊的元件；代理在大家說話時於背景預填逐字稿，每約 4 分鐘的語音才做一次真正的閱讀（手機上 17–45 秒）。它不會讀到語者還可能改變的句子，錄音停止時只剩最後一窗要讀。RAM 較小的手機則在錄音結束後才讀。
+如何閱讀這張圖：
+
+- **語音辨識優先。** 它是唯一落後就會漏掉音訊的元件，所以代理讓出算力。
+- **代理大多在預填。** 大家說話時，代理在背景把已確定的句子讀進上下文；每約 4 分鐘的語音才做一次真正的閱讀，手機上約 17–45 秒。
+- **只讀已確定的句子。** 語者還可能改變的句子不會被讀到。
+- **停止後只剩最後一窗。** 因此摘要在錄音結束後很快完成。
+- **RAM 較小的手機** 則在錄音結束後才讀，流程相同。
 
 在 OPPO Reno7（8 GB）上，10 分鐘會議的摘要於錄音結束後 87 秒完成，記憶體峰值 3.0 GB。模組對應見 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)，準確度評測見 [`tools/nemo-eval`](tools/nemo-eval/README.md)。
 

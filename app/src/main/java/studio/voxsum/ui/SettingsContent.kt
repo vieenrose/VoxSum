@@ -424,7 +424,8 @@ private fun LabeledRow(label: String, content: @Composable () -> Unit) {
 private fun SwitchRow(label: String, checked: Boolean, enabled: Boolean, onChange: (Boolean) -> Unit) {
     val pal = LocalVoxSumPalette.current
     Row(
-        Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        // The whole row toggles: tapping the label did nothing, only the small switch did.
+        Modifier.fillMaxWidth().clickable(enabled = enabled) { onChange(!checked) }.padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = pal.Slate200,

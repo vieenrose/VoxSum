@@ -95,7 +95,7 @@ fun CaptureScreen(
     val pal = LocalVoxSumPalette.current
     var showLive by remember { mutableStateOf(true) }
     val conf = LocalConfiguration.current
-    val landscape = conf.screenWidthDp > conf.screenHeightDp
+    val landscape = conf.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
     Column(
         Modifier
             .fillMaxSize()

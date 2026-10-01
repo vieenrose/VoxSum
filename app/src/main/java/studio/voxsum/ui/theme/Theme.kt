@@ -201,6 +201,13 @@ private fun schemeFor(pal: VoxSumColors): ColorScheme {
         onBackground = pal.Slate200,
         surface = pal.Slate800,
         onSurface = pal.Slate200,
+        // Dialogs, menus and sheets read these (M3 default is a lavender tint that clashes with the palette).
+        surfaceContainerLowest = pal.Slate800,
+        surfaceContainerLow = pal.Slate800,
+        surfaceContainer = pal.Slate800,
+        surfaceContainerHigh = pal.Slate800,
+        surfaceContainerHighest = pal.Slate800,
+        surfaceTint = androidx.compose.ui.graphics.Color.Transparent,
         surfaceVariant = pal.Slate700,
         onSurfaceVariant = pal.Slate400,
         error = VoxSumPalette.Red,

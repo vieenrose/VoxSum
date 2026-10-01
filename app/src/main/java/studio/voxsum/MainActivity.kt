@@ -344,12 +344,15 @@ class MainActivity : ComponentActivity() {
                 studio.voxsum.core.config.AppLanguage.save(this, code)
                 studio.voxsum.core.config.AppLanguage.applyTo(this, code)
             }
-            val localized = remember(langCode) { studio.voxsum.core.config.AppLanguage.wrap(this, langCode) }
+            // The Activity handles rotation / size changes itself (configChanges), so the wrapped
+            // context must be rebuilt when the real configuration changes — else orientation is frozen.
+            val realConfig = androidx.compose.ui.platform.LocalConfiguration.current
+            val localized = remember(langCode, realConfig) { studio.voxsum.core.config.AppLanguage.wrap(this, langCode) }
             CompositionLocalProvider(
                 LocalThemeController provides controller,
                 LocalLanguageController provides langController,
                 androidx.compose.ui.platform.LocalContext provides localized,
-                androidx.compose.ui.platform.LocalConfiguration provides localized.resources.configuration,
+                androidx.compose.ui.platform.LocalConfiguration provides remember(localized, realConfig) { android.content.res.Configuration(localized.resources.configuration) },
             ) {
                 VoxSumTheme(themeMode) {
                     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -2203,7 +2206,7 @@ private fun TranscribeScreen(
             SessionTopBar(
                 cover = null,   // no per-session art (the generated identicon was removed)
                 // The editable title card heads the Summary tab: don't say it twice.
-                title = if (!twoPane && sessTab == 0 && !title.isNullOrBlank()) "" else title,
+                title = if ((twoPane || sessTab == 0) && !title.isNullOrBlank()) "" else title,
                 status = status,
                 running = running,
                 progress = progress,

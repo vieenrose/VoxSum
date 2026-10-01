@@ -567,7 +567,6 @@ private fun TranscribeScreen(
     var editingActions by remember { mutableStateOf(false) }
     // True while a standalone re-diarize run is in flight: its terminal event is Complete (no
     // summary phase follows), so the Complete handler must clear `running` for this run only.
-    var diarizeOnlyRun by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     // The cover auto-embeds on every save/share (generated in the export service from current
@@ -976,7 +975,6 @@ private fun TranscribeScreen(
         utterances.clear(); speakerNames.clear(); editingIndex = -1; editingSpeakerId = null
         liveStable = 0
         agent.reset()
-        diarizeOnlyRun = false
         editingTitle = false; editingSummary = false; editingActions = false
         // Also PAUSE the hoisted player, not just the flag: when the next run reuses the SAME
         // audioUri (Re-transcribe), DisposableEffect(audioUri) never rebuilds, so without this the
@@ -1163,7 +1161,6 @@ private fun TranscribeScreen(
         // transcript it left on disk instead of a blank screen.
         utterances.addAll(queueUtterances.ifEmpty { SessionLibrary.peekPendingTranscript(e).orEmpty() })
         speakerNames.clear(); editingIndex = -1; editingSpeakerId = null
-        diarizeOnlyRun = false
         editingTitle = false; editingSummary = false; editingActions = false
         title = queueTitle; summary = queueSummary; actionItems = null; meetingNotes = null
         isPlaying = false; searchActive = false; searchQuery = ""
@@ -1567,8 +1564,6 @@ private fun TranscribeScreen(
                     // pipeline returns WITHOUT summarizing, so no SummaryComplete will arrive to clear
                     // `running`. Clear it here (otherwise the UI is stuck showing Stop) and say why.
                     if (merged.isEmpty()) { running = false; status = context.getString(R.string.status_no_speech) }
-                    // A standalone re-diarize ends at Complete (no summary phase follows).
-                    if (diarizeOnlyRun) { diarizeOnlyRun = false; running = false }
                     autosaveSessionNow()
                 }
                 is TranscriptEvent.Title -> {
@@ -1671,7 +1666,7 @@ private fun TranscribeScreen(
                     if (screen != Screen.Session) {
                         Toast.makeText(context, context.getString(R.string.status_error, e.error), Toast.LENGTH_LONG).show()
                     }
-                    status = context.getString(R.string.status_error, e.error); statusIsError = true; running = false; diarizeOnlyRun = false
+                    status = context.getString(R.string.status_error, e.error); statusIsError = true; running = false
                     // Offer a one-tap Retry for the same source (a corrupt model was cleared server-
                     // side, so the retry re-downloads it). Only when we still hold the source Uri.
                     // The Retry snackbar is only useful in-context: on Studio/Capture the error is
@@ -1753,25 +1748,6 @@ private fun TranscribeScreen(
             val mid = (utterances[i].endSec + utterances[i + 1].startSec) / 2.0
             if (sec >= mid) i + 1 else i
         } else i
-    }
-
-    // Standalone re-diarize (Re-detect speakers): hands the current transcript to the service via
-    // the pendingDiarize holder and re-runs ONLY speaker detection over the player's audio. Speaker
-    // names are cleared (cluster ids are re-derived, so the old map would label the wrong voices).
-    fun reDiarize() {
-        val src = audioUri ?: return
-        if (running) return
-        TranscriptionService.pendingDiarize = utterances.toList()
-        speakerNames.clear()
-        diarizeOnlyRun = true
-        running = true
-        progress = 0f
-        status = context.getString(R.string.svc_identifying_speakers)
-        val intent = Intent(context, TranscriptionService::class.java)
-            .setAction(TranscriptionService.ACTION_DIARIZE)
-            .putExtra(TranscriptionService.EXTRA_AUDIO_URI, src.toString())
-            .putExtra(TranscriptionService.EXTRA_RUN_GEN, sessionGen)
-        ContextCompat.startForegroundService(context, intent)
     }
 
     // Re-render every Chinese text node into [newScript] via OpenCC — the cheap path for a pure
@@ -1929,9 +1905,7 @@ private fun TranscribeScreen(
     // produced this transcript — so reopening an old session does not mislabel it with today's
     // default backend.
     val asrDisplay = AsrBackend.fromId(config.asrBackend).displayName
-    val diarizationDisplay =
-        if (!config.diarizationEnabled) stringResource(R.string.pipeline_diar_off)
-        else stringResource(R.string.pipeline_diar_nemotron)
+    val diarizationDisplay = stringResource(R.string.pipeline_diar_nemotron)
 
     // The utterance list — shared by the portrait (single column) and landscape (right pane) layouts.
     val speakerIds = utterances.mapNotNull { it.speaker }.distinct().sorted()
@@ -2246,8 +2220,6 @@ private fun TranscribeScreen(
                 onReTranscribe = { audioUri?.let { launchAudio(it) } },
                 canReSummarize = transcriptReady && !running,
                 onReSummarize = { regenerateStaleChildren() },
-                canReDiarize = transcriptReady && !running && audioUri != null,
-                onReDiarize = { reDiarize() },
                 canExtractActions = transcriptReady && !running,
                 onExtractActions = { extractActions() },
                 onSearch = { sessTab = 1; searchActive = !searchActive; if (!searchActive) searchQuery = "" },

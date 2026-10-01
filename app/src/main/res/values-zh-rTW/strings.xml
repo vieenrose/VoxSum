@@ -25,7 +25,6 @@
     <string name="re_run">重新執行</string>
     <string name="re_transcribe">重新轉錄</string>
     <string name="re_summarize">重新摘要</string>
-    <string name="re_diarize">重新辨識語者</string>
     <string name="pick_audio">選擇音訊…</string>
     <string name="stop">停止</string>
     <string name="cd_stop_recording">停止錄音</string>
@@ -56,7 +55,6 @@
     <string name="settings_needs_6gb">需要約 6 GB RAM</string>
     <string name="settings_itn">反向文字正規化</string>
     <string name="settings_diarization">語者分段</string>
-    <string name="settings_identify_speakers">辨識語者</string>
     <string name="settings_speaker_delay">即時語者標註延遲</string>
     <string name="settings_seconds">%1$d 秒</string>
     <string name="settings_speaker_delay_hint">錄音時文字會立即顯示；語者標註則至少在此延遲之後才出現。延遲越長，語者標註越準確。不影響最後儲存的逐字稿。</string>
@@ -144,7 +142,6 @@
     <string name="svc_summarization_model_pct">摘要模型… %d%%</string>
     <string name="svc_summarizing">摘要中…</string>
     <string name="svc_summarizing_eta">摘要中… %1$s</string>
-    <string name="svc_identifying_speakers">辨識語者中…</string>
     <string name="show_more">顯示更多</string>
     <string name="show_less">顯示較少</string>
     <string name="eta_minutes">約剩 %1$d 分鐘</string>
@@ -318,7 +315,6 @@
     <string name="storage_compile_cache">%1$s（編譯快取）</string>
     <string name="pipeline_transcript_via">使用 %1$s · %2$s</string>
     <string name="pipeline_diar_nemotron">語者由 Nemotron-3 即時分離</string>
-    <string name="pipeline_diar_off">未區分語者</string>
     <string name="notes_decisions">決議事項</string>
     <string name="notes_open">待確認問題</string>
     <string name="notes_topics">討論主題</string>

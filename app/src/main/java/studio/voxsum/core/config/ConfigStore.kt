@@ -23,7 +23,6 @@ object ConfigStore {
             asrBackend = p.getString("asrBackend", d.asrBackend) ?: d.asrBackend,
             asrModelId = p.getString("asrModelId", d.asrModelId) ?: d.asrModelId,
             useItn = p.getBoolean("useItn", d.useItn),
-            diarizationEnabled = p.getBoolean("diarizationEnabled", d.diarizationEnabled),
             speakerDelaySec = p.getInt("speakerDelaySec", d.speakerDelaySec)
                 .coerceIn(TranscriptionConfig.SPEAKER_DELAY_MIN, TranscriptionConfig.SPEAKER_DELAY_MAX),
             llmModelId = p.getString("llmModelId", d.llmModelId) ?: d.llmModelId,
@@ -37,7 +36,6 @@ object ConfigStore {
             putString("asrBackend", c.asrBackend)
             putString("asrModelId", c.asrModelId)
             putBoolean("useItn", c.useItn)
-            putBoolean("diarizationEnabled", c.diarizationEnabled)
             putInt("speakerDelaySec", c.speakerDelaySec)
             putString("llmModelId", c.llmModelId)
             putString("llmBackend", c.llmBackend)

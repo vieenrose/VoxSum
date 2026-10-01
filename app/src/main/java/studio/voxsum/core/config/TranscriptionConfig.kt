@@ -14,7 +14,6 @@ data class TranscriptionConfig(
     val useItn: Boolean = true,               // inverse text normalization
 
     // --- Diarization ---
-    val diarizationEnabled: Boolean = true,
     // Live view (recording booth): seconds a line waits before its speaker tag is shown. The
     // diarizer revises recent labels for tens of seconds, so waiting longer trades latency for
     // precision — live-vs-final speaker agreement on 4 meetings: 93.0% at 8 s, 94.7% at 15 s,

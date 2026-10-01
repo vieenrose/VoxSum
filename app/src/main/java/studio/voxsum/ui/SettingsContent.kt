@@ -121,25 +121,22 @@ fun SettingsContent(
 
         // (4) Diarization.
         Section(stringResource(R.string.settings_diarization))
-        SwitchRow(stringResource(R.string.settings_identify_speakers), config.diarizationEnabled, enabled) {
-            onChange(config.copy(diarizationEnabled = it))
-        }
-        if (config.diarizationEnabled) {
-            // 5..30 s in 5 s steps (steps = 4 intermediate stops).
-            SliderRow(
-                stringResource(R.string.settings_speaker_delay),
-                config.speakerDelaySec.toFloat(),
-                TranscriptionConfig.SPEAKER_DELAY_MIN.toFloat(), TranscriptionConfig.SPEAKER_DELAY_MAX.toFloat(),
-                enabled,
-                steps = 4,
-                format = { stringResource(R.string.settings_seconds, it.roundToInt()) },
-            ) { onChange(config.copy(speakerDelaySec = it.roundToInt())) }
-            Text(
-                stringResource(R.string.settings_speaker_delay_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = pal.Slate400,
-            )
-        }
+        // The engine always separates speakers (one fused pass); only how late the LIVE view freezes
+        // a line's speaker is a choice.
+        // 5..30 s in 5 s steps (steps = 4 intermediate stops).
+        SliderRow(
+            stringResource(R.string.settings_speaker_delay),
+            config.speakerDelaySec.toFloat(),
+            TranscriptionConfig.SPEAKER_DELAY_MIN.toFloat(), TranscriptionConfig.SPEAKER_DELAY_MAX.toFloat(),
+            enabled,
+            steps = 4,
+            format = { stringResource(R.string.settings_seconds, it.roundToInt()) },
+        ) { onChange(config.copy(speakerDelaySec = it.roundToInt())) }
+        Text(
+            stringResource(R.string.settings_speaker_delay_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = pal.Slate400,
+        )
 
         // (5) Summary options.
         Section(stringResource(R.string.settings_summary_options))

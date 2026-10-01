@@ -25,7 +25,6 @@
     <string name="re_run">Re-run</string>
     <string name="re_transcribe">Re-transcribe</string>
     <string name="re_summarize">Re-summarize</string>
-    <string name="re_diarize">Re-detect speakers</string>
     <!-- MOSS-TD transcribes + diarizes in one pass, so its two re-run actions collapse into one. -->
     <string name="pick_audio">Pick audio…</string>
     <string name="stop">Stop</string>
@@ -57,7 +56,6 @@
     <string name="settings_needs_6gb">needs ~6 GB RAM</string>
     <string name="settings_itn">Inverse text normalization</string>
     <string name="settings_diarization">Diarization</string>
-    <string name="settings_identify_speakers">Identify speakers</string>
     <string name="settings_speaker_delay">Live speaker delay</string>
     <string name="settings_seconds">%1$d s</string>
     <string name="settings_speaker_delay_hint">While recording, words appear at once; speaker names follow at least this long after. Longer = more accurate names. The saved transcript is not affected.</string>
@@ -149,7 +147,6 @@
     <string name="svc_summarization_model_pct">Summarization model… %d%%</string>
     <string name="svc_summarizing">Summarizing…</string>
     <string name="svc_summarizing_eta">Summarizing… %1$s</string>
-    <string name="svc_identifying_speakers">Identifying speakers…</string>
     <string name="show_more">Show more</string>
     <string name="show_less">Show less</string>
     <string name="eta_minutes">≈%1$d min left</string>
@@ -336,7 +333,6 @@
     <string name="storage_compile_cache">%1$s (compile cache)</string>
     <string name="pipeline_transcript_via">via %1$s · %2$s</string>
     <string name="pipeline_diar_nemotron">speakers via Nemotron-3 (live)</string>
-    <string name="pipeline_diar_off">no speaker separation</string>
     <string name="notes_decisions">Decisions</string>
     <string name="notes_open">Open questions</string>
     <string name="notes_topics">Topics</string>

@@ -75,21 +75,6 @@ class SettingsContentTest {
         assertEquals(LlmRegistry.ALL[0].id, changed?.llmModelId)
     }
 
-    @Test fun togglingDiarizationReportsIt() {
-        var changed: TranscriptionConfig? = null
-        host(baseCfg.copy(diarizationEnabled = true), onChange = { changed = it })
-        // Settings now has several toggleables (hardware chips, the precise-diarization switch),
-        // so anchor on the row's own label instead of assuming a single one.
-        val label = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
-            .targetContext.getString(R.string.settings_identify_speakers)
-        // Each switch carries its row's label as a contentDescription. Sibling matching cannot work
-        // here: a bare Row contributes no semantics node, so every switch is a sibling of every
-        // label — and merging the Row does not help, a Switch is itself a merging node.
-        compose.onNode(isToggleable() and hasContentDescription(label))
-            .performScrollTo().assertIsOn().performClick()
-        assertEquals(false, changed?.diarizationEnabled)
-    }
-
     @Test fun selectingChineseScriptReportsIt() {
         var changed: TranscriptionConfig? = null
         host(onChange = { changed = it })

@@ -39,7 +39,6 @@ import kotlinx.coroutines.async
 import studio.voxsum.core.asr.AsrEngine
 import studio.voxsum.core.asr.NemoStreamEngine
 import studio.voxsum.core.asr.SnapshotConverter
-import studio.voxsum.core.asr.SpeakerTransfer
 import studio.voxsum.core.audio.AudioDecoder
 import studio.voxsum.core.audio.AudioRecorder
 import studio.voxsum.core.audio.RecordingRecovery
@@ -99,10 +98,6 @@ class TranscriptionService : LifecycleService() {
         private const val STOP_TAG = "voxsum-stop"
         const val ACTION_RECORD = "studio.voxsum.RECORD"
         const val ACTION_SUMMARIZE = "studio.voxsum.SUMMARIZE"
-        // Standalone re-diarize (Re-detect speakers): speaker detection only, no re-transcription.
-        // The transcript rides [pendingDiarize] (like ACTION_EXPORT's pendingExport — utterance
-        // lists are too large for Intent extras).
-        const val ACTION_DIARIZE = "studio.voxsum.DIARIZE"
         const val ACTION_EXTRACT_ACTIONS = "studio.voxsum.EXTRACT_ACTIONS"
         // Gracefully end live recording and continue into diarization/summary (vs ACTION_STOP,
         // which cancels the whole job).
@@ -153,8 +148,6 @@ class TranscriptionService : LifecycleService() {
          *  transaction limit → TransactionTooLargeException crash. Consumed in onStartCommand. */
         @Volatile var pendingText: String? = null
 
-        /** The transcript a pending ACTION_DIARIZE re-clusters (see that action's comment). */
-        @Volatile var pendingDiarize: List<TranscriptEvent.Utterance>? = null
 
         // Process-wide event bus the UI subscribes to. replay=0: UI must be collecting. Each event is
         // tagged with the run generation (the UI's sessionGen, via EXTRA_RUN_GEN) so the collector can
@@ -429,7 +422,6 @@ class TranscriptionService : LifecycleService() {
         val recording = intent?.action == ACTION_RECORD
         val summarizeOnly = intent?.action == ACTION_SUMMARIZE
         val extractActions = intent?.action == ACTION_EXTRACT_ACTIONS
-        val diarizeOnly = intent?.action == ACTION_DIARIZE
         val processQueue = intent?.action == ACTION_PROCESS_QUEUE
         // A drain is already running → the new ids just enqueued will be picked up by its loop;
         // restarting would cancel and redo the item currently in progress. And recordings are
@@ -489,7 +481,6 @@ class TranscriptionService : LifecycleService() {
                 when {
                     summarizeOnly -> runSummarizeOnly(transcript.orEmpty(), summarizeWithTitle)
                     extractActions -> runSummarizeOnly(transcript.orEmpty())
-                    diarizeOnly -> runDiarizeOnly(uri)
                     processQueue -> runQueue()
                     recording -> runRecordingPipeline()
                     else -> runPipeline(uri)
@@ -821,10 +812,10 @@ class TranscriptionService : LifecycleService() {
         // always converts to Traditional (conservative s2t) — see [transcriptConverter].
         val converter = outputConverter(cfg)
         val txtConverter = transcriptConverter()
-        val snapConv = SnapshotConverter(txtConverter?.let { c -> c::convert }, cfg.diarizationEnabled)
+        val snapConv = SnapshotConverter(txtConverter?.let { c -> c::convert })
 
         // Our own 16 kHz work WAVs (library captures, prior decode outputs) are streamed directly —
-        // same policy as runDiarizeOnly; routing them through the MediaCodec decode path is both
+        // the same policy as the player source; routing them through the MediaCodec decode path is both
         // wasteful (a byte-identical copy) and unreliable for WAV input on some devices (observed:
         // zero decoded samples → empty transcript when the queue re-processed a library capture).
         val srcFile = if (uri.scheme == "file") uri.path?.let(::File) else null
@@ -933,7 +924,7 @@ class TranscriptionService : LifecycleService() {
                         else -> emitEvent(e)
                     }
                 }
-            if (cfg.diarizationEnabled) engine.speakerCount?.let { diarized = utterances.toList() to it }
+            engine.speakerCount?.let { diarized = utterances.toList() to it }
         } // ASR native resources freed here, before the LLM is loaded.
         } finally {
             // Whatever happened — finished, failed, or aborted — the audio is on disk and belongs
@@ -1014,7 +1005,7 @@ class TranscriptionService : LifecycleService() {
         // Anything transcription-affecting invalidates a leftover sidecar from an older drain.
         val fingerprint = listOf(
             cfgAll.asrBackend, cfgAll.asrModelId, cfgAll.summaryScript,
-            cfgAll.useItn, cfgAll.diarizationEnabled,
+            cfgAll.useItn,
         ).joinToString("|")
         var lastLap: List<String>? = null
         while (true) {
@@ -1153,7 +1144,7 @@ class TranscriptionService : LifecycleService() {
         ensureEngineModels(models)
         val converter = outputConverter(cfg)
         val txtConverter = transcriptConverter()
-        val snapConv = SnapshotConverter(txtConverter?.let { c -> c::convert }, cfg.diarizationEnabled)
+        val snapConv = SnapshotConverter(txtConverter?.let { c -> c::convert })
         val recorder = AudioRecorder()
         val wav = File(File(filesDir, "audio").apply { mkdirs() }, "recording_${System.currentTimeMillis()}.wav")
         val utterances = ArrayList<TranscriptEvent.Utterance>()
@@ -1246,7 +1237,7 @@ class TranscriptionService : LifecycleService() {
             // need this — their work WAV was already normalized at decode.
             withContext(Dispatchers.IO) { WavNormalizer.normalizeInPlace(wav) }
             // Speakers were tagged live, in the same pass — nothing left to run over the WAV.
-            if (!deferred && cfg.diarizationEnabled) engine.speakerCount?.let { diarized = utterances.toList() to it }
+            if (!deferred) engine.speakerCount?.let { diarized = utterances.toList() to it }
         } // ASR + mic released here, before the LLM loads.
         } finally {
             // Capture finished (clean stop or user cancel) — the WAV header was finalized in
@@ -1321,53 +1312,6 @@ class TranscriptionService : LifecycleService() {
     private fun createEngine(models: ModelManager) = NemoStreamEngine(
         models.asrFiles(), asrThreads(), TranscriptionConfig.Holder.config.speakerDelaySec,
     )
-
-    /**
-     * Standalone re-diarize: re-run the engine over the audio and move its speaker tags onto the
-     * EXISTING transcript (which may carry user edits) by time overlap — each utterance takes the
-     * speaker covering most of its span. The audio is normally our own decoded 16 kHz work WAV
-     * (the player source) — reused directly; anything else is decoded (with input normalization).
-     */
-    private suspend fun runDiarizeOnly(audioUri: String?) {
-        val uri = audioUri?.let(Uri::parse)
-            ?: run { emitEvent(TranscriptEvent.Failed("No audio source")); return }
-        val utterances = pendingDiarize.also { pendingDiarize = null }
-            ?: run { emitEvent(TranscriptEvent.Failed("No transcript")); return }
-        val models = ModelManager(this)
-        ensureEngineModels(models)
-        val src = if (uri.scheme == "file") uri.path?.let(::File) else null
-        val wav = if (src != null && src.exists() && src.extension == "wav" &&
-            (src.parentFile?.name == "audio" || src.name == SessionLibrary.WAV_NAME)
-        ) src
-        else File(File(filesDir, "audio").apply { mkdirs() }, "decoded_${System.currentTimeMillis()}.wav").also { dest ->
-            AudioDecoder.decodeToWav16k(this@TranscriptionService, uri, dest, normalize = true) { _, _ -> }
-        }
-        emitEvent(TranscriptEvent.Status(getString(R.string.svc_identifying_speakers)))
-        emitEvent(TranscriptEvent.Progress(0f))
-        val engine = try {
-            createEngine(models)
-        } catch (t: Throwable) {
-            runCatching { models.deleteAsr() }
-            emitEvent(TranscriptEvent.Failed(getString(R.string.svc_asr_model_corrupt)))
-            return
-        }
-        val totalSec = (wav.length() - WavIo.HEADER) / 2.0 / WavIo.SAMPLE_RATE
-        var segments: List<TranscriptEvent.Utterance> = emptyList()
-        engine.use {
-            engine.transcribeLive(wavChunks(wav))
-                .flowOn(Dispatchers.Default)
-                .collect { e ->
-                    if (e is TranscriptEvent.UtteranceSnapshot) {
-                        segments = e.utterances
-                        val end = segments.lastOrNull()?.endSec ?: 0.0
-                        if (totalSec > 0) emitEvent(TranscriptEvent.Progress((end / totalSec).toFloat().coerceIn(0f, 1f)))
-                    }
-                }
-        }
-        val tagged = SpeakerTransfer.transfer(utterances, segments)
-        if (wav !== src) emitEvent(TranscriptEvent.RecordingSaved(Uri.fromFile(wav).toString()))
-        emitEvent(TranscriptEvent.Complete(tagged, tagged.mapNotNull { it.speaker }.distinct().size))
-    }
 
     /** Raw PCM16 of one of our own 16 kHz mono work WAVs, as float blocks. */
     private fun wavChunks(wav: File) = kotlinx.coroutines.flow.flow {

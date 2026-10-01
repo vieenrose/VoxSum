@@ -77,7 +77,6 @@ fun SessionTopBar(
     onSearch: () -> Unit,
     canReTranscribe: Boolean, onReTranscribe: () -> Unit,
     canReSummarize: Boolean, onReSummarize: () -> Unit,
-    canReDiarize: Boolean, onReDiarize: () -> Unit,
     canExtractActions: Boolean, onExtractActions: () -> Unit,
     canExport: Boolean,
     onOpenExport: () -> Unit,
@@ -132,7 +131,7 @@ fun SessionTopBar(
             }
             OverflowMenu(
                 canReTranscribe, onReTranscribe, canReSummarize, onReSummarize,
-                canReDiarize, onReDiarize, canExtractActions, onExtractActions,
+                canExtractActions, onExtractActions,
                 canExport, onOpenExport, onSettings,
             )
         }
@@ -172,7 +171,6 @@ fun SessionTopBar(
 private fun OverflowMenu(
     canReTranscribe: Boolean, onReTranscribe: () -> Unit,
     canReSummarize: Boolean, onReSummarize: () -> Unit,
-    canReDiarize: Boolean, onReDiarize: () -> Unit,
     canExtractActions: Boolean, onExtractActions: () -> Unit,
     canExport: Boolean,
     onOpenExport: () -> Unit,
@@ -191,11 +189,9 @@ private fun OverflowMenu(
                 text = { Text(stringResource(R.string.re_transcribe)) }, onClick = pick(onReTranscribe))
             if (canReSummarize) DropdownMenuItem(leadingIcon = { Icon(Icons.Filled.Summarize, null, Modifier.size(18.dp)) },
                 text = { Text(stringResource(R.string.re_summarize)) }, onClick = pick(onReSummarize))
-            if (canReDiarize) DropdownMenuItem(leadingIcon = { Icon(Icons.Filled.RecordVoiceOver, null, Modifier.size(18.dp)) },
-                text = { Text(stringResource(R.string.re_diarize)) }, onClick = pick(onReDiarize))
             if (canExtractActions) DropdownMenuItem(leadingIcon = { Icon(Icons.Filled.Checklist, null, Modifier.size(18.dp)) },
                 text = { Text(stringResource(R.string.re_extract_actions)) }, onClick = pick(onExtractActions))
-            if (canReTranscribe || canReSummarize || canReDiarize || canExtractActions) HorizontalDivider()
+            if (canReTranscribe || canReSummarize || canExtractActions) HorizontalDivider()
             // --- exports (disabled while running, like before) ---
             // One entry, not eight: the formats and the save/share choice live in ExportSheet, which
             // groups them by what you get. A dropdown this long also meant several slow full-page

@@ -5,7 +5,6 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 import studio.voxsum.core.asr.NemoStreamEngine
 import studio.voxsum.core.asr.SnapshotConverter
-import studio.voxsum.core.asr.SpeakerTransfer
 import studio.voxsum.core.events.TranscriptEvent.Utterance
 import studio.voxsum.core.events.TranscriptEvent.UtteranceSnapshot
 
@@ -30,22 +29,6 @@ class NemoSegmentsTest {
     }
 
     @Test
-    fun transferPicksLargestOverlap() {
-        val target = listOf(
-            Utterance(0, "edited a", 0.0, 4.0, speaker = 5),
-            Utterance(1, "edited b", 4.0, 6.0),
-            Utterance(2, "no overlap", 10.0, 11.0, speaker = 7),
-        )
-        val tagged = listOf(
-            Utterance(0, "x", 0.0, 1.0, speaker = 1),
-            Utterance(1, "y", 1.0, 5.5, speaker = 0),
-        )
-        val out = SpeakerTransfer.transfer(target, tagged)
-        assertEquals(listOf(0, 0, 7), out.map { it.speaker })
-        assertEquals("edited a", out[0].text)
-    }
-
-    @Test
     fun parsesLiveFrozenAndTail() {
         val raw = rec(0, 0.0, 2.0, "a") + rec(1, 2.0, 3.0, "b") + "\u001d" + rec(1, 3.0, 4.0, "c")
         val (frozen, tail) = NemoStreamEngine.parseLive(raw, firstIndex = 5)
@@ -60,7 +43,7 @@ class NemoSegmentsTest {
     @Test
     fun converterConvertsOnlyWhatChanged() {
         val calls = ArrayList<String>()
-        val conv = SnapshotConverter({ t -> calls += t; t.uppercase() }, keepSpeakers = true)
+        val conv = SnapshotConverter({ t -> calls += t; t.uppercase() })
         val a = Utterance(0, "a", 0.0, 1.0, speaker = 0)
         val b = Utterance(1, "b", 1.0, 2.0, speaker = 1)
         val first = conv.apply(UtteranceSnapshot(listOf(a, b), stable = 1))
@@ -74,9 +57,9 @@ class NemoSegmentsTest {
     }
 
     @Test
-    fun converterDropsSpeakersWhenDisabled() {
-        val conv = SnapshotConverter(null, keepSpeakers = false)
+    fun converterKeepsSpeakers() {
+        val conv = SnapshotConverter(null)
         val out = conv.apply(UtteranceSnapshot(listOf(Utterance(0, "a", 0.0, 1.0, speaker = 3))))
-        assertNull(out.utterances[0].speaker)
+        assertEquals(3, out.utterances[0].speaker)
     }
 }

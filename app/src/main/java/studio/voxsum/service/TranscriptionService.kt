@@ -56,6 +56,7 @@ import studio.voxsum.core.models.LlmRegistry
 import studio.voxsum.core.models.LlmSpec
 import studio.voxsum.core.models.ModelManager
 import studio.voxsum.core.session.VoxsumSession
+import studio.voxsum.core.text.ChineseScript
 import studio.voxsum.core.text.OpenCcConverter
 import studio.voxsum.data.SpeakerName
 import studio.voxsum.MainActivity
@@ -805,8 +806,8 @@ class TranscriptionService : LifecycleService() {
         // Total audio length (a cheap metadata read) so the recognition phase can report REAL progress
         // as each utterance's end time advances through the file. 0 when unknown → no ASR bar, still fine.
         val totalDurationSec = probeDurationSec(uri)
-        // Generated text (summary/title/actions) follows Target language × locale; the transcript
-        // always converts to Traditional (conservative s2t) — see [transcriptConverter].
+        // Generated text (summary/title/actions) and the transcript both follow the Chinese-script
+        // setting; the transcript keeps the conservative s2t — see [transcriptConverter].
         val converter = outputConverter(cfg)
         val txtConverter = transcriptConverter()
         val snapConv = SnapshotConverter(txtConverter?.let { c -> c::convert })
@@ -1554,9 +1555,17 @@ class TranscriptionService : LifecycleService() {
      * model here is always in auto mode and always emits Simplified — converting to Traditional
      * is what makes that usable for a zh-TW user, and is a no-op on non-Chinese output (the
      * converter leaves Latin/kana/hangul alone).
+     *
+     * The Chinese-script setting decides the direction: with Simplified chosen the transcript
+     * goes through `t2s` (a no-op on text that is already Simplified, a guard against the
+     * model's occasional Traditional forms). It used to ignore the setting and always produce
+     * Traditional (issue #3), unlike the in-place switch in MainActivity.applyChineseScript.
      */
     private fun transcriptConverter(): OpenCcConverter? =
-        OpenCcConverter.getTranscriptTraditional(this)
+        when (SummaryScript.scriptFor(TranscriptionConfig.Holder.config.summaryScript, this)) {
+            ChineseScript.TRADITIONAL -> OpenCcConverter.getTranscriptTraditional(this)
+            ChineseScript.SIMPLIFIED -> OpenCcConverter.get(this, ChineseScript.SIMPLIFIED)
+        }
 
     /** Small thread budget — phone big-core count, not all cores (cf. num_vcpus). */
     // Thread budget for the native ASR/diarization/LLM ops. Prefer the count of highest-frequency

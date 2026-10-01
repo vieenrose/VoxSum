@@ -81,7 +81,7 @@ object TranscriptExport {
     /** SubRip (.srt): numbered cues, `HH:MM:SS,mmm` timestamps, speaker prefix inline. */
     fun srt(utterances: List<TranscriptEvent.Utterance>, label: (Int) -> String): String = buildString {
         var n = 1
-        for (u in utterances) {
+        for (u in cues(utterances)) {
             val text = oneCue(u.text)
             if (text.isEmpty()) continue
             append(n++).append('\n')
@@ -94,7 +94,7 @@ object TranscriptExport {
     /** WebVTT (.vtt): `WEBVTT` header, `HH:MM:SS.mmm` timestamps. */
     fun vtt(utterances: List<TranscriptEvent.Utterance>, label: (Int) -> String): String = buildString {
         append("WEBVTT\n\n")
-        for (u in utterances) {
+        for (u in cues(utterances)) {
             val text = oneCue(u.text)
             if (text.isEmpty()) continue
             append(stamp(u.startSec, '.')).append(" --> ").append(stamp(endOf(u), '.')).append('\n')
@@ -122,6 +122,36 @@ object TranscriptExport {
             append(text).append('\n')
         }
     }
+
+    /**
+     * Subtitle cues: an utterance is often a long turn (tens of seconds, hundreds of characters),
+     * unreadable as one subtitle. Cut it at punctuation into pieces of at most [CUE_CHARS], timing
+     * each piece in proportion to its length; short utterances pass through unchanged.
+     */
+    internal fun cues(utterances: List<TranscriptEvent.Utterance>): List<TranscriptEvent.Utterance> =
+        utterances.flatMap { u ->
+            val text = oneCue(u.text)
+            if (text.length <= CUE_CHARS) return@flatMap listOf(u)
+            val pieces = ArrayList<String>()
+            val sb = StringBuilder()
+            for (c in text) {
+                sb.append(c)
+                val soft = c in "，、,；;：:" && sb.length >= CUE_CHARS / 2
+                val hard = c in "。？！?!." || sb.length >= CUE_CHARS
+                if (hard || soft) { pieces += sb.toString().trim(); sb.setLength(0) }
+            }
+            if (sb.isNotBlank()) pieces += sb.toString().trim()
+            val total = pieces.sumOf { it.length }.toDouble().coerceAtLeast(1.0)
+            val dur = endOf(u) - u.startSec
+            var at = u.startSec; var used = 0
+            pieces.filter { it.isNotEmpty() }.map { p ->
+                used += p.length
+                val end = u.startSec + dur * used / total
+                u.copy(text = p, startSec = at, endSec = end).also { at = end }
+            }
+        }
+
+    private const val CUE_CHARS = 32
 
     /** LRC timestamp `[mm:ss.xx]` — xx = hundredths of a second; ASCII digits always. */
     private fun lrcStamp(sec: Double): String {

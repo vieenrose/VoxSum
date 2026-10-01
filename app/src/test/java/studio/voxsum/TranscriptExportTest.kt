@@ -102,4 +102,15 @@ class TranscriptExportTest {
         assertTrue(lrc.contains("[00:05.00]x"))
         assertFalse("null speaker → no label prefix", lrc.contains(": x"))
     }
+
+    @Test fun longTurnIsSplitIntoShortTimedCues() {
+        val text = "那個去查監控，你們物業那邊一直不給調監控，說那邊監控壞了怎麼的。因為一有問題你們物業就推卸責任，這不是個好理由對吧？然後我們卻把了這個這個錢誰出？"
+        val u = studio.voxsum.core.events.TranscriptEvent.Utterance(0, text, 11.0, 42.0, 0)
+        val cues = studio.voxsum.core.export.TranscriptExport.cues(listOf(u))
+        org.junit.Assert.assertTrue(cues.size > 2)
+        org.junit.Assert.assertTrue(cues.all { it.text.length <= 32 })
+        org.junit.Assert.assertEquals(11.0, cues.first().startSec, 1e-9)
+        org.junit.Assert.assertEquals(42.0, cues.last().endSec, 1e-9)
+        org.junit.Assert.assertEquals(text, cues.joinToString("") { it.text })
+    }
 }

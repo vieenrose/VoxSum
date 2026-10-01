@@ -18,7 +18,6 @@ import org.junit.runner.RunWith
 import studio.voxsum.data.DiarizationStats
 import studio.voxsum.data.SpeakerStats
 import studio.voxsum.ui.EmptyState
-import studio.voxsum.ui.ModelOptionCard
 import studio.voxsum.ui.SpeakerStatsPanel
 import studio.voxsum.ui.UpdateBanner
 import studio.voxsum.ui.components.DownloadStatusBar
@@ -63,25 +62,6 @@ class UiComponentsTest {
     @Test fun downloadStatusBarHasNoPercentWhenIndeterminate() {
         compose.setContent { DownloadStatusBar(R.string.update_downloading, null) }
         compose.onNodeWithText(ctx.getString(R.string.update_downloading)).assertIsDisplayed()
-    }
-
-    // --- ModelOptionCard ---------------------------------------------------------------------
-
-    @Test fun modelOptionCardShowsMetadataAndClicks() {
-        var clicked = false
-        compose.setContent {
-            ModelOptionCard("Gemma 4 E2B", "~2.2 GB", selected = true, downloaded = true, onClick = { clicked = true })
-        }
-        compose.onNodeWithText("Gemma 4 E2B").assertIsDisplayed()
-        compose.onNodeWithText("~2.2 GB").assertIsDisplayed()
-        compose.onNodeWithContentDescription(ctx.getString(R.string.model_downloaded)).assertIsDisplayed()
-        compose.onNodeWithText("Gemma 4 E2B").performClick()
-        assertTrue(clicked)
-    }
-
-    @Test fun modelOptionCardShowsWillDownloadBadge() {
-        compose.setContent { ModelOptionCard("X", "Y", selected = false, downloaded = false, onClick = {}) }
-        compose.onNodeWithContentDescription(ctx.getString(R.string.model_will_download)).assertIsDisplayed()
     }
 
     // --- EmptyState --------------------------------------------------------------------------

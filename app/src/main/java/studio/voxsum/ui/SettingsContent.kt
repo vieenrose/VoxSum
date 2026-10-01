@@ -70,10 +70,9 @@ import studio.voxsum.ui.theme.voxSumSliderColors
 import studio.voxsum.ui.theme.voxSumSwitchColors
 
 /**
- * Pipeline configuration — Android counterpart of the original's ASR / Diarization /
- * Summarization sidebar. The two model pickers (ASR engine, summary model) are promoted to
- * the top as rich [ModelOptionCard]s so they are the first thing seen; [readyLlm]
- * carry which models are already on disk (for the download badge). Edits report via [onChange].
+ * Settings: appearance, Chinese script, the live speaker delay, stored models (with the summary
+ * model's download state — there is only one, so no picker), background reliability and About.
+ * [readyLlm] carries which summary models are on disk. Edits report via [onChange].
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -90,56 +89,8 @@ fun SettingsContent(
         Section(stringResource(R.string.settings_appearance))
         AppearanceSelector(enabled)
 
-        // (2) Summary model (LLM) — promoted to #2, with size + RAM hint.
-        Section(stringResource(R.string.settings_summary_model))
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            LlmRegistry.ALL.forEach { spec ->
-                val mb = spec.totalBytes / 1_000_000
-                val ram = when {
-                    spec.totalBytes < 1_500_000_000L -> stringResource(R.string.settings_low_ram)
-                    spec.totalBytes < 3_500_000_000L -> stringResource(R.string.settings_needs_4gb)
-                    else -> stringResource(R.string.settings_needs_6gb)
-                }
-                ModelOptionCard(
-                    title = spec.displayName,
-                    subtitle = "$mb MB · $ram",
-                    // Normalize like the runtime does: a stored id from a removed model
-                    // (e.g. the old qwen default) resolves to DEFAULT_ID — the card must
-                    // show what will actually run, not match raw strings.
-                    selected = LlmRegistry.byId(config.llmModelId).id == spec.id,
-                    downloaded = spec.id in readyLlm,
-                    enabled = enabled,
-                    showRadio = LlmRegistry.ALL.size > 1,
-                    onClick = { onChange(config.copy(llmModelId = spec.id)) },
-                )
-            }
-            // No inference-hardware picker: the qwen35lite engine is CPU/XNNPACK only.
-            // GPU was tried and reverted — on Mali devices without OpenCL the GL backend fails
-            // shader compile and the WebGPU backend HANGS init at 0% CPU (SM-A5360, 2026-07-24) —
-            // and NPU would need per-SoC model builds that do not exist for this export.
-        }
-
-        // (4) Diarization.
-        Section(stringResource(R.string.settings_diarization))
-        // The engine always separates speakers (one fused pass); only how late the LIVE view freezes
-        // a line's speaker is a choice.
-        // 5..30 s in 5 s steps (steps = 4 intermediate stops).
-        SliderRow(
-            stringResource(R.string.settings_speaker_delay),
-            config.speakerDelaySec.toFloat(),
-            TranscriptionConfig.SPEAKER_DELAY_MIN.toFloat(), TranscriptionConfig.SPEAKER_DELAY_MAX.toFloat(),
-            enabled,
-            steps = 4,
-            format = { stringResource(R.string.settings_seconds, it.roundToInt()) },
-        ) { onChange(config.copy(speakerDelaySec = it.roundToInt())) }
-        Text(
-            stringResource(R.string.settings_speaker_delay_hint),
-            style = MaterialTheme.typography.bodySmall,
-            color = pal.Slate400,
-        )
-
-        // (5) Summary options.
-        Section(stringResource(R.string.settings_summary_options))
+        // Chinese script of ALL generated and transcribed text (not just the summary).
+        Section(stringResource(R.string.settings_language))
         LabeledRow(stringResource(R.string.settings_summary_language)) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 SummaryScript.entries.forEach { s ->
@@ -159,9 +110,28 @@ fun SettingsContent(
             }
         }
 
+        // Recording.
+        Section(stringResource(R.string.settings_recording))
+        // The engine always separates speakers (one fused pass); only how late the LIVE view freezes
+        // a line's speaker is a choice.
+        // 5..30 s in 5 s steps (steps = 4 intermediate stops).
+        SliderRow(
+            stringResource(R.string.settings_speaker_delay),
+            config.speakerDelaySec.toFloat(),
+            TranscriptionConfig.SPEAKER_DELAY_MIN.toFloat(), TranscriptionConfig.SPEAKER_DELAY_MAX.toFloat(),
+            enabled,
+            steps = 4,
+            format = { stringResource(R.string.settings_seconds, it.roundToInt()) },
+        ) { onChange(config.copy(speakerDelaySec = it.roundToInt())) }
+        Text(
+            stringResource(R.string.settings_speaker_delay_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = pal.Slate400,
+        )
+
         // (6) Storage — downloaded models, per-item delete (each re-downloads on next use).
         Section(stringResource(R.string.settings_storage))
-        StoragePanel(enabled)
+        StoragePanel(enabled, summaryReady = LlmRegistry.byId(config.llmModelId).id in readyLlm)
 
         // (7) Background reliability — keep screen-off runs alive across OEM power policies.
         Section(stringResource(R.string.settings_background))
@@ -210,7 +180,7 @@ private fun AppearanceSelector(enabled: Boolean) {
 
 /** Lists downloaded models with sizes and a per-item delete (re-downloads on next use). */
 @Composable
-private fun StoragePanel(enabled: Boolean) {
+private fun StoragePanel(enabled: Boolean, summaryReady: Boolean) {
     val pal = LocalVoxSumPalette.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -218,6 +188,15 @@ private fun StoragePanel(enabled: Boolean) {
     var version by remember { mutableIntStateOf(0) }
     LaunchedEffect(version) {
         models = withContext(Dispatchers.IO) { ModelManager(context).storedModels() }
+    }
+    if (!summaryReady) {
+        // The one summary model is fetched on first use — say so where its size would be listed.
+        val mb = LlmRegistry.byId(LlmRegistry.DEFAULT_ID).totalBytes / 1_000_000
+        Text(
+            stringResource(R.string.storage_model_pending, mb),
+            style = MaterialTheme.typography.bodySmall, color = pal.Slate400,
+            modifier = Modifier.padding(bottom = 4.dp),
+        )
     }
     if (models.isEmpty()) {
         Text(stringResource(R.string.storage_none), style = MaterialTheme.typography.bodySmall, color = pal.Slate400)

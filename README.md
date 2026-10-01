@@ -52,6 +52,28 @@
 
 依語者標註顏色的完整逐字稿；點任一句即跳到該處播放，播放時目前的句子會高亮。
 
+### 匯入
+
+<p align="center"><img src="docs/screenshots/import.png" width="280" alt="加入音訊"></p>
+
+點首頁的 **＋**：選擇裝置上的音訊檔、現場錄音、搜尋並下載 Podcast 單集、貼上 YouTube 連結，或重新開啟先前儲存的 `.ogg` / `.m4a` 工作階段繼續編輯。也可以從其他 App 把音訊分享給 VoxSum。
+
+### 匯出
+
+<p align="center"><img src="docs/screenshots/export.png" width="280" alt="匯出"></p>
+
+在場次右上 **⋮** 選「匯出與分享」，每種格式都可以儲存或分享：
+
+- **VoxSum 工作階段（.m4a）**：音訊、逐字稿、語者、摘要與行動項目合為一個檔案，可在 VoxSum 重新開啟，任何播放器都能播放。
+- **文件**：PDF、Markdown 或純文字，含標題、摘要、行動項目與帶時間戳的逐字稿。
+- **字幕**：SRT、VTT 或 LRC，含語者標籤。
+
+### 設定
+
+<p align="center"><img src="docs/screenshots/settings.png" width="280" alt="設定"></p>
+
+外觀（自動、淺色、深色、電子紙）、中文字型（繁體或簡體，切換後標題、摘要、逐字稿立即轉換）、即時語者標註延遲（5–30 秒，越長越準確，不影響儲存的逐字稿）、已下載模型的用量與刪除，以及背景執行的電池設定。
+
 ## 安裝
 
 從 [**Releases**](https://github.com/vieenrose/VoxSumDroid/releases/latest) 下載 APK 安裝。

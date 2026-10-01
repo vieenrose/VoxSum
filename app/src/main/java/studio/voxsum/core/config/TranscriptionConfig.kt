@@ -11,7 +11,6 @@ data class TranscriptionConfig(
     // --- ASR ---
     val asrBackend: String = "nemo",   // provenance id (AsrBackend); nemo is the only engine
     val asrModelId: String = "x-asr-zh-en-q8_0+nemotron-3-diarization-q8_0",
-    val useItn: Boolean = true,               // inverse text normalization
 
     // --- Diarization ---
     // Live view (recording booth): seconds a line waits before its speaker tag is shown. The
@@ -26,9 +25,6 @@ data class TranscriptionConfig(
     // pinned to gemma) silently kept new installs on the old default even after the registry's default
     // changed, so the "recommended" model in Settings and the model that actually ran disagreed.
     val llmModelId: String = LlmRegistry.DEFAULT_ID,
-    /** Summarizer inference hardware: "cpu" (default) or "gpu" (LiteRT-LM models only —
-     *  llama.cpp GGUFs and the MOSS/ASR engines always run on CPU). */
-    val llmBackend: String = "auto",  // auto = GPU-first with CPU fallback
     // Target language for ALL out-coming text — summary, title, transcript, and detected speaker names
     // Han script every Chinese text is normalized to (a [SummaryScript] id). Summaries are always
     // in the RECORDING's language — the translate-as-you-summarize option was removed because it

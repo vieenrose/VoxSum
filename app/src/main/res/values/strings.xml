@@ -50,21 +50,18 @@
     <string name="settings_llm_backend">Inference hardware</string>
     <string name="settings_backend_cpu">CPU</string>
     <string name="settings_backend_gpu">GPU (experimental)</string>
-    <string name="settings_summary_model">Summary Model</string>
-    <string name="settings_low_ram">low RAM</string>
-    <string name="settings_needs_4gb">needs ~4 GB RAM</string>
-    <string name="settings_needs_6gb">needs ~6 GB RAM</string>
     <string name="settings_itn">Inverse text normalization</string>
-    <string name="settings_diarization">Diarization</string>
+    <string name="settings_recording">Recording</string>
     <string name="settings_speaker_delay">Live speaker delay</string>
     <string name="settings_seconds">%1$d s</string>
     <string name="settings_speaker_delay_hint">While recording, words appear at once; speaker names follow at least this long after. Longer = more accurate names. The saved transcript is not affected.</string>
-    <string name="settings_summary_options">Summary Options</string>
+    <string name="settings_language">Language</string>
     <string name="settings_summary_language">Chinese script</string>
     <string name="summary_language_auto">Match transcript</string>
     <string name="settings_summary_prompt">Summary prompt</string>
     <string name="settings_storage">Storage</string>
     <string name="storage_total">Models on device: %1$s</string>
+    <string name="storage_model_pending">Summary model not downloaded yet (%1$d MB) — it downloads on first use.</string>
     <string name="storage_none">No models downloaded yet</string>
     <string name="storage_delete">Delete model</string>
     <string name="model_kind_asr">Transcription model</string>
@@ -75,8 +72,6 @@
     <string name="about_components">Open-source components</string>
 
     <!-- Model option card -->
-    <string name="model_downloaded">downloaded</string>
-    <string name="model_will_download">will download on first use</string>
 
     <!-- Podcast -->
     <string name="podcast_transcribe">Transcribe</string>

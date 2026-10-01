@@ -4,8 +4,6 @@ import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.RadioButtonColors
-import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.SliderColors
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.SwitchColors
@@ -58,15 +56,6 @@ fun voxSumTextFieldColors(): TextFieldColors {
         unfocusedBorderColor = pal.Hairline,
         focusedLabelColor = pal.Sky,
         unfocusedLabelColor = pal.Slate400,
-    )
-}
-
-@Composable
-fun voxSumRadioColors(): RadioButtonColors {
-    val pal = LocalVoxSumPalette.current
-    return RadioButtonDefaults.colors(
-        selectedColor = pal.Sky,
-        unselectedColor = pal.Slate400,
     )
 }
 

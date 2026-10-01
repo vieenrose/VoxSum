@@ -1002,7 +1002,6 @@ class TranscriptionService : LifecycleService() {
         // Anything transcription-affecting invalidates a leftover sidecar from an older drain.
         val fingerprint = listOf(
             cfgAll.asrBackend, cfgAll.asrModelId, cfgAll.summaryScript,
-            cfgAll.useItn,
         ).joinToString("|")
         var lastLap: List<String>? = null
         while (true) {

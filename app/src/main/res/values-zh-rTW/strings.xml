@@ -49,21 +49,18 @@
     <string name="settings_llm_backend">推理硬體</string>
     <string name="settings_backend_cpu">CPU</string>
     <string name="settings_backend_gpu">GPU（實驗性）</string>
-    <string name="settings_summary_model">摘要模型</string>
-    <string name="settings_low_ram">低記憶體</string>
-    <string name="settings_needs_4gb">需要約 4 GB RAM</string>
-    <string name="settings_needs_6gb">需要約 6 GB RAM</string>
     <string name="settings_itn">反向文字正規化</string>
-    <string name="settings_diarization">語者分段</string>
+    <string name="settings_recording">錄音</string>
     <string name="settings_speaker_delay">即時語者標註延遲</string>
     <string name="settings_seconds">%1$d 秒</string>
     <string name="settings_speaker_delay_hint">錄音時文字會立即顯示；語者標註則至少在此延遲之後才出現。延遲越長，語者標註越準確。不影響最後儲存的逐字稿。</string>
-    <string name="settings_summary_options">摘要選項</string>
+    <string name="settings_language">語言</string>
     <string name="settings_summary_language">中文字型</string>
     <string name="summary_language_auto">與逐字稿相同</string>
     <string name="settings_summary_prompt">摘要提示詞</string>
     <string name="settings_storage">儲存空間</string>
     <string name="storage_total">裝置上的模型：%1$s</string>
+    <string name="storage_model_pending">摘要模型尚未下載（%1$d MB），首次使用時自動下載。</string>
     <string name="storage_none">尚未下載任何模型</string>
     <string name="storage_delete">刪除模型</string>
     <string name="model_kind_asr">轉錄模型</string>
@@ -74,8 +71,6 @@
     <string name="about_components">開放原始碼元件</string>
 
     <!-- Model option card -->
-    <string name="model_downloaded">已下載</string>
-    <string name="model_will_download">首次使用時下載</string>
 
     <!-- Podcast -->
     <string name="podcast_transcribe">轉錄</string>

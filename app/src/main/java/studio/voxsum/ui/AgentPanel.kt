@@ -572,7 +572,7 @@ fun AgentStrip(agent: AgentUiState, modifier: Modifier = Modifier) {
     val st = agent.state ?: return
     val cur = agent.steps.lastOrNull { !it.restart }
     Column(
-        modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp).clip(RoundedCornerShape(12.dp))
+        modifier.fillMaxWidth().padding(vertical = 6.dp).clip(RoundedCornerShape(12.dp))
             .background(pal.InsetSurface).border(1.dp, pal.Hairline, RoundedCornerShape(12.dp))
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),

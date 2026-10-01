@@ -348,7 +348,7 @@
     <string name="agent_restarting">Context full (%1$d tokens) — restarting from the compacted notes…</string>
     <string name="agent_done">Done · %1$d notes</string>
     <string name="agent_notes">Live notes (%1$d)</string>
-    <string name="agent_notes_caution">Notes, not minutes: about 1 in 5 may be wrong — tap a time to check it.</string>
+    <string name="agent_notes_caution">Working notes, not minutes — about 1 in 5 may be wrong.</string>
     <string name="agent_show_log">Show activity (%1$d)</string>
     <string name="agent_hide_log">Hide activity (%1$d)</string>
     <string name="agent_tag_decision">Decision</string>

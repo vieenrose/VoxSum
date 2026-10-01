@@ -26,7 +26,7 @@ fun MicLevelBars(level: Float, color: androidx.compose.ui.graphics.Color, scale:
                     .width((3 * scale).dp)
                     .height(((6 + i * 2) * scale).dp)
                     .clip(RoundedCornerShape(1.dp))
-                    .background(if (i < active) color else color.copy(alpha = 0.3f)),
+                    .background(if (i < active) color else color.copy(alpha = 0.18f)),
             )
         }
     }

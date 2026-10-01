@@ -330,7 +330,7 @@
     <string name="agent_restarting">上下文已滿（%1$d tokens）——以精簡筆記重新開始…</string>
     <string name="agent_done">完成 · %1$d 則筆記</string>
     <string name="agent_notes">即時筆記（%1$d）</string>
-    <string name="agent_notes_caution">這是筆記，不是正式紀錄：約五則中有一則可能有誤——點時間即可核對。</string>
+    <string name="agent_notes_caution">這是工作筆記，不是正式紀錄——約五則中有一則可能有誤。</string>
     <string name="agent_show_log">顯示活動紀錄（%1$d）</string>
     <string name="agent_hide_log">隱藏活動紀錄（%1$d）</string>
     <string name="agent_tag_decision">決議</string>

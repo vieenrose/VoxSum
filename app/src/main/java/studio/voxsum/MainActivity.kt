@@ -2006,7 +2006,7 @@ private fun TranscribeScreen(
                         cm?.setPrimaryClip(android.content.ClipData.newPlainText("VoxSum summary", s))
                         scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.summary_copied)) }
                     },
-                    onSeek = anchorSeek)
+                    onSeek = anchorSeek, showHeading = twoPane)
             }
             // Sections the v2 NOTES format adds and the older prose summary never had. Rendered
             // only when non-empty: the format requires all six keys to be present, so a meeting
@@ -2045,7 +2045,7 @@ private fun TranscribeScreen(
                         cm?.setPrimaryClip(android.content.ClipData.newPlainText("VoxSum action items", ai))
                         scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.action_items_copied)) }
                     },
-                    onSeek = anchorSeek)
+                    onSeek = anchorSeek, showHeading = twoPane)
             }
             if (actionItems == null) {
                 Text(stringResource(R.string.actions_pending_hint), color = pal.Slate400, modifier = Modifier.padding(top = 24.dp))
@@ -2681,17 +2681,19 @@ private fun SummaryCard(
     summary: String, llm: String, isEditing: Boolean,
     onBeginEdit: () -> Unit, onSave: (String) -> Unit, onCancel: () -> Unit, onCopy: () -> Unit,
     onSeek: ((Int) -> Unit)? = null,
+    /** Off when a tab already carries the name (portrait): the card then keeps only its tools. */
+    showHeading: Boolean = true,
 ) {
     val pal = LocalVoxSumPalette.current
     SectionCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
+            if (showHeading) Text(
                 stringResource(R.string.card_summary),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = pal.Slate200,
                 modifier = Modifier.weight(1f),
-            )
+            ) else Spacer(Modifier.weight(1f))
             if (!isEditing) {
                 // One-tap copy to clipboard (the summary export was removed — the .ogg is the editor).
                 IconButton(onClick = onCopy, modifier = Modifier.size(28.dp)) {
@@ -2726,17 +2728,18 @@ private fun ActionItemsCard(
     text: String, isEditing: Boolean,
     onBeginEdit: () -> Unit, onSave: (String) -> Unit, onCancel: () -> Unit, onCopy: () -> Unit,
     onSeek: ((Int) -> Unit)? = null,
+    showHeading: Boolean = true,
 ) {
     val pal = LocalVoxSumPalette.current
     SectionCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
+            if (showHeading) Text(
                 stringResource(R.string.card_action_items),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = pal.Slate200,
                 modifier = Modifier.weight(1f),
-            )
+            ) else Spacer(Modifier.weight(1f))
             if (!isEditing) {
                 IconButton(onClick = onCopy, modifier = Modifier.size(28.dp)) {
                     Icon(Icons.Filled.ContentCopy, contentDescription = stringResource(R.string.cd_copy_summary),

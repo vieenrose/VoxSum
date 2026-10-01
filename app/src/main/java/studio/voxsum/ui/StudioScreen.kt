@@ -260,14 +260,18 @@ fun StudioScreen(
             Box(Modifier.padding(horizontal = Gutter)) { updateBanner() }
 
             // Status filter chips — pairs with multi-select for "clear all junk" (New → Select all → Delete).
-            if (entries.isNotEmpty()) {
+            // A chip that would list exactly what "All" lists is noise, so it is left out; with
+            // nothing left to choose between, so is the whole row.
+            val showNew = newCount > 0 && newCount < entries.size
+            val showDone = doneCount > 0 && doneCount < entries.size
+            if (showNew || showDone) {
                 Row(
                     Modifier.fillMaxWidth().padding(start = Gutter, end = Gutter, top = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     FilterChip(stringResource(R.string.filter_all, entries.size), statusFilter == StatusFilter.ALL) { statusFilter = StatusFilter.ALL }
-                    if (newCount > 0) FilterChip(stringResource(R.string.filter_new, newCount), statusFilter == StatusFilter.NEW) { statusFilter = StatusFilter.NEW }
-                    if (doneCount > 0) FilterChip(stringResource(R.string.filter_done, doneCount), statusFilter == StatusFilter.DONE) { statusFilter = StatusFilter.DONE }
+                    if (showNew) FilterChip(stringResource(R.string.filter_new, newCount), statusFilter == StatusFilter.NEW) { statusFilter = StatusFilter.NEW }
+                    if (showDone) FilterChip(stringResource(R.string.filter_done, doneCount), statusFilter == StatusFilter.DONE) { statusFilter = StatusFilter.DONE }
                 }
             }
 

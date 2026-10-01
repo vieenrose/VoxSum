@@ -51,7 +51,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -97,7 +102,7 @@ fun CaptureScreen(
             .background(pal.Slate900Grad)
             .statusBarsPadding()
             .navigationBarsPadding()
-            .padding(horizontal = 24.dp),
+            .padding(horizontal = 16.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
             IconButton(onClick = onBack) {
@@ -143,7 +148,7 @@ fun CaptureScreen(
             LiveHeader(showLive, pal) { showLive = !showLive }
             LivePanel(showLive, utterances, stable, agent)
             Spacer(Modifier.height(16.dp))
-            CaptureButtons(isRecording, onNextTalk, onStop, buttonHeight = 96.dp)
+            CaptureButtons(isRecording, onNextTalk, onStop, buttonHeight = 72.dp)
             Spacer(Modifier.height(16.dp))
         }
     }
@@ -194,7 +199,9 @@ private fun NameField(sessionName: String, onSessionName: (String) -> Unit) {
         shape = RoundedCornerShape(12.dp),
         colors = OutlinedTextFieldDefaults.colors(
             focusedTextColor = pal.Slate200, unfocusedTextColor = pal.Slate200,
-            focusedBorderColor = pal.Sky, unfocusedBorderColor = pal.Slate700,
+            focusedBorderColor = pal.Sky,
+            // Slate700 is an inactive-track grey: on the light ground the field's edge all but vanished.
+            unfocusedBorderColor = if (pal.isEink) pal.Slate600 else pal.Slate600.copy(alpha = 0.5f),
         ),
         modifier = Modifier.fillMaxWidth(),
     )
@@ -208,14 +215,15 @@ private fun LiveHeader(showLive: Boolean, pal: studio.voxsum.ui.theme.VoxSumColo
     ) {
         Text(
             stringResource(R.string.capture_live_transcript),
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.labelLarge,
             color = pal.Slate400,
             modifier = Modifier.weight(1f),
         )
         IconButton(onClick = onToggle) {
             Icon(
-                if (showLive) Icons.Filled.ExpandMore else Icons.Filled.ExpandLess,
-                contentDescription = null,
+                // Chevron points where the panel will go: up = open (tap to fold), down = folded.
+                if (showLive) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                contentDescription = stringResource(R.string.capture_live_transcript),
                 tint = pal.Slate400,
             )
         }
@@ -245,7 +253,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.LivePanel(
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(
                     Icons.Filled.Mic, contentDescription = null,
-                    tint = pal.Slate700, modifier = Modifier.size(44.dp),
+                    tint = pal.Sky.copy(alpha = 0.5f), modifier = Modifier.size(44.dp),
                 )
                 Spacer(Modifier.height(10.dp))
                 Text(stringResource(R.string.capture_live_waiting), color = pal.Slate400, style = MaterialTheme.typography.titleMedium)
@@ -261,7 +269,9 @@ private fun androidx.compose.foundation.layout.ColumnScope.LivePanel(
         }
         LazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 4.dp, vertical = 8.dp),
+            modifier = Modifier.fillMaxWidth().weight(1f)
+                .then(if (pal.isEink) Modifier else Modifier.fadeTop(14.dp))
+                .padding(horizontal = 4.dp, vertical = 8.dp),
         ) {
             items(utterances.size) { i ->
                 val u = utterances[i]
@@ -322,8 +332,8 @@ private fun CaptureButtons(
             // Minimal padding: on narrow phones the default 24dp sides forced CJK labels to wrap.
             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Filled.SkipNext, contentDescription = null, modifier = Modifier.size(36.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.Filled.SkipNext, contentDescription = null, modifier = Modifier.size(28.dp))
                 Text(stringResource(R.string.capture_next_talk), fontWeight = FontWeight.Bold, maxLines = 1)
             }
         }
@@ -336,10 +346,22 @@ private fun CaptureButtons(
             modifier = Modifier.weight(1f).height(buttonHeight),
             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Filled.Stop, contentDescription = null, modifier = Modifier.size(36.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.Filled.Stop, contentDescription = null, modifier = Modifier.size(28.dp))
                 Text(stringResource(R.string.capture_stop), fontWeight = FontWeight.Bold, maxLines = 1)
             }
         }
     }
 }
+
+/** Dissolves the first [height] of a scrolling list into the ground, so a line cut by the panel's
+ *  top edge fades instead of being sliced. */
+private fun Modifier.fadeTop(height: androidx.compose.ui.unit.Dp): Modifier = this
+    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+    .drawWithContent {
+        drawContent()
+        drawRect(
+            Brush.verticalGradient(listOf(Color.Transparent, Color.Black), endY = height.toPx()),
+            blendMode = BlendMode.DstIn,
+        )
+    }

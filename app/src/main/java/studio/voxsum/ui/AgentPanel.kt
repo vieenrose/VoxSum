@@ -498,7 +498,8 @@ private data class ReplyLine(val ts: String?, val tag: String?, val text: String
 private val REPLY_NOTE = Regex("""^\s*NOTE\b\s*\[?(\d+(?::\d{0,2}){0,2})?\]?\s*(?:\(([A-Za-z-]*)\)?)?\s*(.*)$""")
 
 private fun replyLines(reply: String): List<ReplyLine> =
-    reply.lines().map { it.trim() }.filter { it.isNotEmpty() && it != "NEXT" }.map { l ->
+    // Drop half-typed keywords ("N", "NOT", "NE"…): a verb shows only once it is written out.
+    reply.lines().map { it.trim() }.filter { it.isNotEmpty() && !"NEXT".startsWith(it) && !"NOTE".startsWith(it) }.map { l ->
         REPLY_NOTE.find(l)?.let { m ->
             ReplyLine(m.groupValues[1].ifEmpty { null }, m.groupValues[2].ifEmpty { null }, m.groupValues[3], note = true)
         } ?: ReplyLine(null, null, l, note = false)

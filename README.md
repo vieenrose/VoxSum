@@ -14,7 +14,7 @@
   <img alt="授權" src="https://img.shields.io/badge/license-GPL--3.0-blue">
 </p>
 
-<p align="center"><img src="docs/screenshots/demo.gif" width="300" alt="開啟場次、閱讀摘要、點時間即從該處播放"></p>
+<p align="center"><img src="docs/screenshots/demo.gif" width="300" alt="錄音室、會議代理、摘要點時間播放、逐字稿、行動項目"></p>
 
 ## 特色
 

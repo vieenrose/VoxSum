@@ -10,7 +10,7 @@
 
 五分鐘看完 VoxSum 的主要功能。無需帳號；模型首次使用時下載一次（語音引擎約 275 MB、會議代理約 3.35 GB），之後完全離線。
 
-<p align="center"><img src="screenshots/demo.gif" width="280" alt="開啟場次、閱讀摘要、點時間即從該處播放"></p>
+<p align="center"><img src="screenshots/demo.gif" width="280" alt="錄音室、會議代理、摘要點時間播放、逐字稿、行動項目"></p>
 
 ## 1. 首頁
 

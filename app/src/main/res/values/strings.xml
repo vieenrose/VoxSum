@@ -224,7 +224,6 @@
     <string name="svc_transcribing">Transcribing…</string>
     <string name="svc_extracting_actions">Extracting action items…</string>
     <string name="card_action_items">Action items</string>
-    <string name="re_extract_actions">Extract action items</string>
     <string name="action_items_copied">Action items copied</string>
     <string name="cd_reassign_speaker">Change speaker for this line</string>
     <string name="cd_line_actions">Line actions</string>

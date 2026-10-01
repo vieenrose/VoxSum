@@ -206,7 +206,6 @@
     <string name="svc_transcribing">轉錄中…</string>
     <string name="svc_extracting_actions">正在擷取行動項目…</string>
     <string name="card_action_items">行動項目</string>
-    <string name="re_extract_actions">擷取行動項目</string>
     <string name="action_items_copied">已複製行動項目</string>
     <string name="cd_reassign_speaker">變更此句的語者</string>
     <string name="cd_line_actions">此句操作</string>

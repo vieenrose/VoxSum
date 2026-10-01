@@ -98,7 +98,6 @@ class TranscriptionService : LifecycleService() {
         private const val STOP_TAG = "voxsum-stop"
         const val ACTION_RECORD = "studio.voxsum.RECORD"
         const val ACTION_SUMMARIZE = "studio.voxsum.SUMMARIZE"
-        const val ACTION_EXTRACT_ACTIONS = "studio.voxsum.EXTRACT_ACTIONS"
         // Gracefully end live recording and continue into diarization/summary (vs ACTION_STOP,
         // which cancels the whole job).
         const val ACTION_STOP_RECORDING = "studio.voxsum.STOP_RECORDING"
@@ -143,7 +142,7 @@ class TranscriptionService : LifecycleService() {
         /** A pending edits-persist into a library entry (see ACTION_PERSIST_LIBRARY). */
         @Volatile var pendingPersist: PersistRequest? = null
 
-        /** The transcript/summary text for ACTION_SUMMARIZE/EXTRACT_ACTIONS. Rides a holder
+        /** The transcript/summary text for ACTION_SUMMARIZE. Rides a holder
          *  rather than an Intent extra: a long meeting's transcript exceeds the ~1 MB Binder
          *  transaction limit → TransactionTooLargeException crash. Consumed in onStartCommand. */
         @Volatile var pendingText: String? = null
@@ -421,7 +420,6 @@ class TranscriptionService : LifecycleService() {
 
         val recording = intent?.action == ACTION_RECORD
         val summarizeOnly = intent?.action == ACTION_SUMMARIZE
-        val extractActions = intent?.action == ACTION_EXTRACT_ACTIONS
         val processQueue = intent?.action == ACTION_PROCESS_QUEUE
         // A drain is already running → the new ids just enqueued will be picked up by its loop;
         // restarting would cancel and redo the item currently in progress. And recordings are
@@ -452,7 +450,7 @@ class TranscriptionService : LifecycleService() {
         val uri = intent?.getStringExtra(EXTRA_AUDIO_URI)
         // Transcript/summary text rides pendingText (Binder-limit safe). Consume it here on the
         // main thread before the job launches so a rapid second dispatch can't steal it.
-        val pendingBody = if (summarizeOnly || extractActions) pendingText.also { pendingText = null } else null
+        val pendingBody = if (summarizeOnly) pendingText.also { pendingText = null } else null
         val transcript = pendingBody ?: intent?.getStringExtra(EXTRA_TRANSCRIPT)
         val summaryExtra = pendingBody ?: intent?.getStringExtra(EXTRA_SUMMARY)
         val summarizeWithTitle = intent?.getBooleanExtra(EXTRA_WITH_TITLE, false) ?: false
@@ -480,7 +478,6 @@ class TranscriptionService : LifecycleService() {
             runCatching {
                 when {
                     summarizeOnly -> runSummarizeOnly(transcript.orEmpty(), summarizeWithTitle)
-                    extractActions -> runSummarizeOnly(transcript.orEmpty())
                     processQueue -> runQueue()
                     recording -> runRecordingPipeline()
                     else -> runPipeline(uri)
@@ -1526,8 +1523,8 @@ class TranscriptionService : LifecycleService() {
     }
 
     /** Re-summarize an existing transcript (no re-decode / re-ASR). Keeps the existing title unless
-     *  asked — a re-run shouldn't churn a title the user likes. Also serves "extract actions": the
-     *  reader produces the action items in the same pass. */
+     *  asked — a re-run shouldn't churn a title the user likes. The reader produces the
+     *  summary, title and action items in the same pass. */
     private suspend fun runSummarizeOnly(transcript: String, withTitle: Boolean = false) {
         val cfg = TranscriptionConfig.Holder.config
         if (transcript.isBlank()) { emitEvent(TranscriptEvent.ActionItemsComplete("-")); return }

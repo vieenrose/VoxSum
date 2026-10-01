@@ -509,10 +509,6 @@ private fun TranscribeScreen(
     var transcriptDirty by remember { mutableStateOf(false) }
     // [titleEdited]: the user renamed the title → don't regenerate it on re-summarize (script convert only).
     var titleEdited by remember { mutableStateOf(false) }
-    // [pendingReextract]: action items are also a transcript child, but the single resident LLM can't run
-    // summary + extraction at once, so a re-summarize that also needs fresh actions sets this and the
-    // SummaryComplete handler chains extractActions() once the LLM is free.
-    var pendingReextract by remember { mutableStateOf(false) }
     // Guards for the async OpenCC conversion: [sessionGen] bumps on every new session (a stale convert
     // that finishes late must not clobber the new one); [scriptSeq] bumps per convert (only the latest applies).
     // rememberSaveable: sessionGen ALSO tags every event the service emits for the current run (via
@@ -992,7 +988,7 @@ private fun TranscribeScreen(
         showPodcastSheet = false; showConfigSheet = false
         showAddSourceSheet = false; showYouTubeSheet = false; showExportSheet = false
         lastSaveUri = null; coverBitmap = null; coverFromSession = false   // fresh session → reset Save target + identicon
-        summaryStale = false; transcriptStale = false; transcriptDirty = false; titleEdited = false; pendingReextract = false; sessionGen++
+        summaryStale = false; transcriptStale = false; transcriptDirty = false; titleEdited = false; sessionGen++
         watchingQueue = false; pendingNextTalk = false; pendingAutoProcess = false
         // deferStopped must reset here: a ⏹ Stop&save sets it true and its terminal event goes to
         // the QUEUE collector (never the main Complete that clears it), so without this a later
@@ -1165,7 +1161,7 @@ private fun TranscribeScreen(
         title = queueTitle; summary = queueSummary; actionItems = null; meetingNotes = null
         isPlaying = false; searchActive = false; searchQuery = ""
         coverEnabled = true; coverBitmap = null; coverFromSession = false; lastSaveUri = null
-        summaryStale = false; transcriptStale = false; transcriptDirty = false; titleEdited = false; pendingReextract = false
+        summaryStale = false; transcriptStale = false; transcriptDirty = false; titleEdited = false
         sessionDirty = false
         sessionGen++   // stale events from any prior session run are dropped
         // NOT a recording run: recordingRun gates the ⏭ Next-talk affordance (showNextTalk), and a
@@ -1244,7 +1240,7 @@ private fun TranscribeScreen(
             speakerNames.clear(); loaded.speakerNames.forEach { (k, v) -> speakerNames[k] = v }
             editingIndex = -1; editingSpeakerId = null
             // Fresh session → clear the dependency-tree flags so they don't leak from the previous one.
-            summaryStale = false; transcriptStale = false; transcriptDirty = false; titleEdited = false; pendingReextract = false; sessionGen++
+            summaryStale = false; transcriptStale = false; transcriptDirty = false; titleEdited = false; sessionGen++
             // A home-screen rename lives only in the entry's meta sidecar until the next persist —
             // it must outrank the (stale) title embedded inside session.m4a, or the rename appears
             // to vanish the moment the session is opened.
@@ -1648,13 +1644,6 @@ private fun TranscribeScreen(
                 is TranscriptEvent.ActionItemsComplete -> { actionItems = e.text.ifBlank { "-" }; status = context.getString(R.string.status_done); running = false; if (libraryDir != null && !watchingQueue) sessionDirty = true; autosaveSessionNow() }
                 is TranscriptEvent.NotesComplete -> {
                     meetingNotes = e.notes
-                    // The NOTES pass already emitted ActionItemsComplete from its ACTIONS section,
-                    // so the chained re-extract queued by regenerateStaleChildren is now both
-                    // redundant and harmful: it is a full ActionItemExtractor map-reduce over the
-                    // whole transcript (minutes on this hardware) AND it would overwrite the
-                    // notes-derived actions, leaving the actions card and the decisions card
-                    // sourced from two different generations.
-                    pendingReextract = false
                 }
                 is TranscriptEvent.Failed -> {
                     pendingNextTalk = false   // capture wasn't saved → don't roll into a new recording
@@ -1811,28 +1800,11 @@ private fun TranscribeScreen(
         ContextCompat.startForegroundService(context, intent)
     }
 
-    // Extract action items + decisions from the current transcript (runs in the foreground service).
-    fun extractActions() {
-        if (running || utterances.isEmpty()) return
-        TranscriptionConfig.Holder.config = config
-        running = true; progress = 0f; status = context.getString(R.string.status_starting)   // transcript persists
-        TranscriptionService.pendingText = studio.voxsum.core.llm.TranscriptFormat.format(
-            utterances, speakerNames.mapValues { it.value.name })
-        val intent = Intent(context, TranscriptionService::class.java)
-            .setAction(TranscriptionService.ACTION_EXTRACT_ACTIONS)
-            .putExtra(TranscriptionService.EXTRA_RUN_GEN, sessionGen)
-        ContextCompat.startForegroundService(context, intent)
-    }
-
-    // Regenerate the LLM children invalidated by a transcript edit or a summary-input change: re-summarize
-    // (+ title) when a summary exists, and — since the single resident LLM can't run both at once — chain
-    // a re-extract of the action items afterward (via pendingReextract, consumed on SummaryComplete). When
-    // there's no summary, re-extract directly.
+    // Regenerate what a transcript edit or a summary-input change invalidated: one re-summarize, since the
+    // agent's pass yields the summary, the title and the action items together.
     fun regenerateStaleChildren() {
         if (running) return
-        if (actionItems != null) pendingReextract = true
-        if (!summary.isNullOrBlank()) reSummarize()
-        else if (pendingReextract) { pendingReextract = false; extractActions() }
+        if (!summary.isNullOrBlank() || actionItems != null) reSummarize()
     }
 
     // Speaker corrections — pure relabels via SpeakerEdits (renumbered to contiguous ids); the .ogg
@@ -2023,11 +1995,6 @@ private fun TranscribeScreen(
             }
             if (actionItems == null) {
                 Text(stringResource(R.string.actions_pending_hint), color = pal.Slate400, modifier = Modifier.padding(top = 24.dp))
-                if (transcriptReady && !running) {
-                    androidx.compose.material3.OutlinedButton(onClick = { extractActions() }) {
-                        Text(stringResource(R.string.re_extract_actions))
-                    }
-                }
             }
         }
     }
@@ -2220,8 +2187,6 @@ private fun TranscribeScreen(
                 onReTranscribe = { audioUri?.let { launchAudio(it) } },
                 canReSummarize = transcriptReady && !running,
                 onReSummarize = { regenerateStaleChildren() },
-                canExtractActions = transcriptReady && !running,
-                onExtractActions = { extractActions() },
                 onSearch = { sessTab = 1; searchActive = !searchActive; if (!searchActive) searchQuery = "" },
                 onSettings = { showConfigSheet = true },
                 // No pre-decode here; the picker callback hands the build+write to the service.
@@ -2365,11 +2330,6 @@ private fun TranscribeScreen(
             transcriptDirty = false
             if (res == SnackbarResult.ActionPerformed) regenerateStaleChildren()
         }
-    }
-    // Single resident LLM → a re-summarize and a re-extract can't overlap; when a run that owes a
-    // re-extract finishes (running clears, pendingReextract set), chain the action-items regeneration.
-    LaunchedEffect(running, pendingReextract) {
-        if (!running && pendingReextract) { pendingReextract = false; extractActions() }
     }
     // When Settings closes after a change that needs the LLM (and a summary exists), offer a one-tap
     // re-summarize — the setting alone doesn't touch the on-screen summary, so this closes that gap.

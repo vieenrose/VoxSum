@@ -9,8 +9,8 @@ import studio.voxsum.core.events.TranscriptEvent.Utterance
  * close to constant over a sentence), which is accurate to a second or two.
  */
 object LongUtteranceSplitter {
-    private const val MIN_SEC = 30.0
-    private const val MIN_CHARS = 150
+    private const val MIN_SEC = 20.0
+    private const val MIN_CHARS = 100
     private const val CHUNK_CHARS = 90          // a piece is closed at the first sentence end past this
     private val SENTENCE_END = setOf('。', '？', '！', '?', '!', '.', '；', ';')
 

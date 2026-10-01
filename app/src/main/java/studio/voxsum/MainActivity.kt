@@ -23,6 +23,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -2798,20 +2799,19 @@ private fun LineMenu(
     onEdit: () -> Unit,
     onReassign: (Int) -> Unit,
     onMerge: (Int) -> Unit,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
 ) {
     val pal = LocalVoxSumPalette.current
-    var open by remember { mutableStateOf(false) }   // before any early return, for slot-table stability
+    val open = expanded
     val others = if (current == null) emptyList() else speakerIds.filter { it != current }
+    // No per-line ⋮ any more (it cost ~40 dp on every line): the menu opens on a long-press of the line.
     Box {
-        IconButton(onClick = { open = true }, modifier = Modifier.size(28.dp)) {
-            Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.cd_line_actions),
-                tint = pal.Slate400.copy(alpha = 0.7f), modifier = Modifier.size(18.dp))
-        }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+        DropdownMenu(expanded = open, onDismissRequest = { onExpandedChange(false) }) {
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.cd_edit)) },
                 leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                onClick = { open = false; onEdit() },
+                onClick = { onExpandedChange(false); onEdit() },
             )
             if (others.isEmpty()) return@DropdownMenu
             HorizontalDivider()
@@ -2819,14 +2819,14 @@ private fun LineMenu(
                 text = { Text(stringResource(R.string.speaker_move_line), style = MaterialTheme.typography.labelSmall, color = pal.Slate400) })
             others.forEach { sid ->
                 val label = speakerNames[sid]?.name ?: stringResource(R.string.speaker_n, sid + 1)
-                DropdownMenuItem(text = { Text(label) }, onClick = { open = false; onReassign(sid) })
+                DropdownMenuItem(text = { Text(label) }, onClick = { onExpandedChange(false); onReassign(sid) })
             }
             HorizontalDivider()
             DropdownMenuItem(enabled = false, onClick = {},
                 text = { Text(stringResource(R.string.speaker_merge_into), style = MaterialTheme.typography.labelSmall, color = pal.Slate400) })
             others.forEach { sid ->
                 val label = speakerNames[sid]?.name ?: stringResource(R.string.speaker_n, sid + 1)
-                DropdownMenuItem(text = { Text(label) }, onClick = { open = false; onMerge(sid) })
+                DropdownMenuItem(text = { Text(label) }, onClick = { onExpandedChange(false); onMerge(sid) })
             }
         }
     }
@@ -3099,6 +3099,7 @@ private fun TimelineStrip(
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun UtteranceRow(
     utt: TranscriptEvent.Utterance,
@@ -3133,7 +3134,7 @@ private fun UtteranceRow(
             // A turn = one visual block: the first line opens it with clear space above
             // (OUTSIDE drawBehind, so the separator stays rail-free); continuation lines
             // are flush, making the speaker rail one unbroken bar over the whole turn.
-            .padding(top = if (showSpeaker) 10.dp else 0.dp)
+            .padding(top = if (showSpeaker) 20.dp else 8.dp)
             .drawBehind {
                 // Speaker rail: a thin bar in the speaker's colour on EVERY line of a
                 // same-speaker run. The chip is only shown on the run's first line, so
@@ -3141,7 +3142,7 @@ private fun UtteranceRow(
                 // speaker — without it, chip-less lines looked unattributed.
                 utt.speaker?.let { sid ->
                     drawRect(
-                        Color(speakerColorOn(sid, pal.isDark)).copy(alpha = 0.55f),
+                        Color(speakerColorOn(sid, pal.isDark)).copy(alpha = 0.35f),
                         size = Size(2.5.dp.toPx(), size.height),
                     )
                 }
@@ -3149,7 +3150,7 @@ private fun UtteranceRow(
                 // a speaker could also own; the speaker rail above stays untouched.
                 if (active) drawRect(pal.Slate200.copy(alpha = if (pal.isEink) 0.12f else 0.07f))
             }
-            .padding(vertical = 3.dp, horizontal = 6.dp),
+            .padding(vertical = 4.dp, horizontal = 10.dp),
     ) {
         if (isEditing || editingThisSpeaker) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -3181,54 +3182,40 @@ private fun UtteranceRow(
         } else {
             val label = if (!showSpeaker) null
             else utt.speaker?.let { speakerNames[it]?.name ?: stringResource(R.string.speaker_n, it + 1) }
-            Row(verticalAlignment = Alignment.Top) {
+            var menuOpen by remember { mutableStateOf(false) }
+            // Reading layout: a slim header line (speaker in its colour · time), then the text on the
+            // full width with a CJK-friendly line height. Tap seeks; long-press opens the line menu.
+            Column(
+                Modifier.fillMaxWidth().combinedClickable(
+                    onClick = { onSeek(utt.startSec) },
+                    onLongClick = { menuOpen = true },
+                    onLongClickLabel = stringResource(R.string.cd_line_actions),
+                ),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (label != null && utt.speaker != null) {
+                        Text(
+                            label,
+                            style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold,
+                            color = Color(speakerColorOn(utt.speaker, pal.isDark)),
+                            modifier = Modifier.clickable { onBeginSpeakerEdit(utt.speaker) },
+                        )
+                        Text(" · ", style = MaterialTheme.typography.labelMedium, color = pal.Slate400)
+                    }
+                    // The playing line also says so in its timestamp (▶, full contrast) — a cue that
+                    // does not rely on colour at all.
+                    if (active) Text("▶ ${fmt(utt.startSec)}", style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold, color = pal.Slate200)
+                    else Text(fmt(utt.startSec), style = MaterialTheme.typography.labelMedium, color = pal.Slate400)
+                }
+                Spacer(Modifier.height(2.dp))
                 Text(
-                    buildAnnotatedString {
-                        // The playing line also says so in its timestamp (▶, full-contrast) —
-                        // a cue that does not rely on colour at all.
-                        if (active) withStyle(SpanStyle(color = pal.Slate200, fontSize = 12.sp, fontWeight = FontWeight.Bold)) {
-                            append("▶ ${fmt(utt.startSec)} ")
-                        } else withStyle(SpanStyle(color = pal.Slate400, fontSize = 12.sp)) {
-                            append("[${fmt(utt.startSec)}] ")
-                        }
-                        if (label != null) {
-                            appendInlineContent(INLINE_CHIP, "[$label]")
-                            append(" ")
-                        }
-                        // Neutral high-contrast body text; the speaker colour lives on the chip
-                        // only (tinting whole paragraphs made the red speaker hard to read).
-                        append(highlightedTranscript(utt.text, highlight, pal.Sky, pal.Slate200))
-                    },
-                    inlineContent = if (label == null) emptyMap() else mapOf(
-                        INLINE_CHIP to InlineTextContent(
-                            // MEASURED, not estimated. The old per-character guess (latin 7 sp, CJK
-                            // 12 sp, + 18 sp padding) under-counted the chip's own 20 dp padding and
-                            // any wide glyph, so the placeholder came out narrower than the chip and
-                            // the last character was clipped — "Bob" rendered as "Bo". Measuring with
-                            // the chip's real style is exact for latin, CJK and mixed labels alike.
-                            Placeholder(
-                                width = speakerChipWidth(label),
-                                height = 20.sp,
-                                placeholderVerticalAlign = PlaceholderVerticalAlign.TextCenter,
-                            ),
-                        ) {
-                            SpeakerTag(
-                                speakerId = utt.speaker!!,
-                                label = label,
-                                editing = false,
-                                onTap = { onBeginSpeakerEdit(utt.speaker) },
-                                onCommit = { onCommitSpeakerName(utt.speaker, it) },
-                                onCancel = onCancelSpeakerEdit,
-                            )
-                        },
-                    ),
-                    style = MaterialTheme.typography.bodyMedium,
+                    highlightedTranscript(utt.text, highlight, pal.Sky, pal.Slate200),
+                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, lineHeight = 26.sp),
                     color = pal.Slate200,
-                    modifier = Modifier.weight(1f).clickable { onSeek(utt.startSec) },
                 )
-                // One quiet overflow per line (edit text, move/merge speaker): two icon buttons
-                // on every line took a fifth of the width and made the transcript look busy.
-                LineMenu(utt.speaker, speakerIds, speakerNames, onBeginEdit, onReassignLine, onMergeSpeaker)
+                LineMenu(utt.speaker, speakerIds, speakerNames, onBeginEdit, onReassignLine, onMergeSpeaker,
+                    expanded = menuOpen, onExpandedChange = { menuOpen = it })
             }
         }
     }

@@ -30,6 +30,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
@@ -106,6 +109,7 @@ fun SettingsContent(
                     selected = LlmRegistry.byId(config.llmModelId).id == spec.id,
                     downloaded = spec.id in readyLlm,
                     enabled = enabled,
+                    showRadio = LlmRegistry.ALL.size > 1,
                     onClick = { onChange(config.copy(llmModelId = spec.id)) },
                 )
             }
@@ -398,7 +402,7 @@ private fun Section(title: String) {
         color = pal.Sky,
         fontWeight = FontWeight.SemiBold,
         letterSpacing = 1.sp,
-        modifier = Modifier.padding(top = 14.dp, bottom = 2.dp),
+        modifier = Modifier.padding(top = 22.dp, bottom = 4.dp),
     )
 }
 
@@ -433,6 +437,7 @@ private fun SwitchRow(label: String, checked: Boolean, enabled: Boolean, onChang
     }
 }
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun SliderRow(
     label: String, value: Float, from: Float, to: Float, enabled: Boolean,
@@ -448,7 +453,11 @@ private fun SliderRow(
             color = pal.Slate200,
             modifier = Modifier.wrapContentWidth(),
         )
+        val colors = voxSumSliderColors()
+        val interaction = remember { MutableInteractionSource() }
         Slider(value = value, onValueChange = onChange, valueRange = from..to, enabled = enabled, steps = steps,
-            colors = voxSumSliderColors())
+            colors = colors, interactionSource = interaction,
+            // A 48 dp touch target needs a real handle, not the default 4 dp sliver.
+            thumb = { SliderDefaults.Thumb(interaction, colors = colors, enabled = enabled, thumbSize = DpSize(20.dp, 32.dp)) })
     }
 }

@@ -37,6 +37,7 @@ fun ModelOptionCard(
     selected: Boolean,
     downloaded: Boolean,
     enabled: Boolean = true,
+    showRadio: Boolean = true,
     onClick: () -> Unit,
 ) {
     val pal = LocalVoxSumPalette.current
@@ -51,8 +52,8 @@ fun ModelOptionCard(
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            RadioButton(selected = selected, onClick = onClick, enabled = enabled, colors = voxSumRadioColors())
-            Column(Modifier.weight(1f).padding(start = 4.dp)) {
+            if (showRadio) RadioButton(selected = selected, onClick = onClick, enabled = enabled, colors = voxSumRadioColors())
+            Column(Modifier.weight(1f).padding(start = if (showRadio) 4.dp else 8.dp)) {
                 Text(title, style = MaterialTheme.typography.bodyLarge, color = pal.Slate200)
                 Text(subtitle, style = MaterialTheme.typography.bodySmall, color = pal.Slate400)
             }

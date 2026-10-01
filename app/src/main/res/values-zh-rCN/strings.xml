@@ -344,4 +344,7 @@
     <string name="settings_experimental">实验功能</string>
     <string name="settings_show_actions">显示行动项目</string>
     <string name="settings_show_actions_hint">在摘要下方列出模型提取的行动项目。约五分之一可能与转写文本不符，点时间即可核对。</string>
+    <string name="agent_view_detailed">显示详细过程</string>
+    <string name="agent_view_simple">简化显示</string>
+    <string name="agent_simple_listening">聆听中——距离下一次阅读：</string>
 </resources>

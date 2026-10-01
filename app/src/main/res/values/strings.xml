@@ -350,4 +350,7 @@
     <string name="settings_experimental">Experimental</string>
     <string name="settings_show_actions">Show action items</string>
     <string name="settings_show_actions_hint">Lists the action items the model extracts under the summary. About one in five may not match the transcript — tap a time to check.</string>
+    <string name="agent_view_detailed">Show details</string>
+    <string name="agent_view_simple">Simple view</string>
+    <string name="agent_simple_listening">Listening — progress to the next reading:</string>
 </resources>

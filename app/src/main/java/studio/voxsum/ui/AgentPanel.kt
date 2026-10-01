@@ -169,6 +169,9 @@ fun AgentPanel(agent: AgentUiState, onSeek: ((Int) -> Unit)? = null, modifier: M
     val done = st.state == AgentState.DONE
     var expanded by remember(done) { mutableStateOf(!done) }
     var showLog by remember { mutableStateOf(false) }
+    // Simple view by default: state, one plain progress bar, the notes. The detailed view (token
+    // gauges, per-window timeline, activity log) is one tap away for those who want the process.
+    var detailed by remember { mutableStateOf(false) }
     Column(modifier.fillMaxWidth().animateContentSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(
             Modifier.fillMaxWidth().clickable { expanded = !expanded },
@@ -196,8 +199,10 @@ fun AgentPanel(agent: AgentUiState, onSeek: ((Int) -> Unit)? = null, modifier: M
             )
             return@Column
         }
-        if (!done) Gauges(agent, st)
-        Timeline(agent, st, onSeek)
+        if (detailed) {
+            if (!done) Gauges(agent, st)
+            Timeline(agent, st, onSeek)
+        } else SimpleBody(agent, st, onSeek)
         if (agent.notes.isNotEmpty()) {
             Text(stringResource(R.string.agent_notes_caution), style = MaterialTheme.typography.labelSmall, color = pal.Slate400)
         }
@@ -208,12 +213,17 @@ fun AgentPanel(agent: AgentUiState, onSeek: ((Int) -> Unit)? = null, modifier: M
                 modifier = Modifier.clickable { expanded = false }.padding(vertical = 4.dp),
             )
             Text(
+                stringResource(if (detailed) R.string.agent_view_simple else R.string.agent_view_detailed),
+                style = MaterialTheme.typography.labelLarge, color = pal.Slate400,
+                modifier = Modifier.clickable { detailed = !detailed; if (!detailed) showLog = false }.padding(vertical = 4.dp),
+            )
+            if (detailed) Text(
                 stringResource(if (showLog) R.string.agent_hide_log else R.string.agent_show_log, agent.log.size),
                 style = MaterialTheme.typography.labelLarge, color = pal.Slate400,
                 modifier = Modifier.clickable { showLog = !showLog }.padding(vertical = 4.dp),
             )
         }
-        if (showLog) {
+        if (detailed && showLog) {
             Column(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(pal.InsetSurface).padding(10.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -228,6 +238,32 @@ fun AgentPanel(agent: AgentUiState, onSeek: ((Int) -> Unit)? = null, modifier: M
                 }
             }
         }
+    }
+}
+
+/**
+ * Plain view: what the agent is doing, how close the next reading is (one bar, no token counts),
+ * the note being written, and every note so far, newest first.
+ */
+@Composable
+private fun SimpleBody(agent: AgentUiState, st: AgentEvent.State, onSeek: ((Int) -> Unit)?) {
+    val pal = LocalVoxSumPalette.current
+    val cur = agent.steps.lastOrNull { !it.restart }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        when (st.state) {
+            AgentState.LISTENING -> {
+                Text(stringResource(R.string.agent_simple_listening), style = MaterialTheme.typography.bodyMedium, color = pal.Slate200)
+                LinearProgressIndicator(
+                    progress = { ((cur?.tokens ?: 0).toFloat() / ReaderProtocol.WINDOW_TOKENS).coerceIn(0f, 1f) },
+                    modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
+                    color = pal.Sky, trackColor = pal.Slate700, strokeCap = StrokeCap.Round, drawStopIndicator = {},
+                )
+            }
+            AgentState.DONE -> Unit
+            else -> Text(statusLine(st), style = MaterialTheme.typography.bodyMedium, color = pal.Slate200)
+        }
+        if (cur?.reading == true && agent.reply.isNotBlank()) ReplyPreview(agent.reply)
+        agent.notes.sortedByDescending { it.window }.forEach { NoteCard(it, onSeek) }
     }
 }
 

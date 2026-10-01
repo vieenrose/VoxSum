@@ -2232,7 +2232,22 @@ private fun TranscribeScreen(
                 // stopping the first transcription (transcriptReady stays false) leaves no way to
                 // retry (and no summary/title, which depend on a transcript that never finished).
                 canReTranscribe = !running && audioUri != null,
-                onReTranscribe = { audioUri?.let { launchAudio(it, title) } },   // keep the session's title while it re-runs
+                onReTranscribe = {
+                    // Re-run IN PLACE: a library session re-transcribes its own entry. Its audio was
+                    // opened from a cache copy, which the pipeline would have saved as a NEW entry
+                    // (a duplicate row) — so give the entry back its recording.wav and run on that.
+                    val dir = libraryDir; val src = audioUri; val keepTitle = title
+                    if (src != null) scope.launch {
+                        val target = dir?.let { d ->
+                            withContext(Dispatchers.IO) {
+                                val wav = File(d, SessionLibrary.WAV_NAME)
+                                if (!wav.exists()) runCatching { AudioDecoder.decodeToWav16k(context, src, wav) { _, _ -> } }
+                                wav.takeIf { it.exists() && it.length() > 44 }
+                            }
+                        }
+                        launchAudio(target?.let { Uri.fromFile(it) } ?: src, keepTitle)
+                    }
+                },
                 canReSummarize = transcriptReady && !running,
                 onReSummarize = { regenerateStaleChildren() },
                 onSearch = { sessTab = 1; searchActive = !searchActive; if (!searchActive) searchQuery = "" },

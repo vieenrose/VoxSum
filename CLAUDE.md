@@ -32,4 +32,4 @@ scripts/test-on-device.sh [serial]   # instrumented tests on a device — use th
 
 - NDK is pinned (`27.2.12479018`); minSdk 26. Native deps are submodules: `native/llama.cpp`, `native/audiocpp`, `native/crispasr`, `native/crispasr-ggml` (CrispASR's own nested ggml is replaced by the last via `nemo/crispasr_ggml.cmake`).
 - Releases: bump `versionCode`/`versionName` in `app/build.gradle.kts`, push a `v*` tag; `.github/workflows/release.yml` builds a signed APK and attaches it to a GitHub Release (no F-Droid). See `RELEASING.md`.
-- The app and its docs support English and 繁體中文 only (`values/`, `values-zh-rTW/`, `docs/QUICKSTART*.md`) — keep user-facing changes in sync across both. `README.md` is Chinese only.
+- The app supports English and 繁體中文 only (`values/`, `values-zh-rTW/`) — keep user-facing strings in sync across both. The docs (`README.md`, `docs/QUICKSTART.zh-TW.md`) are Chinese only.

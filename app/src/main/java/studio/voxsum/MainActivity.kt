@@ -3293,12 +3293,16 @@ private fun SpeakerTag(
             )
         }
     } else {
-        var value by remember(label) { mutableStateOf(label) }
+        // Whole name selected on open: renaming replaces "Speaker 2" instead of typing in front of it.
+        var field by remember(label) {
+            mutableStateOf(androidx.compose.ui.text.input.TextFieldValue(label, androidx.compose.ui.text.TextRange(0, label.length)))
+        }
+        val value = field.text
         val focus = remember { FocusRequester() }
         LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
         BasicTextField(
-            value = value,
-            onValueChange = { value = it },
+            value = field,
+            onValueChange = { field = it },
             singleLine = true,
             // Was uncolored → default black text + black cursor, invisible on the dark chip. Color
             // both from the speaker color (already theme-adjusted so it's legible on every ground).

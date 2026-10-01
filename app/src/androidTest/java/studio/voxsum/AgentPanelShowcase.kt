@@ -26,7 +26,6 @@ import studio.voxsum.core.reader.AgentState
 import studio.voxsum.core.reader.DropReason
 import studio.voxsum.core.reader.Note
 import studio.voxsum.ui.AgentPanel
-import studio.voxsum.ui.AgentStrip
 import studio.voxsum.ui.AgentUiState
 import studio.voxsum.ui.theme.LocalVoxSumPalette
 import studio.voxsum.ui.theme.VoxSumTheme
@@ -57,7 +56,8 @@ class AgentPanelShowcase {
                         .verticalScroll(rememberScrollState()).padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    AgentStrip(agent)
+                    // Only the full panel (as on the Summary tab). The compact strip belongs to the
+                    // recording booth — stacked here it read as two cards with the same title.
                     Card(
                         colors = CardDefaults.cardColors(containerColor = pal.PanelSurface),
                         shape = RoundedCornerShape(16.dp),

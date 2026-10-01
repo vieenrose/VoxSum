@@ -256,7 +256,28 @@ class TranscriptionService : LifecycleService() {
 
     /** Emit a UI event stamped with the current coroutine's run generation ([UNTAGGED] outside a job). */
     private suspend fun emitEvent(e: TranscriptEvent) {
+        if (e is TranscriptEvent.Status) phaseStatus = e.message
         events.emit((kotlin.coroutines.coroutineContext[RunGen]?.gen ?: UNTAGGED) to e)
+    }
+
+    /** The last status of the actual work (transcribing, summarizing…), never a download's. */
+    @Volatile private var phaseStatus: String? = null
+
+    /** A download's own status line; it must not become the one we return to afterwards. */
+    private suspend fun emitDownloadStatus(text: String) {
+        events.emit(currentGen() to TranscriptEvent.Status(text))
+    }
+
+    /**
+     * After the last download of a burst: give the status line (and the notification) back to the
+     * work that is going on. Without it "Summary model… 100 %" stayed up while the app was already
+     * transcribing and summarizing — nothing else re-emits a status in that phase.
+     */
+    private fun downloadsDone(gen: Int) {
+        if (!downloads.isIdle()) return
+        val text = phaseStatus ?: getString(R.string.svc_processing)
+        updateNotification(text)
+        events.tryEmit(gen to TranscriptEvent.Status(text))
     }
 
     /** The current run's generation — capture this BEFORE handing a progress lambda to a
@@ -1325,12 +1346,12 @@ class TranscriptionService : LifecycleService() {
     private suspend fun ensureEngineModels(models: ModelManager) {
         // Ready → ensureAsrModels only reclaims retired engines' files (cheap, no download).
         if (models.asrReady()) { models.ensureAsrModels { }; return }
-        emitEvent(TranscriptEvent.Status(getString(R.string.svc_downloading_models)))
+        emitDownloadStatus(getString(R.string.svc_downloading_models))
         val gen = currentGen()
         dlBegin("asr", models.asrDownloadBytes())
         try {
             models.ensureAsrModels { frac -> reportDownload(gen, "asr", R.string.svc_downloading_models_pct, frac) }
-        } finally { dlEnd("asr") }
+        } finally { dlEnd("asr"); downloadsDone(gen) }
     }
 
     /** The streaming ASR + diarization engine (nemo-x-asr-diarizer). */
@@ -1548,12 +1569,12 @@ class TranscriptionService : LifecycleService() {
     /** Download the reader model if needed (progress → notification/UI, tagged with the run gen). */
     private suspend fun ensureLlm(spec: LlmSpec, models: ModelManager) {
         if (!models.llmReady(spec)) {
-            emitEvent(TranscriptEvent.Status(getString(R.string.svc_downloading_named, spec.displayName)))
+            emitDownloadStatus(getString(R.string.svc_downloading_named, spec.displayName))
             val gen = currentGen()
             dlBegin("llm", spec.totalBytes)
             try {
                 models.ensureLlmModel(spec) { frac -> reportDownload(gen, "llm", R.string.svc_summarization_model_pct, frac) }
-            } finally { dlEnd("llm") }
+            } finally { dlEnd("llm"); downloadsDone(gen) }
         }
     }
 

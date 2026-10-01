@@ -16,6 +16,9 @@ class DownloadAggregate {
         parts[key] = totalBytes.coerceAtLeast(1L) to 0f
     }
 
+    /** No download of the burst is still running. */
+    @Synchronized fun isIdle(): Boolean = active == 0
+
     @Synchronized fun end(key: String) {
         parts[key]?.let { parts[key] = it.first to 1f }
         active--

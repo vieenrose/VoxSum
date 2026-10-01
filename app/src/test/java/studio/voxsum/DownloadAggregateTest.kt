@@ -37,4 +37,13 @@ class DownloadAggregateTest {
         d.begin("llm", 100)                   // a new burst starts from zero
         assertEquals(0f, d.update("llm", 0f).first, 1e-6f)
     }
+
+    @Test fun idleOnlyWhenEveryDownloadOfTheBurstHasEnded() {
+        val d = DownloadAggregate()
+        assertTrue(d.isIdle())
+        d.begin("asr", 10); d.begin("llm", 10)
+        assertFalse(d.isIdle())
+        d.end("asr"); assertFalse(d.isIdle())
+        d.end("llm"); assertTrue(d.isIdle())
+    }
 }

@@ -2232,7 +2232,7 @@ private fun TranscribeScreen(
                 // stopping the first transcription (transcriptReady stays false) leaves no way to
                 // retry (and no summary/title, which depend on a transcript that never finished).
                 canReTranscribe = !running && audioUri != null,
-                onReTranscribe = { audioUri?.let { launchAudio(it) } },
+                onReTranscribe = { audioUri?.let { launchAudio(it, title) } },   // keep the session's title while it re-runs
                 canReSummarize = transcriptReady && !running,
                 onReSummarize = { regenerateStaleChildren() },
                 onSearch = { sessTab = 1; searchActive = !searchActive; if (!searchActive) searchQuery = "" },

@@ -174,8 +174,8 @@ object SessionLibrary {
     // --- pending transcript sidecar (queue drain, pass 1 → pass 2) ---
     //
     // The batch drain transcribes+diarizes EVERY queued item first (ASR models only), then loads
-    // the LLM once and summarizes them all — never both model families resident (SPIKE.md
-    // "memory"), and only one LLM load per drain instead of one per item. Between the passes each
+    // the LLM once and summarizes them all — never both model families resident on small
+    // devices, and only one LLM load per drain instead of one per item. Between the passes each
     // item's transcript lives in this sidecar, so a process kill resumes summarize-only instead of
     // redoing ASR. The fingerprint (ASR model + language + target + diarization) invalidates a
     // sidecar written under settings the user has since changed — pass 1 then re-transcribes.

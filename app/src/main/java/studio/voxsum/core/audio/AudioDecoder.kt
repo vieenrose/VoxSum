@@ -31,7 +31,7 @@ object AudioDecoder {
      *
      * Decodes to 16-bit PCM, downmixes channels by averaging, then linearly resamples to
      * 16 kHz. For multi-hour files this materializes the whole waveform; a streaming variant
-     * (feed VAD chunk-by-chunk) is a Phase 1+ optimization noted in SPIKE.md.
+     * (feed VAD chunk-by-chunk) is a possible optimization.
      */
     fun decodeToPcm16k(context: Context, uri: Uri): FloatArray {
         // Pre-size to ~3 min at 16 kHz to avoid early doublings; grows as needed.

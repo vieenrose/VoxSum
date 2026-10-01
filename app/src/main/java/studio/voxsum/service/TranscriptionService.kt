@@ -74,7 +74,7 @@ private const val LIVE_READER_MIN_RAM = 7L * 1024 * 1024 * 1024
  * for VoxSum's StreamingResponse. The UI collects [events] instead of reading NDJSON.
  *
  * Memory discipline lives here: run ASR+diarization first and release those models
- * before loading the LLM for summarization (see SPIKE.md "memory").
+ * before loading the LLM for summarization (small devices; with ~8 GB the reader runs alongside).
  */
 class TranscriptionService : LifecycleService() {
 
@@ -784,7 +784,7 @@ class TranscriptionService : LifecycleService() {
 
     /**
      * Decode (MediaCodec) -> ASR (Phase 1) -> summarization (Phase 2). The ASR models are
-     * released before the LLM loads — never both resident (see SPIKE.md "memory"). Phase 3
+     * released before the LLM loads — never both resident on small devices. Phase 3
      * inserts diarization between ASR and the Complete event.
      */
     private suspend fun runPipeline(

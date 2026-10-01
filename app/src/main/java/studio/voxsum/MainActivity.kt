@@ -1302,7 +1302,8 @@ private fun TranscribeScreen(
             libraryDir = SessionLibrary.entryDirOf(context, uri)
             watchingQueue = false
             screen = Screen.Session
-            status = context.getString(R.string.status_session_loaded, loaded.utterances.size)
+            status = if (loaded.utterances.isEmpty()) ""   // the tabs say "no speech" themselves
+                     else context.getString(R.string.status_session_loaded, loaded.utterances.size)
             RecentSessions.add(context, uri.toString(), loaded.title ?: "", System.currentTimeMillis()); recentsVersion++
           } finally {
             // Clear only if still the current open — a newer openSessionUri owns the flag otherwise.
@@ -1997,7 +1998,11 @@ private fun TranscribeScreen(
             }
             if (title == null && summary == null && stats.perSpeaker.isEmpty()) {
                 Text(
-                    stringResource(R.string.summary_pending_hint),
+                    stringResource(when {
+                        running -> R.string.summary_pending_hint
+                        utterances.isEmpty() -> R.string.status_no_speech
+                        else -> R.string.summary_missing_hint
+                    }),
                     color = pal.Slate400,
                     modifier = Modifier.padding(top = 24.dp),
                 )
@@ -2336,6 +2341,11 @@ private fun TranscribeScreen(
                             query = searchQuery, onQuery = { searchQuery = it },
                             matchCount = searchMatches.size, matchPos = matchPos,
                             onPrev = { searchPrev() }, onNext = { searchNext() }, onClose = { closeSearch() },
+                        )
+                        if (utterances.isEmpty() && !running) Text(
+                            stringResource(R.string.status_no_speech),
+                            color = pal.Slate400,
+                            modifier = Modifier.padding(top = 24.dp),
                         )
                         LazyColumn(
                             state = listState,

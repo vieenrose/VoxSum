@@ -26,6 +26,12 @@ fun PodcastSheet(onEpisodeReady: (Uri, String?) -> Unit, onDismiss: () -> Unit) 
         Column(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 24.dp),
         ) {
+            androidx.compose.material3.Text(
+                androidx.compose.ui.res.stringResource(studio.voxsum.R.string.source_podcast),
+                style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
+                color = pal.Slate200, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 10.dp),
+            )
             PodcastPanel(onEpisodeReady = onEpisodeReady)
         }
     }

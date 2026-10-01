@@ -30,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -86,7 +87,7 @@ fun PodcastPanel(onEpisodeReady: (Uri, String?) -> Unit) {
                         busy = true; error = null; selected = null; episodes = emptyList()
                         progress = null; statusRes = R.string.dl_searching
                         series = runCatching { Podcast.searchSeries(query) }
-                            .getOrElse { error = it.message; emptyList() }
+                            .getOrElse { error = it.userMessage(context); emptyList() }
                         busy = false
                     }
                 },
@@ -105,13 +106,13 @@ fun PodcastPanel(onEpisodeReady: (Uri, String?) -> Unit) {
                         busy = true; error = null; selected = s
                         progress = null; statusRes = R.string.dl_loading_episodes
                         episodes = runCatching { Podcast.fetchEpisodes(s.feedUrl) }
-                            .getOrElse { error = it.message; emptyList() }
+                            .getOrElse { error = it.userMessage(context); emptyList() }
                         busy = false
                     }
                 }) {
                     Column(Modifier.padding(12.dp)) {
                         Text(s.title, style = MaterialTheme.typography.bodyLarge, color = pal.Slate200)
-                        Text("${s.artist} · ${s.episodeCount} episodes",
+                        Text("${s.artist} · ${pluralStringResource(R.plurals.podcast_episodes, s.episodeCount, s.episodeCount)}",
                             style = MaterialTheme.typography.bodySmall, color = pal.Slate400)
                     }
                 }
@@ -140,7 +141,7 @@ fun PodcastPanel(onEpisodeReady: (Uri, String?) -> Unit) {
                                 progress = null; statusRes = R.string.dl_downloading
                                 val uri = runCatching {
                                     Podcast.downloadEpisode(context, e, onProgress = { progress = it })
-                                }.getOrElse { error = it.message; null }
+                                }.getOrElse { error = it.userMessage(context); null }
                                 busy = false
                                 uri?.let { onEpisodeReady(it, e.title) }
                             }

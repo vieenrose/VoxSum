@@ -73,7 +73,7 @@ fun YouTubeSheet(onAudioReady: (Uri, String?) -> Unit, onDismiss: () -> Unit) {
                 YouTube.download(context, audio) { p -> progress = p } to audio.title
             }
                 .onSuccess { (uri, vidTitle) -> busy = false; onAudioReady(uri, vidTitle) }
-                .onFailure { busy = false; error = it.message ?: context.getString(R.string.youtube_fetch_failed) }
+                .onFailure { busy = false; error = it.userMessage(context) ?: context.getString(R.string.youtube_fetch_failed) }
         }
     }
     fun go() {
@@ -84,7 +84,7 @@ fun YouTubeSheet(onAudioReady: (Uri, String?) -> Unit, onDismiss: () -> Unit) {
         scope.launch {
             runCatching { YouTube.search(q) }
                 .onSuccess { busy = false; results = it; if (it.isEmpty()) error = context.getString(R.string.youtube_no_videos) }
-                .onFailure { busy = false; error = it.message ?: context.getString(R.string.youtube_search_failed) }
+                .onFailure { busy = false; error = it.userMessage(context) ?: context.getString(R.string.youtube_search_failed) }
         }
     }
 
@@ -148,3 +148,10 @@ fun YouTubeSheet(onAudioReady: (Uri, String?) -> Unit, onDismiss: () -> Unit) {
         }
     }
 }
+
+/** A network failure's own text ("Connection reset") is neither localized nor actionable. */
+internal fun Throwable.userMessage(context: android.content.Context): String? =
+    if (this is java.net.SocketException || this is java.net.SocketTimeoutException ||
+        this is java.net.UnknownHostException || this is javax.net.ssl.SSLException)
+        context.getString(R.string.network_error)
+    else message

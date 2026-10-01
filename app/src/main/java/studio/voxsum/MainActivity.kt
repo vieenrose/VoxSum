@@ -2020,7 +2020,9 @@ private fun TranscribeScreen(
     }
     val actionsCards: @Composable () -> Unit = {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            actionItems?.let { ai ->
+            val noActions = actionItems?.trim()?.let { it.isEmpty() || it == "-" } == true && !editingActions
+            if (noActions) Text(stringResource(R.string.actions_none), color = pal.Slate400, modifier = Modifier.padding(top = 24.dp))
+            else actionItems?.let { ai ->
                 ActionItemsCard(ai, editingActions,
                     onBeginEdit = { editingActions = true },
                     onSave = { actionItems = it; editingActions = false; editSeq++; sessionDirty = true },

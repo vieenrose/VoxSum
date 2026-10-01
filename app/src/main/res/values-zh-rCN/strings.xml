@@ -238,6 +238,7 @@
     <string name="summary_pending_hint">尚无摘要——处理完成后会显示在这里。</string>
     <string name="summary_missing_hint">此场次没有摘要——可从菜单选“重新摘要”再试一次。</string>
     <string name="actions_pending_hint">尚无待办事项。</string>
+    <string name="actions_none">这场会议没有行动项目。</string>
 
     <string name="mic_capture_failed">麦克风失效——未录到任何声音。请关闭其他使用麦克风的 App 后重试。</string>
     <string name="rec_storage_failed">录音已停止——存储空间已满。请释出空间后再试。</string>

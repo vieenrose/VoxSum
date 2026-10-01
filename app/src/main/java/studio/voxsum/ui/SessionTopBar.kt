@@ -79,6 +79,8 @@ fun SessionTopBar(
     canExport: Boolean,
     onOpenExport: () -> Unit,
     onSettings: () -> Unit,
+    /** Tap on the title: edit it (null → not editable, e.g. no title yet). */
+    onTitleClick: (() -> Unit)? = null,
 ) {
     val pal = LocalVoxSumPalette.current
     // statusBarsPadding: as a Scaffold topBar this composable owns its own inset — without it the
@@ -106,7 +108,8 @@ fun SessionTopBar(
                 color = pal.Slate200,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f)
+                    .then(if (onTitleClick != null) Modifier.clickable(onClick = onTitleClick) else Modifier),
             )
             if (showNextTalk) {
                 IconButton(onClick = onNextTalk) {

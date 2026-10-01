@@ -1962,7 +1962,8 @@ private fun TranscribeScreen(
             // The reading agent at work (live during recording/processing; stays after as a log).
             val shownAgent = if (watchingQueue) queueAgent else agent
             if (shownAgent.active) SectionCard { studio.voxsum.ui.AgentPanel(shownAgent, anchorSeek) }
-            title?.let { t ->
+            // Portrait: the title is in the top bar; the card only appears to edit it.
+            title?.takeIf { twoPane || editingTitle }?.let { t ->
                 TitleCard(t, llmDisplay, editingTitle,
                     onBeginEdit = { editingTitle = true },
                     onSave = { title = it; editingTitle = false; titleEdited = true; editSeq++; sessionDirty = true },
@@ -2202,8 +2203,10 @@ private fun TranscribeScreen(
         topBar = {
             SessionTopBar(
                 cover = null,   // no per-session art (the generated identicon was removed)
-                // The editable title card heads the Summary tab: don't say it twice.
-                title = if ((twoPane || sessTab == 0) && !title.isNullOrBlank()) "" else title,
+                // The title lives in the top bar on every tab (tap it to edit); the two-pane overview
+                // carries its own title card, so the bar stays blank there.
+                title = if (twoPane && !title.isNullOrBlank()) "" else title,
+                onTitleClick = if (!twoPane && !title.isNullOrBlank() && !running) ({ sessTab = 0; editingTitle = true }) else null,
                 status = status,
                 running = running,
                 progress = progress,

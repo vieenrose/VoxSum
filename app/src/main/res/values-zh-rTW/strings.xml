@@ -214,7 +214,6 @@
     <string name="capture_title">錄音</string>
     <string name="capture_next_talk">下一場</string>
     <string name="capture_stop">停止並儲存</string>
-    <string name="capture_live_transcript">即時逐字稿</string>
     <string name="capture_live_waiting">聆聽中…</string>
     <string name="studio_return_capture">錄音中…（返回）</string>
     <string name="action_process_now">立即處理</string>

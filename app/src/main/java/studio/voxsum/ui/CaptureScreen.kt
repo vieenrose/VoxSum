@@ -29,8 +29,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.Stop
@@ -42,10 +40,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -89,7 +83,6 @@ fun CaptureScreen(
     onBack: () -> Unit,
 ) {
     val pal = LocalVoxSumPalette.current
-    var showLive by remember { mutableStateOf(true) }
     val conf = LocalConfiguration.current
     val landscape = studio.voxsum.ui.components.rememberIsLandscape()
     Column(
@@ -128,8 +121,7 @@ fun CaptureScreen(
                 }
                 Spacer(Modifier.width(24.dp))
                 Column(Modifier.weight(1.2f).fillMaxHeight()) {
-                    LiveHeader(showLive, pal) { showLive = !showLive }
-                    LivePanel(showLive, utterances, stable, agent)
+                    LivePanel(utterances, stable, agent)
                 }
             }
             Spacer(Modifier.height(12.dp))
@@ -138,8 +130,7 @@ fun CaptureScreen(
             Spacer(Modifier.height(16.dp))
             // Live transcript: a first-class panel filling everything between the timer and
             // the buttons — the full running transcript, auto-following the newest line.
-            LiveHeader(showLive, pal) { showLive = !showLive }
-            LivePanel(showLive, utterances, stable, agent)
+            LivePanel(utterances, stable, agent)
             Spacer(Modifier.height(16.dp))
             CaptureButtons(isRecording, onNextTalk, onStop, buttonHeight = 72.dp)
             Spacer(Modifier.height(16.dp))
@@ -178,43 +169,15 @@ private fun TimerRow(recSeconds: Int, micLevel: Float, modifier: Modifier = Modi
     }
 }
 
-@Composable
-private fun LiveHeader(showLive: Boolean, pal: studio.voxsum.ui.theme.VoxSumColors, onToggle: () -> Unit) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(pal.Slate800).padding(horizontal = 12.dp),
-    ) {
-        Text(
-            stringResource(R.string.capture_live_transcript),
-            style = MaterialTheme.typography.labelLarge,
-            color = pal.Slate400,
-            modifier = Modifier.weight(1f),
-        )
-        IconButton(onClick = onToggle) {
-            Icon(
-                // Chevron points where the panel will go: up = open (tap to fold), down = folded.
-                if (showLive) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                contentDescription = stringResource(R.string.capture_live_transcript),
-                tint = pal.Slate400,
-            )
-        }
-    }
-}
-
-/** The transcript panel body — takes all remaining column height (collapsed → a spacer keeps
- *  the geometry stable). Declared as a ColumnScope extension for the weight modifier. */
+/** The transcript panel body — takes all remaining column height. Declared as a ColumnScope
+ *  extension for the weight modifier. */
 @Composable
 private fun androidx.compose.foundation.layout.ColumnScope.LivePanel(
-    showLive: Boolean,
     utterances: List<TranscriptEvent.Utterance>,
     stable: Int,
     agent: AgentUiState?,
 ) {
     val pal = LocalVoxSumPalette.current
-    if (!showLive) {
-        Spacer(Modifier.weight(1f))
-        return
-    }
     // The summarizing agent works alongside ASR + diarization: its status stays pinned on top.
     agent?.let { AgentStrip(it) }
     if (utterances.isEmpty()) {

@@ -232,7 +232,6 @@
     <string name="capture_title">Record</string>
     <string name="capture_next_talk">Next talk</string>
     <string name="capture_stop">Stop &amp; save</string>
-    <string name="capture_live_transcript">Live transcript</string>
     <string name="capture_live_waiting">Listening…</string>
     <string name="studio_return_capture">Recording… (return)</string>
     <string name="action_process_now">Process now</string>

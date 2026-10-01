@@ -656,7 +656,6 @@ private fun TranscribeScreen(
             Spacer(Modifier.height(8.dp))
         }
     }
-    // User-typed session name on the Capture screen — outranks the LLM title for that entry.
     // ⏹ Stop & save: after the capture is confirmed saved (RecordingSaved), auto-enqueue it and
     // start the queue — stop always defers, processing is always the queue's job now.
     var pendingAutoProcess by remember { mutableStateOf(false) }

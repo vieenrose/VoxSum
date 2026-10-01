@@ -136,7 +136,7 @@ fun CaptureScreen(
         } else {
             TimerRow(recSeconds, micLevel, Modifier.align(Alignment.CenterHorizontally))
             Spacer(Modifier.height(16.dp))
-            // Live transcript: a first-class panel filling everything between the name field and
+            // Live transcript: a first-class panel filling everything between the timer and
             // the buttons — the full running transcript, auto-following the newest line.
             LiveHeader(showLive, pal) { showLive = !showLive }
             LivePanel(showLive, utterances, stable, agent)

@@ -119,12 +119,41 @@ class OpenCcConverter private constructor(
             return build(listOf(s2tStage(context), tw))
         }
 
-        // t2s: T→S in one stage (phrases then chars merged).
+        // tw2sp, OpenCC's own Taiwan→Simplified-with-phrases chain: stage 1 undoes the Taiwan
+        // localisation (TWPhrasesRev + TWVariantsRevPhrases + TWVariantsRev, the reverse of the
+        // dictionaries s2twp uses), stage 2 is t2s (TSPhrases + TSCharacters). The summary model
+        // writes Taiwan Traditional; plain t2s would leave 資訊/軟體/搜尋 untouched. Simplified input
+        // passes through unchanged (every stage-1 key is Traditional).
         private fun buildSimplified(context: Context): OpenCcConverter {
+            val twRev = HashMap<String, String>(2048)
+            loadReverseInto(context, "opencc/TWPhrases.txt", twRev)
+            loadReverseInto(context, "opencc/TWVariantsPhrases.txt", twRev)
+            loadReverseInto(context, "opencc/TWVariants.txt", twRev)
             val t2s = HashMap<String, String>(8192)
             loadInto(context, "opencc/TSPhrases.txt", t2s)
             loadInto(context, "opencc/TSCharacters.txt", t2s)
-            return build(listOf(t2s))
+            return build(listOf(twRev, t2s))
+        }
+
+        /** OpenCC `*Rev` dictionary: every target of a line maps back to its source; earlier files win. */
+        private fun loadReverseInto(context: Context, asset: String, into: MutableMap<String, String>) {
+            try {
+                context.assets.open(asset).use { raw ->
+                    raw.bufferedReader(Charsets.UTF_8).useLines { seq ->
+                        seq.forEach { line ->
+                            if (line.isBlank() || line.startsWith('#')) return@forEach
+                            val tab = line.indexOf('\t')
+                            if (tab <= 0) return@forEach
+                            val src = line.substring(0, tab)
+                            line.substring(tab + 1).split(' ').forEach { v ->
+                                if (v.isNotEmpty() && v != src) into.putIfAbsent(v, src)
+                            }
+                        }
+                    }
+                }
+            } catch (e: Throwable) {
+                android.util.Log.e("OpenCcConverter", "failed loading $asset", e)
+            }
         }
 
         private fun build(stages: List<Map<String, String>>): OpenCcConverter {

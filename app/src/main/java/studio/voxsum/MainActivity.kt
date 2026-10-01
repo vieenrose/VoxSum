@@ -352,7 +352,11 @@ class MainActivity : ComponentActivity() {
                 LocalThemeController provides controller,
                 LocalLanguageController provides langController,
                 androidx.compose.ui.platform.LocalContext provides localized,
-                androidx.compose.ui.platform.LocalConfiguration provides remember(localized, realConfig) { android.content.res.Configuration(localized.resources.configuration) },
+                androidx.compose.ui.platform.LocalConfiguration provides remember(localized, realConfig) {
+                    // Sizes/orientation come from Compose's own (always current) configuration; only the
+                    // locale list comes from the localized resources.
+                    android.content.res.Configuration(realConfig).also { it.setLocales(localized.resources.configuration.locales) }
+                },
             ) {
                 VoxSumTheme(themeMode) {
                     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -1854,7 +1858,9 @@ private fun TranscribeScreen(
     // Landscape uses a two-pane layout: title/summary/stats move to a left overview pane, so the
     // transcript list has no header items (in portrait they precede the utterances and shift the
     // auto-scroll index).
-    val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    // Window size, not LocalConfiguration: the latter is wrapped for the language switch and must
+    // never be the source of truth for layout.
+    val landscape = studio.voxsum.ui.components.rememberIsLandscape()
     val hasOverview = title != null || summary != null || actionItems != null || stats.perSpeaker.isNotEmpty()
     // Landscape with something to show → side-by-side overview + transcript panes; otherwise a single
     // column. The stacked column carries the overview as one header item (which shifts auto-scroll).

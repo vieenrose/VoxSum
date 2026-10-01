@@ -241,7 +241,7 @@
     <string name="action_delete">Delete</string>
     <string name="delete_confirm">Delete “%s” permanently? The audio and its transcript are removed.</string>
 
-    <string name="studio_processing_banner">Processing — %s (tap to view live)</string>
+    <string name="studio_processing_banner">%s (tap to watch live)</string>
 
     <string name="studio_search_hint">Search sessions…</string>
     <string name="studio_no_match">No session matches your search.</string>

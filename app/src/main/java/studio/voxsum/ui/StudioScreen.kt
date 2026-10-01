@@ -285,7 +285,7 @@ fun StudioScreen(
             if (foregroundRun && !isRecording) {
                 Banner(
                     icon = Icons.Filled.PlaylistPlay, tint = pal.Sky,
-                    text = stringResource(R.string.studio_processing_banner, foregroundLabel),
+                    text = stringResource(R.string.studio_processing_banner, foregroundLabel.ifBlank { stringResource(R.string.status_processing) }),
                     onClick = onResumeSession,
                 )
             }

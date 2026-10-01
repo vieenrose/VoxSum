@@ -223,7 +223,7 @@
     <string name="action_delete">删除</string>
     <string name="delete_confirm">确定要永久删除“%s”吗？音频与转写文本都会被移除。</string>
 
-    <string name="studio_processing_banner">处理中——%s（点击实时查看）</string>
+    <string name="studio_processing_banner">%s（点击实时查看）</string>
 
     <string name="studio_search_hint">搜索场次…</string>
     <string name="studio_no_match">没有符合搜索的场次。</string>

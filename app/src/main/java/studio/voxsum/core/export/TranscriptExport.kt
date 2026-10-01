@@ -56,7 +56,9 @@ object TranscriptExport {
             append("## ").append(summaryHeading).append("\n\n").append(it).append("\n\n")
         }
         actionItems?.trim()?.takeIf { it.isNotEmpty() && it != "-" }?.let {
-            append("## ").append(actionsHeading ?: "Action items").append("\n\n").append(it).append("\n\n")
+            // No heading given: the block carries its own (localized) headings — don't add an English one.
+            actionsHeading?.let { h -> append("## ").append(h).append("\n\n") }
+            append(it).append("\n\n")
         }
         append("## ").append(transcriptHeading).append("\n\n")
         for (u in utterances) {

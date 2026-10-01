@@ -1349,7 +1349,8 @@ private fun TranscribeScreen(
         val h: (String) -> String = { if (markdown) "## $it" else it }
         val out = StringBuilder()
         // "-" is the extractor's own "nothing found" marker, not content.
-        actionItems?.trim()?.takeIf { it.isNotEmpty() && it != "-" }?.let {
+        // Action items are an opt-in experiment: exported only when shown in the app.
+        actionItems?.trim()?.takeIf { config.showActionItems && it.isNotEmpty() && it != "-" }?.let {
             out.append(h(context.getString(R.string.export_heading_actions))).append("\n").append(it).append("\n\n")
         }
         meetingNotes?.let { n ->

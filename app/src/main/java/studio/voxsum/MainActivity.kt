@@ -2880,42 +2880,47 @@ private fun PlayerBar(
             modifier = Modifier.fillMaxWidth().height(stripH),
         )
         Spacer(Modifier.height(if (compact) 2.dp else 4.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(fmtMs(shownMs), style = MaterialTheme.typography.labelSmall, color = pal.Slate400)
-            Spacer(Modifier.weight(1f))
-            IconButton(onClick = { onSkip(-5000) }, modifier = Modifier.size(btnSize)) {
-                Icon(Icons.Filled.Replay5, contentDescription = stringResource(R.string.cd_back5), tint = pal.Slate200)
-            }
-            Box(
-                Modifier
-                    .size(playSize)
-                    .clip(CircleShape)
-                    // Dark: the solid accent (the brand fill is a navy that swallows the dark glyph).
-                    .background(if (pal.isDark) androidx.compose.ui.graphics.SolidColor(pal.Sky) else pal.BrandGradient)
-                    .clickable(onClick = onPlayPause),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    contentDescription = if (isPlaying) stringResource(R.string.cd_pause) else stringResource(R.string.cd_play),
-                    tint = pal.Slate900,
-                )
-                // Underrun: overlay a spinner so it reads as "buffering, will resume" not "frozen".
-                if (buffering) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(playSize),
-                        color = pal.Slate900,
-                        strokeWidth = 2.dp,
+        // Box, not a Row with spacers: the edges (elapsed | volume + duration) differ in width, so
+        // weighted spacers pushed the transport off the screen centre. Centre it on the box.
+        Box(Modifier.fillMaxWidth()) {
+            Text(fmtMs(shownMs), style = MaterialTheme.typography.labelSmall, color = pal.Slate400,
+                modifier = Modifier.align(Alignment.CenterStart))
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.align(Alignment.Center)) {
+                IconButton(onClick = { onSkip(-5000) }, modifier = Modifier.size(btnSize)) {
+                    Icon(Icons.Filled.Replay5, contentDescription = stringResource(R.string.cd_back5), tint = pal.Slate200)
+                }
+                Box(
+                    Modifier
+                        .size(playSize)
+                        .clip(CircleShape)
+                        // Dark: the solid accent (the brand fill is a navy that swallows the dark glyph).
+                        .background(if (pal.isDark) androidx.compose.ui.graphics.SolidColor(pal.Sky) else pal.BrandGradient)
+                        .clickable(onClick = onPlayPause),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        contentDescription = if (isPlaying) stringResource(R.string.cd_pause) else stringResource(R.string.cd_play),
+                        tint = pal.Slate900,
                     )
+                    // Underrun: overlay a spinner so it reads as "buffering, will resume" not "frozen".
+                    if (buffering) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(playSize),
+                            color = pal.Slate900,
+                            strokeWidth = 2.dp,
+                        )
+                    }
+                }
+                IconButton(onClick = { onSkip(5000) }, modifier = Modifier.size(btnSize)) {
+                    Icon(Icons.Filled.Forward5, contentDescription = stringResource(R.string.cd_forward5), tint = pal.Slate200)
                 }
             }
-            IconButton(onClick = { onSkip(5000) }, modifier = Modifier.size(btnSize)) {
-                Icon(Icons.Filled.Forward5, contentDescription = stringResource(R.string.cd_forward5), tint = pal.Slate200)
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.align(Alignment.CenterEnd)) {
+                VolumeControl(volume = volume, muted = muted, onVolume = onVolume, onToggleMute = onToggleMute, btnSize = btnSize)
+                Spacer(Modifier.width(6.dp))
+                Text(fmtMs(durationMs), style = MaterialTheme.typography.labelSmall, color = pal.Slate400)
             }
-            Spacer(Modifier.weight(1f))
-            VolumeControl(volume = volume, muted = muted, onVolume = onVolume, onToggleMute = onToggleMute, btnSize = btnSize)
-            Spacer(Modifier.width(6.dp))
-            Text(fmtMs(durationMs), style = MaterialTheme.typography.labelSmall, color = pal.Slate400)
         }
     }
 }
@@ -2996,6 +3001,7 @@ private fun TimelineStrip(
 ) {
     val pal = LocalVoxSumPalette.current
     val durSec = (durationMs / 1000.0).coerceAtLeast(0.001)
+    var dragging by remember { mutableStateOf(false) }
     Canvas(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
@@ -3012,10 +3018,10 @@ private fun TimelineStrip(
                 var pos = 0
                 fun at(x: Float) = ((x / size.width).coerceIn(0f, 1f) * durationMs).toInt()
                 detectHorizontalDragGestures(
-                    onDragStart = { o -> if (size.width > 0 && durationMs > 0) { pos = at(o.x); onDragChange(pos) } },
+                    onDragStart = { o -> if (size.width > 0 && durationMs > 0) { dragging = true; pos = at(o.x); onDragChange(pos) } },
                     onHorizontalDrag = { change, _ -> if (size.width > 0 && durationMs > 0) { pos = at(change.position.x); onDragChange(pos) } },
-                    onDragEnd = { if (durationMs > 0) onSeekTo(pos); onDragChange(null) },
-                    onDragCancel = { onDragChange(null) },
+                    onDragEnd = { dragging = false; if (durationMs > 0) onSeekTo(pos); onDragChange(null) },
+                    onDragCancel = { dragging = false; onDragChange(null) },
                 )
             },
     ) {
@@ -3027,14 +3033,17 @@ private fun TimelineStrip(
         // full height, near-opaque, white outline.
         val segTop = h * 0.22f
         val segH = h * 0.56f
+        val playX = (progressMs.toFloat() / durationMs).coerceIn(0f, 1f) * w
         utterances.forEachIndexed { i, u ->
             val startX = (u.startSec / durSec).toFloat().coerceIn(0f, 1f) * w
             val endX = (u.endSec / durSec).toFloat().coerceIn(0f, 1f) * w
             val segW = (endX - startX).coerceAtLeast(1.5f)
             val active = i == activeIndex
             val base = Color(speakerColorOn(u.speaker, pal.isDark))
+            // Already-heard speech reads stronger than what is still ahead: progress at a glance.
+            val played = endX <= playX
             drawRoundRect(
-                color = if (active) base.copy(alpha = 0.9f) else base.copy(alpha = 0.25f),
+                color = if (active) base.copy(alpha = 0.9f) else base.copy(alpha = if (played) 0.55f else 0.2f),
                 topLeft = Offset(startX, if (active) 0f else segTop),
                 size = Size(segW, if (active) h else segH),
                 cornerRadius = CornerRadius(2f, 2f),
@@ -3049,11 +3058,14 @@ private fun TimelineStrip(
                 )
             }
         }
-        // Playhead: a thin white line + a Sky thumb, so the strip reads as the scrubber.
-        val cx = (progressMs.toFloat() / durationMs).coerceIn(0f, 1f) * w
-        drawLine(Color.White, Offset(cx, 0f), Offset(cx, h), strokeWidth = 2f)
-        drawCircle(pal.Sky, radius = h * 0.42f, center = Offset(cx, h / 2f))
-        drawCircle(Color.White, radius = h * 0.42f, center = Offset(cx, h / 2f), style = Stroke(width = 2f))
+        // Playhead: a full-height bar in the text colour (not a speaker hue, not the accent of the
+        // play button below), haloed in the background colour so it stays visible over any
+        // segment. It covers almost nothing of the speaker under it, and widens while dragged.
+        val barW = (if (dragging) 6.dp else 3.dp).toPx()
+        val halo = 2.dp.toPx()
+        val cx = playX.coerceIn(barW / 2 + halo, w - barW / 2 - halo)
+        drawRoundRect(pal.Slate900, topLeft = Offset(cx - barW / 2 - halo, 0f), size = Size(barW + 2 * halo, h), cornerRadius = CornerRadius(barW, barW))
+        drawRoundRect(pal.Slate200, topLeft = Offset(cx - barW / 2, 0f), size = Size(barW, h), cornerRadius = CornerRadius(barW / 2, barW / 2))
     }
 }
 
@@ -3103,10 +3115,9 @@ private fun UtteranceRow(
                         size = Size(2.5.dp.toPx(), size.height),
                     )
                 }
-                if (active) {
-                    drawRect(pal.ActiveTint)
-                    drawRect(pal.ActiveBar, size = Size(3.dp.toPx(), size.height))
-                }
+                // Playing line: a neutral wash (the text colour at low alpha) — never a hue, which
+                // a speaker could also own; the speaker rail above stays untouched.
+                if (active) drawRect(pal.Slate200.copy(alpha = if (pal.isEink) 0.12f else 0.07f))
             }
             .padding(vertical = 3.dp, horizontal = 6.dp),
     ) {
@@ -3143,7 +3154,11 @@ private fun UtteranceRow(
             Row(verticalAlignment = Alignment.Top) {
                 Text(
                     buildAnnotatedString {
-                        withStyle(SpanStyle(color = pal.Slate400, fontSize = 12.sp)) {
+                        // The playing line also says so in its timestamp (▶, full-contrast) —
+                        // a cue that does not rely on colour at all.
+                        if (active) withStyle(SpanStyle(color = pal.Slate200, fontSize = 12.sp, fontWeight = FontWeight.Bold)) {
+                            append("▶ ${fmt(utt.startSec)} ")
+                        } else withStyle(SpanStyle(color = pal.Slate400, fontSize = 12.sp)) {
                             append("[${fmt(utt.startSec)}] ")
                         }
                         if (label != null) {

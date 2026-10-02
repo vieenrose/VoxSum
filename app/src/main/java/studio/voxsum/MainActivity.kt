@@ -1661,6 +1661,13 @@ private fun TranscribeScreen(
                     // into CaptureScreen with a live mic they never asked for from there.
                     if (pendingNextTalk) {
                         pendingNextTalk = false
+                        // Queue the talk that just ended (without starting the drain: the next
+                        // recording takes the device). The service resumes the queue on its own when
+                        // that recording ends, so back-to-back talks are all summarized — before,
+                        // they stayed "new" until the user remembered "Process pending".
+                        savedDir?.name?.let { id ->
+                            scope.launch { withContext(Dispatchers.IO) { ProcessingQueue.enqueue(context, listOf(id)) }; recentsVersion++ }
+                        }
                         if (screen == Screen.Capture) beginRecording()
                     }
                 }

@@ -1047,9 +1047,7 @@ class TranscriptionService : LifecycleService() {
         // resumes summarize-only. The outer loop catches items enqueued mid-drain.
         val cfgAll = TranscriptionConfig.Holder.config
         // Anything transcription-affecting invalidates a leftover sidecar from an older drain.
-        val fingerprint = listOf(
-            cfgAll.asrBackend, cfgAll.asrModelId, cfgAll.summaryScript,
-        ).joinToString("|")
+        val fingerprint = transcriptFingerprint(cfgAll)
         var lastLap: List<String>? = null
         while (true) {
             val ids = ProcessingQueue.ids(this)
@@ -1202,6 +1200,9 @@ class TranscriptionService : LifecycleService() {
         // Set by the capture coroutine on a mic failure so the post-collect path doesn't ALSO emit
         // 'No audio recorded' (one cause, one terminal event). AtomicBoolean for cross-coroutine visibility.
         val captureFailed = java.util.concurrent.atomic.AtomicBoolean(false)
+        // Set when the live recognizer missed audio (its channel overflowed, e.g. while a model was
+        // still downloading): its transcript is then incomplete and must not stand in for the queue's.
+        val liveDropped = java.util.concurrent.atomic.AtomicBoolean(false)
         // Snapshot of deferProcessing taken the moment capture ends: the UI's next-talk flow fires
         // a new ACTION_RECORD (which resets the service-global flag) while THIS run is still
         // finishing — the run must keep the defer decision it stopped under.
@@ -1246,7 +1247,7 @@ class TranscriptionService : LifecycleService() {
                     // we drop the chunk for the LIVE-PREVIEW recognizer only (the full WAV is
                     // re-transcribed by the queue anyway) and keep the mic draining + the graceful
                     // stop flag responsive.
-                    mic.trySend(chunk)
+                    if (!mic.trySend(chunk).isSuccess) liveDropped.set(true)
                 }
             } catch (ce: CancellationException) {
                 throw ce
@@ -1322,6 +1323,16 @@ class TranscriptionService : LifecycleService() {
         emitEvent(TranscriptEvent.RecordingSaved(Uri.fromFile(savedWav).toString()))
 
         if (deferred) {
+            // The live pass already transcribed and tagged this talk with the same engine the queue
+            // would run; keep it as the item's pending transcript so the queue skips re-recognition
+            // (the costliest step, ~ the talk's own length) and only reads + summarizes. Not when the
+            // live recognizer missed audio — then the queue re-transcribes the full WAV.
+            val entry = libEntry
+            if (entry != null && utterances.isNotEmpty() && !liveDropped.get() && !captureFailed.get()) {
+                withContext(Dispatchers.IO) {
+                    SessionLibrary.savePendingTranscript(entry, utterances.toList(), transcriptFingerprint(cfg))
+                }
+            }
             // "Next talk": capture is auto-saved (RECORDED); processing happens later via the
             // queue. Complete carries the live transcript so the UI isn't left mid-run — the next
             // recording's session reset supersedes it anyway.
@@ -1363,6 +1374,11 @@ class TranscriptionService : LifecycleService() {
             models.ensureAsrModels { frac -> reportDownload(gen, "asr", R.string.svc_downloading_models_pct, frac) }
         } finally { dlEnd("asr"); downloadsDone(gen) }
     }
+
+    /** Anything transcription-affecting: a pending-transcript sidecar written under other settings
+     *  is ignored (re-transcribed). Shared by the queue and the live capture that pre-fills it. */
+    private fun transcriptFingerprint(cfg: TranscriptionConfig) =
+        listOf(cfg.asrBackend, cfg.asrModelId, cfg.summaryScript).joinToString("|")
 
     /** The streaming ASR + diarization engine (nemo-x-asr-diarizer). */
     private fun createEngine(models: ModelManager) = NemoStreamEngine(

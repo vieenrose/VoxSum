@@ -1180,12 +1180,15 @@ private fun TranscribeScreen(
     // in-flight run: the service emits no terminal event, so clear `running` here.
     fun handleStop() {
         if (isRecording) {
-            deferStopped = true
+            // Stop & save finishes the meeting IN PLACE: the AI notes already loaded keep their
+            // reading and write the summary (~1.5 min) instead of a full re-run from the queue.
+            // The talk is still queued (below, on RecordingSaved) as a safety net: if a new
+            // recording supersedes this finish, the queue resumes it — from the live transcript.
             pendingAutoProcess = true
             isRecording = false
-            status = context.getString(R.string.status_saved_for_later)
-            onStopRecordingDefer()
-            screen = Screen.Studio
+            status = context.getString(R.string.status_processing)
+            onStopRecording()
+            screen = Screen.Session
         } else { onStop(); running = false; status = context.getString(R.string.status_stopped) }
     }
 
@@ -1642,15 +1645,12 @@ private fun TranscribeScreen(
                     if (pendingAutoProcess) {
                         pendingAutoProcess = false
                         savedDir?.name?.let { id ->
+                            // Queue only — no drain now: this run is finishing the talk itself. The
+                            // service resumes the queue when the run ends and drops the item if it is
+                            // DONE by then; if a new recording cut the finish short, it completes it.
                             scope.launch {
                                 withContext(Dispatchers.IO) { ProcessingQueue.enqueue(context, listOf(id)) }
-                                onProcessQueue()
                                 recentsVersion++
-                                // The meeting just ended: show it finishing (transcript, agent, summary)
-                                // instead of dropping the user on the library — unless they moved on.
-                                if (screen == Screen.Studio) {
-                                    withContext(Dispatchers.IO) { SessionLibrary.byId(context, id) }?.let { watchQueueItem(it) }
-                                }
                             }
                         }
                     }

@@ -1322,17 +1322,18 @@ class TranscriptionService : LifecycleService() {
         val savedWav = libEntry?.wavFile ?: wav
         emitEvent(TranscriptEvent.RecordingSaved(Uri.fromFile(savedWav).toString()))
 
-        if (deferred) {
-            // The live pass already transcribed and tagged this talk with the same engine the queue
-            // would run; keep it as the item's pending transcript so the queue skips re-recognition
-            // (the costliest step, ~ the talk's own length) and only reads + summarizes. Not when the
-            // live recognizer missed audio — then the queue re-transcribes the full WAV.
-            val entry = libEntry
-            if (entry != null && utterances.isNotEmpty() && !liveDropped.get() && !captureFailed.get()) {
-                withContext(Dispatchers.IO) {
-                    SessionLibrary.savePendingTranscript(entry, utterances.toList(), transcriptFingerprint(cfg))
-                }
+        // The live pass already transcribed and tagged this talk with the same engine the queue
+        // would run; keep it as the item's pending transcript so the queue skips re-recognition
+        // (the costliest step, ~ the talk's own length) and only reads + summarizes. Not when the
+        // live recognizer missed audio — then the queue re-transcribes the full WAV.
+        val entry = libEntry
+        if (entry != null && utterances.isNotEmpty() && !liveDropped.get() && !captureFailed.get()) {
+            withContext(Dispatchers.IO) {
+                SessionLibrary.savePendingTranscript(entry, utterances.toList(), transcriptFingerprint(cfg))
             }
+        }
+
+        if (deferred) {
             // "Next talk": capture is auto-saved (RECORDED); processing happens later via the
             // queue. Complete carries the live transcript so the UI isn't left mid-run — the next
             // recording's session reset supersedes it anyway.
@@ -1358,6 +1359,9 @@ class TranscriptionService : LifecycleService() {
                 )
             }.getOrNull()
             if (updated != null) {
+                // Finished in place: the safety-net queue entry and its sidecar are no longer needed.
+                SessionLibrary.clearPendingTranscript(entry)
+                ProcessingQueue.remove(this, entry.id)
                 emitEvent(TranscriptEvent.LibrarySaved(Uri.fromFile(updated.sessionFile).toString(), updated.title))
             }
         }

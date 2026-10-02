@@ -272,7 +272,7 @@
     <string name="svc_summary_failed">无法生成摘要——转写文本已保存</string>
     <string name="agent_title">AI 笔记</string>
     <string name="agent_starting">正在加载 AI 笔记…</string>
-    <string name="agent_listening">聆听中 · 已写 %1$d 则笔记</string>
+    <string name="agent_listening">阅读转写文本 · 已写 %1$d 则笔记</string>
     <string name="agent_reading">正在阅读第 %1$d 段并写笔记…</string>
     <string name="agent_restarting">上下文已满（%1$d tokens）——以精简笔记重新开始…</string>
     <string name="agent_done">完成 · %1$d 则笔记</string>
@@ -286,13 +286,13 @@
     <string name="agent_show_process">显示过程</string>
     <string name="agent_hide_process">隐藏过程</string>
     <string name="agent_state_starting">加载中</string>
-    <string name="agent_state_listening">聆听中</string>
+    <string name="agent_state_listening">阅读转写文本</string>
     <string name="agent_state_reading">整理笔记中</string>
     <string name="agent_state_restarting">压缩中</string>
     <string name="agent_state_done">完成</string>
     <string name="agent_gauge_window">下次阅读</string>
     <string name="agent_gauge_context">上下文</string>
-    <string name="agent_step_listening">片段 %1$d · 聆听中</string>
+    <string name="agent_step_listening">片段 %1$d · 阅读转写文本</string>
     <string name="agent_step_reading">片段 %1$d · 撰写笔记</string>
     <string name="agent_step_done">片段 %1$d · 已读</string>
     <string name="agent_step_tokens">%1$,d 个 token</string>
@@ -346,5 +346,5 @@
     <string name="settings_show_actions_hint">在摘要下方列出模型提取的行动项目。约五分之一可能与转写文本不符，点时间即可核对。</string>
     <string name="agent_view_detailed">显示详细过程</string>
     <string name="agent_view_simple">简化显示</string>
-    <string name="agent_simple_listening">聆听中——距离下一次阅读：</string>
+    <string name="agent_simple_listening">阅读转写文本中——距离下一次整理笔记：</string>
 </resources>

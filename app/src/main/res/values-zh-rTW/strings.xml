@@ -272,7 +272,7 @@
     <string name="svc_summary_failed">無法產生摘要——逐字稿已儲存</string>
     <string name="agent_title">AI 筆記</string>
     <string name="agent_starting">正在載入 AI 筆記…</string>
-    <string name="agent_listening">聆聽中 · 已寫 %1$d 則筆記</string>
+    <string name="agent_listening">閱讀逐字稿 · 已寫 %1$d 則筆記</string>
     <string name="agent_reading">正在閱讀第 %1$d 段並寫筆記…</string>
     <string name="agent_restarting">上下文已滿（%1$d tokens）——以精簡筆記重新開始…</string>
     <string name="agent_done">完成 · %1$d 則筆記</string>
@@ -286,13 +286,13 @@
     <string name="agent_show_process">顯示過程</string>
     <string name="agent_hide_process">隱藏過程</string>
     <string name="agent_state_starting">載入中</string>
-    <string name="agent_state_listening">聆聽中</string>
+    <string name="agent_state_listening">閱讀逐字稿</string>
     <string name="agent_state_reading">整理筆記中</string>
     <string name="agent_state_restarting">壓縮中</string>
     <string name="agent_state_done">完成</string>
     <string name="agent_gauge_window">下次閱讀</string>
     <string name="agent_gauge_context">上下文</string>
-    <string name="agent_step_listening">片段 %1$d · 聆聽中</string>
+    <string name="agent_step_listening">片段 %1$d · 閱讀逐字稿</string>
     <string name="agent_step_reading">片段 %1$d · 撰寫筆記</string>
     <string name="agent_step_done">片段 %1$d · 已讀</string>
     <string name="agent_step_tokens">%1$,d 個 token</string>
@@ -346,5 +346,5 @@
     <string name="settings_show_actions_hint">在摘要下方列出模型擷取的行動項目。約五分之一可能與逐字稿不符，點時間即可核對。</string>
     <string name="agent_view_detailed">顯示詳細過程</string>
     <string name="agent_view_simple">簡化顯示</string>
-    <string name="agent_simple_listening">聆聽中——距離下一次閱讀：</string>
+    <string name="agent_simple_listening">閱讀逐字稿中——距離下一次整理筆記：</string>
 </resources>

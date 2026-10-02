@@ -14,132 +14,106 @@
   <img alt="授權" src="https://img.shields.io/badge/license-GPL--3.0-blue">
 </p>
 
-<p align="center"><img src="docs/screenshots/demo.gif" width="300" alt="錄音室、AI 筆記、逐字稿、摘要點時間播放、匯出"></p>
+<p align="center"><img src="docs/screenshots/demo.gif" width="300" alt="即時錄音、AI 筆記、摘要與逐字稿"></p>
 
 ## 特色
 
-- **完全離線、無帳號**：音訊不離開手機，模型首次使用時下載一次。
-- **即時逐字稿與語者**：說話約 0.4 秒後文字上螢幕，語者在同一條串流中標註（AMI / AISHELL-4 語者歸屬正確率 95.4% / 92.3%）。
-- **邊開會邊寫摘要**：AI 筆記在錄音時閱讀逐字稿並寫下筆記；停止後約 1.5 分鐘完成段落式摘要，每個時間點一下就播放。
-- **錄音不會遺失**：停止即存檔，可連場錄音、稍後批次處理。
+- **完全離線、無帳號**：音訊不離開手機，模型只在第一次使用時下載。
+- **即時逐字稿與語者**：說話約 0.4 秒後文字上螢幕，同時標註語者（AMI / AISHELL-4 語者歸屬正確率 95.4% / 92.3%）。
+- **邊開會邊做筆記**：AI 筆記在錄音中閱讀逐字稿，寫下決議、待辦與數字；停止後約 1.5 分鐘完成摘要。
+- **每句都可核對**：摘要與筆記的時間點一下，就從原話開始播放。
+- **錄音不會遺失**：停止即存檔，可連續錄多場，稍後再批次處理。
 - **可編輯、可匯出**：修正文字與語者；匯出 `.m4a`、PDF、Markdown 或字幕。
+
+## 畫面
+
+| 錄音 | AI 筆記 | 摘要 | 逐字稿 |
+|:---:|:---:|:---:|:---:|
+| <img src="docs/screenshots/qs-capture.png" width="200" alt="錄音"> | <img src="docs/screenshots/05-agent.png" width="200" alt="AI 筆記"> | <img src="docs/screenshots/04-summary.png" width="200" alt="摘要"> | <img src="docs/screenshots/03-transcript.png" width="200" alt="逐字稿"> |
+
+<p align="center"><img src="docs/screenshots/agent-live.gif" width="280" alt="錄音中 AI 筆記即時寫下筆記"><br><sub>錄音進行中，AI 筆記讀完一段逐字稿後逐字寫下筆記。</sub></p>
+
+示範會議為合成的尾牙籌備會議（三位語者，約 7 分半，[`docs/demo`](docs/demo)），在 8 GB 模擬器上即時錄音拍攝，未經修飾。
 
 ## 使用
 
-示範會議：合成的尾牙籌備會議（三位語者，約 7 分半，[`docs/demo`](docs/demo)，VibeVoice-1.5B 生成），以 8 GB 模擬器即時錄音拍攝。
+**錄音**：逐字稿即時出現，語者確定後標上顏色。上方的 AI 筆記卡片顯示它在閱讀逐字稿或正在寫筆記。**下一場**存檔並立即開始下一場；**停止並儲存**直接開啟這場會議，約 1.5 分鐘後摘要完成。
 
-### 錄音
+**AI 筆記**：每則筆記標示類型（決議、待辦、提議、未決、數字）與時間；決議、待辦與數字可「核對」，一點就跳到原話。「顯示詳細過程」可看每段的處理情形。
 
-<p align="center"><img src="docs/screenshots/qs-capture.png" width="280" alt="錄音室"></p>
+**摘要**：段落式摘要，藍色時間點可直接播放；下方一行是各語者的發言比例。
 
-逐字稿即時出現；語者確定後，每句左側會有該語者的顏色與時間，尚未確定的句子為淺灰。上方的 AI 筆記卡片顯示它正在閱讀逐字稿或整理筆記（正在寫的筆記逐字出現），以及距離下一次閱讀的進度。**下一場**存檔並立刻開始下一場，**停止並儲存**存檔後直接開啟這場會議，可看著 AI 筆記完成閱讀與摘要；錄音時螢幕保持常亮。
+**逐字稿**：點任一句從該處播放；長按可修改文字或改派語者；點標題可改名。
 
-### AI 筆記
+**匯出與重新處理**（場次右上 **⋮**）：
 
-<p align="center"><img src="docs/screenshots/05-agent.png" width="280" alt="AI 筆記"></p>
+- **VoxSum 工作階段（.m4a）**：音訊、逐字稿、語者與摘要合為一檔，任何播放器都能播放，也可在 VoxSum 重新開啟。
+- **文件**：PDF、Markdown、純文字。**字幕**：SRT、VTT、LRC（含語者）。
+- **重新轉錄**（重跑語音辨識與語者分離）或**重新摘要**（保留逐字稿）。
 
-<p align="center"><img src="docs/screenshots/agent-live.gif" width="280" alt="錄音中 AI 筆記即時寫下筆記"></p>
+**匯入**：首頁 **＋** 可加入手機上的音訊檔、Podcast、YouTube，或從其他 App 分享音訊過來。
 
-上圖：錄音進行中，AI 筆記讀完一段逐字稿後逐字寫下筆記（決議、待辦），下方逐字稿持續更新。
+**設定**：外觀（自動、淺色、深色、電子紙）、語言（English、繁體中文、简体中文，介面與產生的文字一起切換）、語者標註延遲、模型管理。
 
-預設為簡化顯示：一條「距離下一次閱讀」的進度條，以及所有筆記（最新的在最上面，正在寫的筆記逐字出現）。每則筆記標示類型（決議、待辦、提議、未決、數字）與時間；決議、待辦與數字另有「核對」，點一下跳到原話。「顯示詳細過程」可看到每個片段的處理與上下文用量。
+<details>
+<summary>更多畫面：匯出、重新處理、設定、匯入</summary>
 
-### 摘要
+| 匯出 | 重新處理 | 設定 | 匯入 |
+|:---:|:---:|:---:|:---:|
+| <img src="docs/screenshots/export.png" width="200" alt="匯出"> | <img src="docs/screenshots/reprocess.png" width="200" alt="重新處理"> | <img src="docs/screenshots/settings.png" width="200" alt="設定"> | <img src="docs/screenshots/import.png" width="200" alt="匯入"> |
 
-<p align="center"><img src="docs/screenshots/04-summary.png" width="280" alt="摘要"></p>
-
-段落式摘要，每個藍色時間點一下即從該處播放；下方一行是各語者的發言比例（點一下展開圖例）。行動項目為實驗功能，預設隱藏，可在「設定 → 實驗功能」開啟，開啟後列在摘要下方。
-
-### 逐字稿
-
-<p align="center"><img src="docs/screenshots/03-transcript.png" width="280" alt="逐字稿"></p>
-
-依語者上色的完整逐字稿，場次標題顯示在頂端，點一下即可修改。點任一句即跳到該處播放，目前播放的句子會高亮；長按任一句可修改文字或改派語者。
-
-### 匯出
-
-<p align="center"><img src="docs/screenshots/export.png" width="280" alt="匯出"></p>
-
-場次右上 **⋮** →「匯出與分享」，各格式皆可儲存或分享：
-
-- **VoxSum 工作階段（.m4a）**：音訊、逐字稿、語者、摘要與行動項目合為一檔，可在 VoxSum 重新開啟，任何播放器都能播放。
-- **文件**：PDF、Markdown、純文字。
-- **字幕**：SRT、VTT、LRC，含語者標籤。
-
-### 重新處理
-
-<p align="center"><img src="docs/screenshots/reprocess.png" width="280" alt="重新處理選單"></p>
-
-場次右上 **⋮** 可**重新轉錄**（重跑語音辨識與語者分離）或**重新摘要**（只重跑 AI 筆記與摘要，逐字稿保留；修改逐字稿後也會提示）。同一選單還有「匯出與分享」與「設定」。
-
-### 設定
-
-<p align="center"><img src="docs/screenshots/settings.png" width="280" alt="設定"></p>
-
-外觀（自動、淺色、深色、電子紙）、語言（跟隨系統、English、繁體中文、简体中文；介面與逐字稿、摘要、筆記的字體一起即時切換）、即時語者標註延遲（5–30 秒，越長越準確，不影響儲存的逐字稿）、模型用量與刪除、背景執行的電池設定。
-
-### 匯入（非即時音訊）
-
-<p align="center"><img src="docs/screenshots/import.png" width="280" alt="加入音訊"></p>
-
-也可處理事先錄好的音訊：首頁的 **＋** 可加入裝置上的音訊檔、Podcast 單集、YouTube 影片，或重新開啟先前儲存的 `.ogg` / `.m4a` 工作階段。也可從其他 App 把音訊分享給 VoxSum。
+</details>
 
 ## 安裝
 
 從 [**Releases**](https://github.com/vieenrose/VoxSumDroid/releases/latest) 下載 APK。
 
 - Android 8.0 以上，ARMv8.2（dotprod）處理器，約 2019 年後的手機。
-- 模型：語音引擎約 275 MB，摘要模型約 3.35 GB。
-- RAM 8 GB 以上時代理在錄音中同步閱讀；較小的手機在錄音結束後閱讀。
-- 唯一的網路請求：下載模型，以及每天一次檢查新版本。
+- 模型首次使用時下載：語音引擎約 275 MB，摘要模型約 3.35 GB。
+- RAM 8 GB 以上：AI 筆記在錄音中同步閱讀；較小的手機在錄音結束後閱讀。
+- 唯一的網路連線：下載模型，以及每天檢查一次新版本。
 
 ## 已知限制
 
 - 摘要模型以中文會議訓練，英文會議也會寫出中文摘要。
-- 約 18% 的筆記敘述與逐字稿不符（上游量測），點時間即可核對。
-- 偶爾會多分出一位發言很少的語者，可用「合併語者」修正。
+- 約五則筆記中有一則與原話不符（上游量測），請點時間核對。
+- 偶爾會多分出發言很少的語者，可用「合併語者」修正。
 
 ## 運作方式
 
-兩個元件在手機上同時運作：
+- **聽寫**：[nemo-x-asr-diarizer](https://github.com/vieenrose/nemo-x-asr-diarizer.cpp) 是單一串流引擎，在同一條時間軸上完成語音辨識（X-ASR）與語者分離（Nemotron-3）。
+- **AI 筆記與摘要**：[Gemma-4-E2B 會議模型](https://huggingface.co/Luigi/gemma-4-E2B-meeting-agent-zh-GGUF) 在 [llama.cpp](https://github.com/ggml-org/llama.cpp) 上執行。
 
-- **聽寫**：[nemo-x-asr-diarizer](https://github.com/vieenrose/nemo-x-asr-diarizer.cpp) 是單一串流引擎，同一條時間軸上完成語音辨識（X-ASR）與語者分離（Nemotron-3）。
-- **摘要**：[Gemma-4-E2B 會議模型](https://huggingface.co/Luigi/gemma-4-E2B-meeting-agent-zh-GGUF) 在 [llama.cpp](https://github.com/ggml-org/llama.cpp) 上執行，邊聽邊讀、邊寫筆記。
+錄音時，語音辨識優先（它落後就會漏音）；AI 筆記在背景把已確定的句子讀進上下文，每累積約 2,000 token（數分鐘的語音）才真正閱讀一次並寫筆記。停止後只剩最後一段要讀，所以摘要很快完成。在 OPPO Reno7（8 GB）上，10 分鐘會議的摘要於停止後 87 秒完成，記憶體峰值 3.0 GB。
 
-下圖是 RAM 8 GB 以上的手機錄一場 10 分鐘會議時，各元件何時工作：
+<details>
+<summary>時間軸：10 分鐘會議中各元件何時工作</summary>
 
 ```mermaid
 gantt
-    title OPPO Reno7 上的 10 分鐘會議：各元件何時工作
+    title OPPO Reno7 上的 10 分鐘會議
     dateFormat mm:ss
     axisFormat %M:%S
     section 語音辨識
     說話後約 0.4 秒文字上螢幕                :active, a1, 00:00, 10:00
     section 語者辨識
     語者輪次落後音訊約 5 秒確定              :active, d1, 00:05, 10:00
-    語者標籤確定後才顯示（延遲 15 秒）        :d2, 00:15, 10:15
     section AI 筆記
-    載入模型（約 8 秒）                      :g0, 00:00, 00:08
-    預填已確定的句子，每 20 秒一段            :active, g1, 00:15, 04:00
-    閱讀一輪並寫筆記（第 1 窗）               :crit, g2, 04:00, 04:45
-    預填                                    :active, g3, 04:45, 08:00
-    閱讀一輪並寫筆記（第 2 窗）               :crit, g4, 08:00, 08:25
-    預填                                    :active, g5, 08:25, 10:15
-    最後一窗與摘要（停止後）                  :crit, g6, 10:15, 11:27
+    載入模型                                :g0, 00:00, 00:08
+    讀入已確定的句子                         :active, g1, 00:15, 04:00
+    閱讀並寫筆記（第 1 段）                   :crit, g2, 04:00, 04:45
+    讀入已確定的句子                         :active, g3, 04:45, 08:00
+    閱讀並寫筆記（第 2 段）                   :crit, g4, 08:00, 08:25
+    讀入已確定的句子                         :active, g5, 08:25, 10:15
+    最後一段與摘要                           :crit, g6, 10:15, 11:27
     section 你
     停止錄音                                :milestone, m1, 10:00, 0s
     摘要完成（停止後 87 秒）                  :milestone, m2, 11:27, 0s
 ```
 
-如何閱讀這張圖：
+</details>
 
-- **語音辨識優先。** 它是唯一落後就會漏掉音訊的元件，所以代理讓出算力。
-- **代理大多在預填。** 大家說話時，代理在背景把已確定的句子讀進上下文；每約 4 分鐘的語音才做一次真正的閱讀，手機上約 17–45 秒。
-- **只讀已確定的句子。** 語者還可能改變的句子不會被讀到。
-- **停止後只剩最後一窗。** 因此摘要在錄音結束後很快完成。
-- **RAM 較小的手機** 則在錄音結束後才讀，流程相同。
-
-在 OPPO Reno7（8 GB）上，10 分鐘會議的摘要於錄音結束後 87 秒完成，記憶體峰值 3.0 GB。模組對應見 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)，準確度評測見 [`tools/nemo-eval`](tools/nemo-eval/README.md)。
+模組對應見 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)，準確度評測見 [`tools/nemo-eval`](tools/nemo-eval/README.md)。
 
 ## 從原始碼建置
 
@@ -155,13 +129,12 @@ scripts/test-on-device.sh             # 裝置上的儀器測試（獨立 app ID
 
 ## 授權
 
-應用程式以 [GPL-3.0-or-later](LICENSE) 授權。使用的模型各依其授權：
+應用程式以 [GPL-3.0-or-later](LICENSE) 授權；模型各依其授權：
 
 | 元件 | 授權 |
 |---|---|
-| VoxSum（本專案） | GPL-3.0-or-later |
 | X-ASR（語音辨識） | Apache-2.0 |
 | Nemotron-3 Diarization（語者分離） | OpenMDW-1.1 |
-| Gemma-4-E2B 會議模型（摘要、AI 筆記） | Apache-2.0 |
+| Gemma-4-E2B 會議模型（AI 筆記、摘要） | Apache-2.0 |
 
-示範音訊：合成會議（VibeVoice-1.5B，MIT）；準確度評測：AISHELL-4（CC BY-SA 4.0）、AMI（CC BY 4.0）。
+示範音訊：合成會議（VibeVoice-1.5B，MIT）。準確度評測：AISHELL-4（CC BY-SA 4.0）、AMI（CC BY 4.0）。

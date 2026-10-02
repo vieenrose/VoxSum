@@ -5,7 +5,7 @@ import studio.voxsum.core.reader.ReaderProtocol as P
 /**
  * The live meeting reader (port of `eval/phone_live.py`): transcript lines are fed into ONE
  * growing conversation as they are spoken — prefill only, while people talk — and every ~2,000
- * tokens a reading turn writes ≤ 5 typed, cited notes into the journal. The minutes are the
+ * tokens a reading turn writes up to [ReaderProtocol.MAX_NOTES] typed, cited notes into the journal. The minutes are the
  * journal grouped by type ([ReaderProtocol.minutes]).
  *
  * Windowing reproduces `windows_of` + the segment loop of `phone_live.py` exactly, even though
@@ -100,9 +100,17 @@ class MeetingReader(
         events(AgentEvent.State(AgentState.LISTENING, window = k, ctxTokens = llm.seqLength(), notes = journal.size))
     }
 
-    /** phone_live.py's reply parsing + the deployed guards. Returns the notes kept. */
+    /**
+     * phone_live.py's reply parsing + the deployed guards. Returns the notes kept.
+     *
+     * Deviation from upstream: when a window yields more than [ReaderProtocol.MAX_NOTES] notes,
+     * upstream keeps the first ones in reply order — so a meeting's closing to-do round-up, read
+     * last, lost every ACTION. Here the cap keeps decisions and actions first, then numbers, open
+     * issues and the rest. Surplus decisions/actions keep the newest (the round-up comes last); other
+     * types keep upstream's reply order. Kept notes stay in reply order.
+     */
     private fun parse(reply: String): Int {
-        var kept = 0
+        val cands = ArrayList<Pair<String, Note>>()   // raw line → note, past parse/citation/dup checks
         for (raw in reply.lines()) {
             val m = P.ACT.find(raw) ?: continue
             if (m.groupValues[1] != "NOTE") continue
@@ -110,19 +118,34 @@ class MeetingReader(
             if (n == null) { events(AgentEvent.NoteDropped(k, raw.trim(), DropReason.PARSE)); continue }
             val (ts, tagRaw, text) = n.destructured
             val tag = tagRaw.ifEmpty { null }
+            val seen = journal.takeLast(P.DUP_LOOKBACK).map { it.text } + cands.map { it.second.text }
             val reason = when {
                 resolve(ts) == null -> DropReason.CITATION
-                kept >= P.MAX_NOTES -> DropReason.CAP
-                journal.takeLast(P.DUP_LOOKBACK).any { P.similar(text, it.text) > P.DUP_JACCARD } -> DropReason.DUPLICATE
+                seen.takeLast(P.DUP_LOOKBACK).any { P.similar(text, it) > P.DUP_JACCARD } -> DropReason.DUPLICATE
                 else -> null
             }
             if (reason != null) { events(AgentEvent.NoteDropped(k, raw.trim(), reason)); continue }
-            val note = Note(journal.size + 1, k, ts, tag, text)
+            cands += raw.trim() to Note(0, k, ts, tag, text)
+        }
+        val keep = cands.indices
+            .sortedWith(compareBy<Int>({ capRank(cands[it].second.tag) }, { if (capRank(cands[it].second.tag) == 0) -it else it }))
+            .take(P.MAX_NOTES).toSet()
+        var kept = 0
+        for ((i, c) in cands.withIndex()) {
+            if (i !in keep) { events(AgentEvent.NoteDropped(k, c.first, DropReason.CAP)); continue }
+            val note = c.second.copy(id = journal.size + 1)
             journal += note
             kept++
             events(AgentEvent.NoteKept(note))
         }
         return kept
+    }
+
+    private fun capRank(tag: String?): Int = when (tag?.uppercase()) {
+        "DECISION", "ACTION" -> 0
+        "NUMBER" -> 1
+        "OPEN-ISSUE" -> 2
+        else -> 3
     }
 
     /** ingest.resolve_citation: the earliest fed line starting at [ts], or null (invented). */

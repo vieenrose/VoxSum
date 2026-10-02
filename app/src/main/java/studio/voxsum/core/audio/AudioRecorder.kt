@@ -20,7 +20,7 @@ import java.io.File
  *
  * Read blocks are a multiple of the Silero VAD window so the live ASR can feed them straight through.
  */
-class AudioRecorder(private val sampleRate: Int = 16_000) {
+class AudioRecorder(private val sampleRate: Int = 16_000, private val feed: File? = null) {
 
     @Volatile var totalSamples: Long = 0L
         private set
@@ -32,7 +32,49 @@ class AudioRecorder(private val sampleRate: Int = 16_000) {
      * Cold flow that records to [dest] (16 kHz mono WAV) until [shouldStop] returns true (or the
      * coroutine is cancelled), emitting float chunks in [-1, 1]. Throws if the mic won't init.
      */
-    fun record(dest: File, shouldStop: () -> Boolean): Flow<FloatArray> = flow {
+    fun record(dest: File, shouldStop: () -> Boolean): Flow<FloatArray> =
+        if (feed != null) replay(feed, dest, shouldStop) else capture(dest, shouldStop)
+
+    /**
+     * Test builds only: plays a canonical 16 kHz mono WAV in place of the mic, at real-time pace,
+     * then silence until stopped — so demos and live end-to-end tests are reproducible (the
+     * emulator's host mic drops out after a few seconds). Same AGC, WAV write and emit as the mic.
+     */
+    private fun replay(src: File, dest: File, shouldStop: () -> Boolean): Flow<FloatArray> = flow {
+        dest.parentFile?.mkdirs()
+        val writer = WavWriter(dest)
+        val agc = LiveAgc()
+        val bytes = ByteArray(BLOCK * 2)
+        val t0 = System.nanoTime()
+        try {
+            java.io.BufferedInputStream(src.inputStream()).use { input ->
+                input.skip(44)
+                while (!shouldStop() && currentCoroutineContext().isActive) {
+                    var got = 0
+                    while (got < bytes.size) {
+                        val r = input.read(bytes, got, bytes.size - got)
+                        if (r < 0) break
+                        got += r
+                    }
+                    val n = if (got >= 2) got / 2 else BLOCK
+                    val f = FloatArray(n) {
+                        if (got >= 2) ((bytes[2 * it].toInt() and 0xFF) or (bytes[2 * it + 1].toInt() shl 8)) / 32768f else 0f
+                    }
+                    agc.process(f, n)
+                    writer.write(f, n)
+                    totalSamples += n
+                    emit(f)
+                    val due = t0 + totalSamples * 1_000_000_000L / sampleRate
+                    val wait = (due - System.nanoTime()) / 1_000_000L
+                    if (wait > 0) kotlinx.coroutines.delay(wait)
+                }
+            }
+        } finally {
+            writer.close()
+        }
+    }
+
+    private fun capture(dest: File, shouldStop: () -> Boolean): Flow<FloatArray> = flow {
         val minBuf = AudioRecord.getMinBufferSize(
             sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT,
         )

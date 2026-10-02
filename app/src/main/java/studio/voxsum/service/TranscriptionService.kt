@@ -1158,7 +1158,11 @@ class TranscriptionService : LifecycleService() {
         val converter = outputConverter(cfg)
         val txtConverter = transcriptConverter()
         val snapConv = SnapshotConverter(txtConverter?.let { c -> c::convert })
-        val recorder = AudioRecorder()
+        // Test builds (-PisolatedTestId) only: files/mic_feed.wav stands in for the mic, once.
+        val feed = File(filesDir, "mic_feed.wav")
+            .takeIf { studio.voxsum.BuildConfig.APPLICATION_ID.endsWith(".androidtest") && it.exists() }
+            ?.let { f -> File(cacheDir, "mic_feed.wav").also { f.renameTo(it) } }
+        val recorder = AudioRecorder(feed = feed)
         val wav = File(File(filesDir, "audio").apply { mkdirs() }, "recording_${System.currentTimeMillis()}.wav")
         val utterances = ArrayList<TranscriptEvent.Utterance>()
         var diarized: Pair<List<TranscriptEvent.Utterance>, Int>? = null

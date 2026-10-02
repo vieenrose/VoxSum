@@ -290,7 +290,7 @@
     <string name="svc_summary_failed">Summary unavailable — the transcript is saved</string>
     <string name="agent_title">Meeting agent</string>
     <string name="agent_starting">Loading the reading agent…</string>
-    <string name="agent_listening">Listening · window %1$d · %2$d tokens in context · %3$d notes</string>
+    <string name="agent_listening">Listening · %1$d notes so far</string>
     <string name="agent_reading">Reading window %1$d and writing notes…</string>
     <string name="agent_restarting">Context full (%1$d tokens) — restarting from the compacted notes…</string>
     <string name="agent_done">Done · %1$d notes</string>

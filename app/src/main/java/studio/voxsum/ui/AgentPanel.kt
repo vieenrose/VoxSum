@@ -508,7 +508,7 @@ private fun tagColor(tag: String): Color = when (fullTag(tag)) {
 @Composable
 private fun statusLine(s: AgentEvent.State): String = when (s.state) {
     AgentState.STARTING -> stringResource(R.string.agent_starting)
-    AgentState.LISTENING -> stringResource(R.string.agent_listening, s.window, s.ctxTokens, s.notes)
+    AgentState.LISTENING -> stringResource(R.string.agent_listening, s.notes)
     AgentState.READING -> stringResource(R.string.agent_reading, s.window)
     AgentState.RESTARTING -> stringResource(R.string.agent_restarting, s.ctxTokens)
     AgentState.DONE -> stringResource(R.string.agent_done, s.notes)

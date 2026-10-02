@@ -272,7 +272,7 @@
     <string name="svc_summary_failed">无法生成摘要——转写文本已保存</string>
     <string name="agent_title">会议代理</string>
     <string name="agent_starting">正在加载阅读代理…</string>
-    <string name="agent_listening">聆听中 · 第 %1$d 段 · 上下文 %2$d tokens · %3$d 则笔记</string>
+    <string name="agent_listening">聆听中 · 已写 %1$d 则笔记</string>
     <string name="agent_reading">正在阅读第 %1$d 段并写笔记…</string>
     <string name="agent_restarting">上下文已满（%1$d tokens）——以精简笔记重新开始…</string>
     <string name="agent_done">完成 · %1$d 则笔记</string>

@@ -102,6 +102,9 @@ class AgentUiState {
     fun apply(e: AgentEvent) {
         when (e) {
             is AgentEvent.State -> {
+                // A new reading (re-summarize, the queue) starts from scratch: without this its
+                // notes were appended to the previous reading's and every note showed twice.
+                if (e.state == AgentState.STARTING) reset()
                 if (e.ctxTokens > 0) ctxTokens = e.ctxTokens
                 if (e.window > 0 && steps.none { !it.restart && it.window == e.window }) steps += Step(e.window)
                 if (e.state == AgentState.READING) {

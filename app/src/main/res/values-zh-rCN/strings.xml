@@ -270,8 +270,8 @@
     <string name="notes_open">待确认问题</string>
     <string name="notes_topics">讨论主题</string>
     <string name="svc_summary_failed">无法生成摘要——转写文本已保存</string>
-    <string name="agent_title">会议代理</string>
-    <string name="agent_starting">正在加载阅读代理…</string>
+    <string name="agent_title">AI 笔记</string>
+    <string name="agent_starting">正在加载 AI 笔记…</string>
     <string name="agent_listening">聆听中 · 已写 %1$d 则笔记</string>
     <string name="agent_reading">正在阅读第 %1$d 段并写笔记…</string>
     <string name="agent_restarting">上下文已满（%1$d tokens）——以精简笔记重新开始…</string>
@@ -287,7 +287,7 @@
     <string name="agent_hide_process">隐藏过程</string>
     <string name="agent_state_starting">加载中</string>
     <string name="agent_state_listening">聆听中</string>
-    <string name="agent_state_reading">撰写中</string>
+    <string name="agent_state_reading">整理笔记中</string>
     <string name="agent_state_restarting">压缩中</string>
     <string name="agent_state_done">完成</string>
     <string name="agent_gauge_window">下次阅读</string>

@@ -288,8 +288,8 @@
     <string name="notes_open">Open questions</string>
     <string name="notes_topics">Topics</string>
     <string name="svc_summary_failed">Summary unavailable — the transcript is saved</string>
-    <string name="agent_title">Meeting agent</string>
-    <string name="agent_starting">Loading the reading agent…</string>
+    <string name="agent_title">AI notes</string>
+    <string name="agent_starting">Loading AI notes…</string>
     <string name="agent_listening">Listening · %1$d notes so far</string>
     <string name="agent_reading">Reading window %1$d and writing notes…</string>
     <string name="agent_restarting">Context full (%1$d tokens) — restarting from the compacted notes…</string>

@@ -14,13 +14,13 @@
   <img alt="授權" src="https://img.shields.io/badge/license-GPL--3.0-blue">
 </p>
 
-<p align="center"><img src="docs/screenshots/demo.gif" width="300" alt="錄音室、會議代理、逐字稿、摘要點時間播放、匯出"></p>
+<p align="center"><img src="docs/screenshots/demo.gif" width="300" alt="錄音室、AI 筆記、逐字稿、摘要點時間播放、匯出"></p>
 
 ## 特色
 
 - **完全離線、無帳號**：音訊不離開手機，模型首次使用時下載一次。
 - **即時逐字稿與語者**：說話約 0.4 秒後文字上螢幕，語者在同一條串流中標註（AMI / AISHELL-4 語者歸屬正確率 95.4% / 92.3%）。
-- **邊開會邊寫摘要**：會議代理在錄音時閱讀逐字稿並寫下筆記；停止後約 1.5 分鐘完成段落式摘要，每個時間點一下就播放。
+- **邊開會邊寫摘要**：AI 筆記在錄音時閱讀逐字稿並寫下筆記；停止後約 1.5 分鐘完成段落式摘要，每個時間點一下就播放。
 - **錄音不會遺失**：停止即存檔，可連場錄音、稍後批次處理。
 - **可編輯、可匯出**：修正文字與語者；匯出 `.m4a`、PDF、Markdown 或字幕。
 
@@ -32,11 +32,11 @@
 
 <p align="center"><img src="docs/screenshots/qs-capture.png" width="280" alt="錄音室"></p>
 
-逐字稿即時出現；語者確定後，每句左側會有該語者的顏色與時間，尚未確定的句子為淺灰。上方的會議代理卡片顯示它正在聆聽或撰寫，以及距離下一次閱讀的進度。**下一場**存檔並立刻開始下一場，**停止並儲存**存檔後直接開啟這場會議，可看著代理完成閱讀與摘要；錄音時螢幕保持常亮。
+逐字稿即時出現；語者確定後，每句左側會有該語者的顏色與時間，尚未確定的句子為淺灰。上方的 AI 筆記卡片顯示它正在聆聽或整理筆記，以及距離下一次閱讀的進度。**下一場**存檔並立刻開始下一場，**停止並儲存**存檔後直接開啟這場會議，可看著 AI 筆記完成閱讀與摘要；錄音時螢幕保持常亮。
 
-### 會議代理
+### AI 筆記
 
-<p align="center"><img src="docs/screenshots/05-agent.png" width="280" alt="會議代理"></p>
+<p align="center"><img src="docs/screenshots/05-agent.png" width="280" alt="AI 筆記"></p>
 
 預設為簡化顯示：一條「距離下一次閱讀」的進度條，以及所有筆記（最新的在最上面，正在寫的筆記逐字出現）。每則筆記標示類型（決議、待辦、提議、未決、數字）與時間；決議、待辦與數字另有「核對」，點一下跳到原話。「顯示詳細過程」可看到每個片段的處理與上下文用量。
 
@@ -66,7 +66,7 @@
 
 <p align="center"><img src="docs/screenshots/reprocess.png" width="280" alt="重新處理選單"></p>
 
-場次右上 **⋮** 可**重新轉錄**（重跑語音辨識與語者分離）或**重新摘要**（只重跑會議代理，逐字稿保留；修改逐字稿後也會提示）。同一選單還有「匯出與分享」與「設定」。
+場次右上 **⋮** 可**重新轉錄**（重跑語音辨識與語者分離）或**重新摘要**（只重跑 AI 筆記與摘要，逐字稿保留；修改逐字稿後也會提示）。同一選單還有「匯出與分享」與「設定」。
 
 ### 設定
 
@@ -85,7 +85,7 @@
 從 [**Releases**](https://github.com/vieenrose/VoxSumDroid/releases/latest) 下載 APK。
 
 - Android 8.0 以上，ARMv8.2（dotprod）處理器，約 2019 年後的手機。
-- 模型：語音引擎約 275 MB，會議代理約 3.35 GB。
+- 模型：語音引擎約 275 MB，摘要模型約 3.35 GB。
 - RAM 8 GB 以上時代理在錄音中同步閱讀；較小的手機在錄音結束後閱讀。
 - 唯一的網路請求：下載模型，以及每天一次檢查新版本。
 
@@ -100,7 +100,7 @@
 兩個元件在手機上同時運作：
 
 - **聽寫**：[nemo-x-asr-diarizer](https://github.com/vieenrose/nemo-x-asr-diarizer.cpp) 是單一串流引擎，同一條時間軸上完成語音辨識（X-ASR）與語者分離（Nemotron-3）。
-- **摘要**：[Gemma-4-E2B 會議代理](https://huggingface.co/Luigi/gemma-4-E2B-meeting-agent-zh-GGUF) 在 [llama.cpp](https://github.com/ggml-org/llama.cpp) 上執行，邊聽邊讀、邊寫筆記。
+- **摘要**：[Gemma-4-E2B 會議模型](https://huggingface.co/Luigi/gemma-4-E2B-meeting-agent-zh-GGUF) 在 [llama.cpp](https://github.com/ggml-org/llama.cpp) 上執行，邊聽邊讀、邊寫筆記。
 
 下圖是 RAM 8 GB 以上的手機錄一場 10 分鐘會議時，各元件何時工作：
 
@@ -114,7 +114,7 @@ gantt
     section 語者辨識
     語者輪次落後音訊約 5 秒確定              :active, d1, 00:05, 10:00
     語者標籤確定後才顯示（延遲 15 秒）        :d2, 00:15, 10:15
-    section 會議代理
+    section AI 筆記
     載入模型（約 8 秒）                      :g0, 00:00, 00:08
     預填已確定的句子，每 20 秒一段            :active, g1, 00:15, 04:00
     閱讀一輪並寫筆記（第 1 窗）               :crit, g2, 04:00, 04:45
@@ -158,6 +158,6 @@ scripts/test-on-device.sh             # 裝置上的儀器測試（獨立 app ID
 | VoxSum（本專案） | GPL-3.0-or-later |
 | X-ASR（語音辨識） | Apache-2.0 |
 | Nemotron-3 Diarization（語者分離） | OpenMDW-1.1 |
-| Gemma-4-E2B 會議代理（摘要） | Apache-2.0 |
+| Gemma-4-E2B 會議模型（摘要、AI 筆記） | Apache-2.0 |
 
 示範音訊：AISHELL-4（CC BY-SA 4.0）、AMI（CC BY 4.0）。

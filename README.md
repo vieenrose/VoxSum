@@ -38,6 +38,10 @@
 
 <p align="center"><img src="docs/screenshots/05-agent.png" width="280" alt="AI 筆記"></p>
 
+<p align="center"><img src="docs/screenshots/agent-live.gif" width="280" alt="錄音中 AI 筆記即時寫下筆記"></p>
+
+上圖：錄音進行中，AI 筆記讀完一段逐字稿後逐字寫下筆記（決議、待辦），下方逐字稿持續更新。示範音訊為合成的尾牙籌備會議（[`docs/demo`](docs/demo)，VibeVoice-1.5B 生成）。
+
 預設為簡化顯示：一條「距離下一次閱讀」的進度條，以及所有筆記（最新的在最上面，正在寫的筆記逐字出現）。每則筆記標示類型（決議、待辦、提議、未決、數字）與時間；決議、待辦與數字另有「核對」，點一下跳到原話。「顯示詳細過程」可看到每個片段的處理與上下文用量。
 
 ### 摘要
@@ -160,4 +164,4 @@ scripts/test-on-device.sh             # 裝置上的儀器測試（獨立 app ID
 | Nemotron-3 Diarization（語者分離） | OpenMDW-1.1 |
 | Gemma-4-E2B 會議模型（摘要、AI 筆記） | Apache-2.0 |
 
-示範音訊：AISHELL-4（CC BY-SA 4.0）、AMI（CC BY 4.0）。
+示範音訊：AISHELL-4（CC BY-SA 4.0）、AMI（CC BY 4.0）；AI 筆記動畫使用合成會議（VibeVoice-1.5B，MIT）。

@@ -189,6 +189,12 @@ private fun androidx.compose.foundation.layout.ColumnScope.LivePanel(
     val pal = LocalVoxSumPalette.current
     // The summarizing agent works alongside ASR + diarization: its status stays pinned on top.
     agent?.let { AgentStrip(it) }
+    // A model still downloading (e.g. the 3 GB summary model on a first run, while the meeting is
+    // already being transcribed): say so on the booth, not only in the notification shade.
+    if (utterances.isNotEmpty()) notice?.takeIf { it.isNotBlank() }?.let {
+        Text(it, color = pal.Slate400, style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(vertical = 4.dp))
+    }
     if (utterances.isEmpty()) {
         // Centered waiting state: a corner-anchored one-liner made the big empty panel
         // look unfinished — center it with a quiet mic glyph so the space reads intentional.

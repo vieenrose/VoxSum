@@ -121,29 +121,31 @@ data class SamplerProfile(
  * ([studio.voxsum.core.reader]). The protocol lives in `system_prompt.txt`, shipped next to the
  * weights and used verbatim — the model was fine-tuned on it.
  *
- * Measured upstream on 38 held-out zh-TW meetings: coverage 0.91, 77 % of gold decisions recalled,
- * 18 % of statements contradicted by the transcript. Live on a Reno7 (Dimensity 900): 67 s median
+ * Measured upstream (v11) on 38 held-out zh-TW meetings: coverage 0.89, 72 % of gold decisions
+ * recalled, 71 % of listed decisions really decided, 17 % of statements contradicted by the transcript. Live on a Reno7 (Dimensity 900): 67 s median
  * lag after each ~4 min window.
  */
 object LlmRegistry {
     const val DEFAULT_ID = "gemma4-e2b-meeting-agent-zh"
 
-    // v5 (2026-09-30): adds the PROPOSAL type, strict DECISION/ACTION; trained on IVOD + AliMeeting.
-    // Weights and prompt live under v5/ and must stay paired (integration note §9).
-    private const val REV = "958a8f29a0143184418196c36a78b4899c0c8996"
-    private const val GGUF = "v5/gemma-4-E2B-meeting-agent-zh-v5-Q4_0.gguf"
-    const val SYSTEM_PROMPT_FILE = "v5/system_prompt.txt"
+    // v11 (2026-10-02): v8 (title and prose calls fine-tuned on ReaderLane's prompts) + a
+    // contrastive DPO — the most precise decisions (71 % really decided vs v5's 61 %) and the best
+    // titles; same protocol, and its prompt is byte-identical to v5's. Weights and prompt live
+    // under v11/ and must stay paired (integration note §11).
+    private const val REV = "a862b705f3aaf7edee2018f4e3abae286826f11d"
+    private const val GGUF = "v11/gemma-4-E2B-meeting-agent-zh-v11-Q4_0.gguf"
+    const val SYSTEM_PROMPT_FILE = "v11/system_prompt.txt"
 
     val ALL: List<LlmSpec> = listOf(
         LlmSpec(
             id = DEFAULT_ID,
             displayName = "Gemma-4-E2B meeting agent (zh)",
             shortName = "Meeting agent",
-            dirName = "gemma4-meeting-agent-v5-gguf",
+            dirName = "gemma4-meeting-agent-v11-gguf",
             revision = "https://huggingface.co/Luigi/gemma-4-E2B-meeting-agent-zh-GGUF/resolve/$REV",
             files = mapOf(
                 GGUF to
-                    (3_349_515_904L to "c812c04c4c627c15847614873d187d72db793b4165ea32fd00f1cec451aa5344"),
+                    (3_349_515_904L to "16c69abb76e09821bdd08a022091dbb9b84620cc589491f36d294e6ee92f73f0"),
                 SYSTEM_PROMPT_FILE to
                     (1_686L to "406040c70270b5b9d47a4222138fcf2177f361dcbfb79fba164ca2559e0ffbf3"),
             ),

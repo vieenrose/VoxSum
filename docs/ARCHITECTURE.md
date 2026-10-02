@@ -83,7 +83,7 @@ checked by `core/power/CpuSupport.kt`).
 ## Meeting reader (`core/reader/`)
 
 The summarizer is a Gemma-4-E2B model fine-tuned as a reading agent (pinned in `LlmRegistry`; the
-weights and `system_prompt.txt` live together under `v5/` and must stay paired).
+weights and `system_prompt.txt` live together under `v11/` and must stay paired).
 
 - **Session.** `llm_jni.cpp` exposes a KV-keeping llama.cpp session (`nativeAppend`,
   `nativeGenerateContinue`, `nativeReset`) wrapped by `ReaderLlm`; every call runs on the lane's

@@ -18,6 +18,8 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.channels.trySendBlocking
@@ -68,6 +70,8 @@ import java.io.File
  *  gates live mode at "8 GB"). An 8 GB phone reports ~7.4 GiB of totalMem (the OPPO Reno7:
  *  7,728,400 kB), so the gate is 7 GiB: every 8 GB phone passes, 6 GB phones do not. */
 private const val LIVE_READER_MIN_RAM = 7L * 1024 * 1024 * 1024
+/** How often a live reading task picks up the newest transcript snapshot. */
+private const val LIVE_FEED_MS = 400L
 
 /**
  * Long-running pipeline host. Transcription + diarization + summarization can take
@@ -290,7 +294,6 @@ class TranscriptionService : LifecycleService() {
 
     // Held so a stop request can break the native generate loop promptly (it ignores
     // coroutine cancellation while inside a blocking JNI call).
-    @Volatile private var activeReader: OpenReader? = null
     @Volatile private var stopRecordingRequested = false
     // "Next talk": when the graceful stop above was requested with DEFER semantics — skip
     // diarization + summary, auto-save the capture as RECORDED, and return immediately.
@@ -335,7 +338,7 @@ class TranscriptionService : LifecycleService() {
      * far below the cap, so this realistically only trims a very long processing session.
      */
     override fun onTimeout(startId: Int, fgsType: Int) {
-        activeReader?.engine?.cancel()
+        synchronized(readLock) { readTasks.toList() }.forEach(::abortRead)
         pipelineJob?.cancel()
         notifyPaused()
         pipelineActive = false; recordingJobActive = false; queueDraining = false
@@ -410,7 +413,9 @@ class TranscriptionService : LifecycleService() {
 
         when (intent?.action) {
             ACTION_STOP -> {
-                activeReader?.engine?.cancel()
+                // Stop in a session aborts that session's own reading (a re-summarize, an import);
+                // a background queue item or a finished recording being read keeps going.
+                readCurrent?.takeIf { it.entry == null }?.let(::abortRead)
                 // CANCEL, THEN WAIT, THEN STOP. `cancel()` only REQUESTS cancellation and returns
                 // immediately; calling stopSelf() straight after destroyed the service — and with it
                 // lifecycleScope — before the cancelled pipeline coroutine was ever scheduled again,
@@ -438,9 +443,13 @@ class TranscriptionService : LifecycleService() {
                     Log.i(STOP_TAG, "drain finished in ${ms}ms drained=${drained.isSuccess} " +
                         "err=${drained.exceptionOrNull()?.let { it::class.simpleName }} " +
                         "jobActive=${job?.isActive} jobCompleted=${job?.isCompleted}")
-                    stopForeground(STOP_FOREGROUND_REMOVE)
-                    stopSelf(lastStartId)
-                    Log.i(STOP_TAG, "service stopped")
+                    // The AI notes worker may still be finishing an earlier meeting: it stops the
+                    // service itself when done.
+                    if (!readerBusy()) {
+                        stopForeground(STOP_FOREGROUND_REMOVE)
+                        stopSelf(lastStartId)
+                        Log.i(STOP_TAG, "service stopped")
+                    }
                 }
                 return START_NOT_STICKY
             }
@@ -484,7 +493,9 @@ class TranscriptionService : LifecycleService() {
         stopRecordingRequested = false
         deferProcessing = false
         val previousJob = pipelineJob
-        val previousLlm = activeReader
+        // The reader is no longer superseded with the run: it finishes its meeting. Only a device too
+        // small for both models makes it give way to a recording.
+        if (recording) readerYieldForRecording()
         // Main-owned run-type flags for the guard above (and the UI's recovery check): a new start
         // of ANY kind supersedes whatever ran before, so overwrite rather than accumulate.
         recordingJobActive = recording
@@ -573,7 +584,8 @@ class TranscriptionService : LifecycleService() {
                     // Leave the service (and its foreground notification) up for an in-flight
                     // export — the last export's own tail stops it. stopSelf(lastStartId): a stop
                     // must never bring the service down under a newer, already-accepted start.
-                    if (activeExports == 0) {
+                    // …and for the AI notes worker, which outlives runs: it stops the service itself.
+                    if (activeExports == 0 && !readerBusy()) {
                         stopForeground(STOP_FOREGROUND_REMOVE)
                         stopSelf(lastStartId)
                     }
@@ -585,7 +597,6 @@ class TranscriptionService : LifecycleService() {
         // Now that the new job is the active one, supersede any in-flight run (e.g. Re-summarize
         // while the first summary is still streaming). Done after the reassignment so the old job's
         // teardown sees it is no longer current and leaves the new run's foreground alone.
-        previousLlm?.engine?.cancel()
         previousJob?.cancel()
         return START_NOT_STICKY
     }
@@ -936,7 +947,7 @@ class TranscriptionService : LifecycleService() {
         }
 
         // Live mode: the reader loads now and reads the transcript while it is being recognized.
-        val live = if (summarizeAfter) startLiveReader(models) else null
+        val live = if (summarizeAfter) startLiveReader() else null
         try {
         val engine = try {
             createEngine(models)
@@ -1096,73 +1107,28 @@ class TranscriptionService : LifecycleService() {
                 }
             }
 
-            // --- Pass 2: one reader load, summarize + embed + dequeue every item with a sidecar. ---
+            // --- Pass 2: the AI notes worker reads each item with a sidecar, in order, and saves +
+            // dequeues it. Awaited one by one; a superseding run cancels only this wait — the worker
+            // still finishes the item it is reading. ---
             val toSummarize = ProcessingQueue.ids(this)
             if (toSummarize.isEmpty()) continue
-            val models = ModelManager(this)
-            val reader = try {
-                openReader(models, currentGen())
-            } catch (ce: CancellationException) {
-                throw ce
-            } catch (t: Throwable) {
-                // The reader itself won't load (corrupt download, OOM): items keep their sidecars
-                // and stay queued for the next drain; don't spin the outer loop on the same failure.
-                Log.w("TranscriptionService", "queue drain: reader load failed", t)
-                break
-            }
-            reader.use {
-                var first = true
-                for (id in toSummarize) {
-                    val entry = SessionLibrary.byId(this, id)
-                    if (entry == null || entry.status == SessionLibrary.Status.DONE || !entry.wavFile.exists()) {
-                        ProcessingQueue.remove(this, id)
-                        continue
-                    }
-                    val utterances = SessionLibrary.loadPendingTranscript(entry, fingerprint)
-                        ?: continue   // no sidecar (its pass-1 was cut short): leave queued, next outer lap redoes ASR
-                    currentQueueItemId = id
-                    updateNotification(getString(R.string.svc_processing_queue, entry.title ?: SessionLibrary.defaultTitle(entry.createdAt), ProcessingQueue.size(this)))
-                    // One conversation per meeting on the one loaded model.
-                    val item = if (first) reader else reader.fresh()
-                    first = false
-                    try {
-                        val converter = outputConverter(cfgAll)
-                        item.lane.feedAll(utterances)
-                        val summary = if (utterances.isEmpty()) SummaryResult(null, null)
-                        else finishReader(item, null, converter, withTitle = true)
-                        // The user may have DELETED this entry while it summarized. attachResults →
-                        // buildSession would mkdirs() the deleted dir and resurrect a ghost
-                        // session, so bail if the entry is gone. (onDelete also dequeues it.)
-                        if (SessionLibrary.byId(this, id) == null) {
-                            ProcessingQueue.remove(this, id)
-                            continue
-                        }
-                        val updated = SessionLibrary.attachResults(
-                            this, entry, utterances, emptyMap(), summary.summary, summary.actions,
-                            summary.title, summary.notes, cfgAll.asrModelId, cfgAll.asrBackend, cfgAll.llmModelId,
-                        )
-                        if (updated != null) {
-                            SessionLibrary.clearPendingTranscript(entry)
-                            // UNTAGGED on purpose: the only UI effect is a recents-list refresh.
-                            events.emit(UNTAGGED to TranscriptEvent.LibrarySaved(Uri.fromFile(updated.sessionFile).toString(), updated.title))
-                            // Background processing finished while the user may be elsewhere — tell
-                            // them the session is ready, by its recognized title.
-                            notifySessionReady(updated.title ?: SessionLibrary.defaultTitle(updated.createdAt))
-                        } else {
-                            // The session could not be written (unreadable / truncated audio, disk full):
-                            // say so instead of leaving the entry "new" with no explanation.
-                            notifyItemFailed(entry.title ?: SessionLibrary.defaultTitle(entry.createdAt))
-                        }
-                    } catch (ce: CancellationException) {
-                        throw ce   // superseded/stopped: sidecar + queue entry survive → resume summarize-only
-                    } catch (t: Throwable) {
-                        Log.w("TranscriptionService", "queue item $id failed terminally", t)
-                        notifyItemFailed(entry.title ?: SessionLibrary.defaultTitle(entry.createdAt))
-                    } finally {
-                        currentQueueItemId = null
-                        if (item !== reader) item.closeLaneOnly()
-                    }
+            for (id in toSummarize) {
+                val entry = SessionLibrary.byId(this, id)
+                if (entry == null || entry.status == SessionLibrary.Status.DONE || !entry.wavFile.exists()) {
                     ProcessingQueue.remove(this, id)
+                    continue
+                }
+                val utterances = SessionLibrary.loadPendingTranscript(entry, fingerprint)
+                    ?: continue   // no sidecar (its pass-1 was cut short): leave queued, next outer lap redoes ASR
+                currentQueueItemId = id
+                updateNotification(getString(R.string.svc_processing_queue, entry.title ?: SessionLibrary.defaultTitle(entry.createdAt), ProcessingQueue.size(this)))
+                try {
+                    val task = ReadTask(QUEUE_GEN, outputConverter(cfgAll), withTitle = true, entry = entry)
+                    task.complete(utterances)
+                    runCatching { awaitRead(submitRead(task)) }
+                        .onFailure { if (it is CancellationException) throw it }
+                } finally {
+                    currentQueueItemId = null
                 }
             }
         }
@@ -1265,7 +1231,7 @@ class TranscriptionService : LifecycleService() {
             }
         }
         // Live mode: the reader writes notes while the meeting is still being recorded.
-        val live = startLiveReader(models)
+        val live = startLiveReader()
         try {
         // Models after the mic: a first-run download no longer delays the capture. Audio recorded
         // meanwhile is safe in the WAV (the live preview catches up within the channel's slack).
@@ -1333,36 +1299,20 @@ class TranscriptionService : LifecycleService() {
             }
         }
 
-        if (deferred) {
-            // "Next talk": capture is auto-saved (RECORDED); processing happens later via the
-            // queue. Complete carries the live transcript so the UI isn't left mid-run — the next
-            // recording's session reset supersedes it anyway.
-            emitEvent(TranscriptEvent.Complete(utterances, speakerCount = null))
-            closeLive(live)
-            return
-        }
-
-        if (utterances.isEmpty()) {
-            emitEvent(TranscriptEvent.Complete(emptyList(), speakerCount = null))
-            closeLive(live)
-            return
-        }
-        val (tagged, result) = finishPipeline(utterances, diarized, models, converter, live)
-        // Embed the finished results into the library entry (auto-save of the SESSION, not just the
-        // audio): the entry becomes a self-describing session.m4a that reopens fully editable. A
-        // failure here is non-fatal — the raw capture stays safe in the library either way.
-        libEntry?.let { entry ->
-            val updated = runCatching {
-                SessionLibrary.attachResults(
-                    this, entry, tagged, emptyMap(), result.summary, result.actions, result.title,
-                    result.notes, cfg.asrModelId, cfg.asrBackend, cfg.llmModelId,
-                )
-            }.getOrNull()
-            if (updated != null) {
-                // Finished in place: the safety-net queue entry and its sidecar are no longer needed.
-                SessionLibrary.clearPendingTranscript(entry)
-                ProcessingQueue.remove(this, entry.id)
-                emitEvent(TranscriptEvent.LibrarySaved(Uri.fromFile(updated.sessionFile).toString(), updated.title))
+        // Hand the talk over to the AI notes worker and return at once: the mic and the speech
+        // engine are free for the next talk, and the worker finishes THIS meeting first — notes,
+        // summary, title, library save (it emits on this run's gen, so an open session sees it).
+        // "Next talk" and "Stop & save" differ only in the UI. When the live recognizer missed
+        // audio its transcript is incomplete: the reading is dropped and the queued safety net
+        // re-transcribes the full WAV instead.
+        val tagged = diarized?.first ?: utterances
+        emitEvent(TranscriptEvent.Complete(tagged, if (deferred) null else diarized?.second))
+        if (live != null) {
+            if (liveDropped.get() || captureFailed.get()) closeLive(live)
+            else {
+                live.entry = libEntry
+                live.complete(tagged.toList())
+                if (liveReader === live) liveReader = null
             }
         }
     }
@@ -1441,24 +1391,22 @@ class TranscriptionService : LifecycleService() {
         diarized: Pair<List<TranscriptEvent.Utterance>, Int>?,
         models: ModelManager,
         converter: OpenCcConverter?,
-        /** The live reader, when it ran alongside ASR; otherwise the reader runs now, post-hoc. */
-        live: kotlinx.coroutines.Deferred<OpenReader?>?,
+        /** The live reading task, when it ran alongside ASR; otherwise the transcript is read now. */
+        live: ReadTask?,
     ): Pair<List<TranscriptEvent.Utterance>, SummaryResult> {
         val tagged = diarized?.first ?: utterances
         emitEvent(TranscriptEvent.Complete(tagged, diarized?.second))
-        val open = live?.let { runCatching { it.await() }.getOrNull() }
+        val task = live ?: submitRead(ReadTask(currentGen(), converter, withTitle = true))
+        task.complete(tagged)
+        if (liveReader === task) liveReader = null
         val result = try {
-            if (open != null) finishReader(open, tagged, converter, withTitle = true)
-            else summarize(tagged, models, converter)
+            awaitRead(task)
         } catch (ce: CancellationException) {
             throw ce
         } catch (t: Throwable) {
             // The summary is an enhancement: a reader failure (download, OOM) keeps the transcript.
             Log.w("voxsum-reader", "summarization failed", t)
-            emitEvent(TranscriptEvent.Status(getString(R.string.svc_summary_failed)))
             SummaryResult(null, null)
-        } finally {
-            closeLive(live)
         }
         return tagged to result
     }
@@ -1469,19 +1417,218 @@ class TranscriptionService : LifecycleService() {
         val title: String?, val summary: String?, val notes: String? = null, val actions: String? = null,
     )
 
-    // ---- The meeting reader (core/reader): the summarizer is a live reading agent ------------
+    // ---- AI notes worker (core/reader): ONE reader for every meeting, in order ----------------
+    //
+    // The reader is not bound to a run. Meetings to read (a live recording, a queued talk, an import,
+    // a re-summarize) are tasks in one ordered queue; the worker reads ONE meeting to the end — notes,
+    // summary, title, library save — before moving to the next, and only an abort cuts it short. A new
+    // recording therefore no longer kills the previous meeting's reading: "Next talk" / "Stop & save"
+    // hand their final transcript over and the worker finishes it while the next talk is recorded,
+    // then catches up on that one with the model still loaded. Below the live-RAM gate the worker
+    // never holds the model while a recording runs (it waits, and gives way if one starts).
 
-    /** A loaded reader: the model and the lane that drives it. */
-    private class OpenReader(
-        val engine: studio.voxsum.core.llm.LlmEngine,
-        val lane: ReaderLane,
-        val system: String,
-        val emit: (AgentEvent) -> Unit,
-    ) : AutoCloseable {
-        /** A fresh conversation on the same loaded model (the queue drain: one load, many meetings). */
-        fun fresh(): OpenReader = OpenReader(engine, ReaderLane(engine, system, emit).also { it.start() }, system, emit)
-        fun closeLaneOnly() = lane.close()
-        override fun close() { lane.close(); engine.close() }
+    /** The loaded model, shared by every task's lane (one lane at a time). */
+    private class ReaderModel(val engine: studio.voxsum.core.llm.LlmEngine, val system: String) : AutoCloseable {
+        override fun close() = engine.close()
+    }
+
+    /** One meeting for the worker. A live task is fed snapshots while its talk is recorded and
+     *  finalized when capture ends; a static task carries its transcript (or formatted text) up front. */
+    private inner class ReadTask(
+        val gen: Int,
+        val converter: OpenCcConverter?,
+        val withTitle: Boolean,
+        /** Library entry the worker saves the results into (null: the caller takes the result). */
+        @Volatile var entry: SessionLibrary.Entry? = null,
+        val text: String? = null,
+    ) {
+        @Volatile var latest: TranscriptEvent.UtteranceSnapshot? = null
+        val final = CompletableDeferred<List<TranscriptEvent.Utterance>>()
+        val result = CompletableDeferred<SummaryResult>()
+        @Volatile var aborted = false
+        /** Small devices: a recording started — stop now, read again from the start later. */
+        @Volatile var preempted = false
+
+        /** Hand over the whole transcript at once (post-hoc reading). */
+        fun complete(utterances: List<TranscriptEvent.Utterance>) {
+            // A live task keeps its last live snapshot: the reader appends the final transcript's
+            // tail after what it already read (index-feeding the re-attributed list would repeat lines).
+            if (latest == null) latest = TranscriptEvent.UtteranceSnapshot(utterances, stable = utterances.size)
+            final.complete(utterances)
+        }
+    }
+
+    private val readLock = Any()
+    private val readTasks = ArrayList<ReadTask>()          // guarded by readLock, in reading order
+    @Volatile private var readCurrent: ReadTask? = null
+    @Volatile private var readModel: ReaderModel? = null
+    private var readJob: Job? = null                        // guarded by readLock
+
+    private fun readerBusy(): Boolean = synchronized(readLock) { readTasks.isNotEmpty() }
+
+    /** Queue [task] (a task for an entry already queued or being read is not read twice). */
+    private fun submitRead(task: ReadTask): ReadTask = synchronized(readLock) {
+        task.entry?.id?.let { id -> readTasks.firstOrNull { it.entry?.id == id }?.let { return it } }
+        readTasks += task
+        if (readJob?.isActive != true) {
+            readJob = lifecycleScope.launch(Dispatchers.IO) { readLoop() }
+        }
+        task
+    }
+
+    /** Abort [task]: dropped if waiting, cut short if being read. Its entry stays as it was. */
+    private fun abortRead(task: ReadTask) {
+        task.aborted = true
+        task.final.complete(emptyList())
+        if (readCurrent === task) readModel?.engine?.cancel()
+        else synchronized(readLock) { readTasks.remove(task) }
+        task.result.completeExceptionally(CancellationException("reading aborted"))
+    }
+
+    /** A recording is starting on a device that cannot hold both models: give way. */
+    private fun readerYieldForRecording() {
+        if (liveReaderCapable()) return
+        readCurrent?.let { it.preempted = true; readModel?.engine?.cancel() }
+    }
+
+    private suspend fun readLoop() {
+        try {
+            while (true) {
+                val task = synchronized(readLock) { readTasks.firstOrNull() } ?: break
+                // Small devices never hold the reader beside a running speech engine: wait for the
+                // capture to end, and for a live task, for its transcript to be complete.
+                if (!liveReaderCapable() && (recordingActive || (task.text == null && !task.final.isCompleted))) {
+                    // Wait for the capture to end; never hold the reader beside it on small devices.
+                    readModel?.close(); readModel = null
+                    delay(1000); continue
+                }
+                readCurrent = task
+                val res = runCatching { withContext(RunGen(task.gen)) { readOne(task) } }
+                readCurrent = null
+                if (task.preempted && !task.aborted) { task.preempted = false; continue }   // read again later
+                synchronized(readLock) { readTasks.remove(task) }
+                res.fold(
+                    { r -> task.result.complete(r); runCatching { readDone(task, r) } },
+                    { e -> task.result.completeExceptionally(e); runCatching { readFailed(task, e) } },
+                )
+            }
+        } finally {
+            readModel?.close(); readModel = null
+            withContext(Dispatchers.Main) {
+                // The run that started this reading may be long over: the worker brings the service
+                // down when it is the last thing running.
+                if (!readerBusy() && pipelineJob?.isActive != true && activeExports == 0) {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf(lastStartId)
+                }
+            }
+        }
+    }
+
+    /** Load (downloading first if needed) the reader model. */
+    private suspend fun loadReaderModel(): ReaderModel {
+        val models = ModelManager(this)
+        val spec = LlmRegistry.byId(LlmRegistry.DEFAULT_ID)
+        ensureLlm(spec, models)
+        val system = File(models.llmDir(spec), LlmRegistry.SYSTEM_PROMPT_FILE).readText()
+        val engine = studio.voxsum.core.llm.LlmEngine.load(
+            models.llmFile(spec).absolutePath, nThreads = asrThreads(), nCtx = spec.maxCtx,
+            sampler = spec.sampler, kvQ8 = studio.voxsum.core.llm.TextGen.KV_Q8, swaFull = spec.swaFull,
+        )
+        return ReaderModel(engine, system)
+    }
+
+    /** Read one meeting to the end (runs under the task's RunGen, so its events reach its session). */
+    private suspend fun readOne(task: ReadTask): SummaryResult {
+        val gen = task.gen
+        events.tryEmit(gen to TranscriptEvent.Agent(AgentEvent.State(AgentState.STARTING)))
+        val model = readModel ?: loadReaderModel().also { readModel = it }
+        // The notes are model-written Chinese: they follow the same script as the summary.
+        val conv = outputConverter(TranscriptionConfig.Holder.config)
+        val emit: (AgentEvent) -> Unit = { ev ->
+            events.tryEmit(gen to TranscriptEvent.Agent(if (conv == null) ev else ev.mapText(conv::convert)))
+        }
+        val lane = ReaderLane(model.engine, model.system, emit)
+        lane.start()
+        try {
+            if (task.text != null) {
+                lane.feedText(task.text)
+                return finishLane(lane, emptyList(), task)
+            }
+            // Live: keep up with the recording until its talk ends (conflated: only the newest
+            // snapshot matters, feeding resumes from the stable index).
+            while (!task.final.isCompleted) {
+                if (task.aborted || task.preempted) throw CancellationException("reading stopped")
+                task.latest?.let(lane::feed)
+                delay(LIVE_FEED_MS)
+            }
+            task.latest?.let(lane::feed)
+            val fin = task.final.await()
+            if (task.aborted || task.preempted) throw CancellationException("reading stopped")
+            if (fin.isEmpty()) return SummaryResult(null, null)
+            return finishLane(lane, fin, task)
+        } finally {
+            lane.close()
+        }
+    }
+
+    /** Final transcript -> reader finish -> summary prose, action items, title (converted), emitted and returned. */
+    private suspend fun finishLane(lane: ReaderLane, final: List<TranscriptEvent.Utterance>, task: ReadTask): SummaryResult {
+        updateNotification(getString(R.string.svc_summarizing))
+        emitEvent(TranscriptEvent.Status(getString(R.string.svc_summarizing)))
+        val res = lane.finish(final)
+        if (task.aborted || task.preempted) throw CancellationException("reading stopped")
+        val conv: (String) -> String = { task.converter?.convert(it) ?: it }
+        // The summary is prose written from the notes; the grouped minutes are the fallback.
+        val prose = runCatching { lane.prose(res.journal) }
+            .onFailure { Log.w("voxsum-reader", "prose summary failed; using minutes", it) }.getOrNull()
+        val minutes = conv(prose ?: res.minutes)
+        val actions = conv(res.actions.joinToString("\n") { "- ${it.text.trimEnd('。')} [${it.ts}]" }.ifEmpty { "-" })
+        emitEvent(TranscriptEvent.SummaryComplete(minutes))
+        emitEvent(TranscriptEvent.ActionItemsComplete(actions))
+        val title = if (task.withTitle) runCatching { lane.title(res.journal) }.getOrNull()?.let(conv) else null
+        title?.let { emitEvent(TranscriptEvent.Title(it)) }
+        return SummaryResult(title, minutes, null, actions)
+    }
+
+    /** A task read to the end: save it into its library entry (when it has one). */
+    private suspend fun readDone(task: ReadTask, r: SummaryResult) {
+        val entry = task.entry ?: return
+        val fin = task.final.getCompleted()
+        // A talk with no speech stays as recorded; the queue's own pass decides about it.
+        if (fin.isEmpty() && task.gen != QUEUE_GEN) return
+        if (SessionLibrary.byId(this, entry.id) == null) { ProcessingQueue.remove(this, entry.id); return }   // deleted meanwhile
+        val cfg = TranscriptionConfig.Holder.config
+        val updated = SessionLibrary.attachResults(
+            this, entry, fin, emptyMap(), r.summary, r.actions, r.title, r.notes,
+            cfg.asrModelId, cfg.asrBackend, cfg.llmModelId,
+        )
+        if (updated == null) {
+            // Could not be written (unreadable/truncated audio, disk full): say so, don't spin on it.
+            if (task.gen == QUEUE_GEN) {
+                notifyItemFailed(entry.title ?: SessionLibrary.defaultTitle(entry.createdAt))
+                ProcessingQueue.remove(this, entry.id)
+            }
+            return
+        }
+        SessionLibrary.clearPendingTranscript(entry)
+        ProcessingQueue.remove(this, entry.id)
+        val saved = TranscriptEvent.LibrarySaved(Uri.fromFile(updated.sessionFile).toString(), updated.title)
+        events.emit(task.gen to saved)
+        if (task.gen != UNTAGGED) events.emit(UNTAGGED to saved)   // the library list, whatever is open
+        if (task.gen == QUEUE_GEN) notifySessionReady(updated.title ?: SessionLibrary.defaultTitle(updated.createdAt))
+    }
+
+    private fun readFailed(task: ReadTask, e: Throwable) {
+        if (task.aborted) return
+        Log.w("voxsum-reader", "reading failed", e)
+        events.tryEmit(task.gen to TranscriptEvent.Status(getString(R.string.svc_summary_failed)))
+        val entry = task.entry ?: return
+        if (task.gen == QUEUE_GEN) {
+            notifyItemFailed(entry.title ?: SessionLibrary.defaultTitle(entry.createdAt))
+            ProcessingQueue.remove(this, entry.id)
+        }
+        // A recording keeps its queued safety-net item: the next drain retries it.
     }
 
     /**
@@ -1496,104 +1643,30 @@ class TranscriptionService : LifecycleService() {
         return mi.totalMem >= LIVE_READER_MIN_RAM
     }
 
-    /** Download (if needed) and load the reader model; the lane is started (prefix prefilled). */
-    private suspend fun openReader(models: ModelManager, gen: Int): OpenReader {
-        val spec = LlmRegistry.byId(LlmRegistry.DEFAULT_ID)
-        ensureLlm(spec, models)
-        val system = File(models.llmDir(spec), LlmRegistry.SYSTEM_PROMPT_FILE).readText()
-        events.tryEmit(gen to TranscriptEvent.Agent(AgentEvent.State(AgentState.STARTING)))
-        val engine = withContext(Dispatchers.IO) {
-            studio.voxsum.core.llm.LlmEngine.load(
-                models.llmFile(spec).absolutePath, nThreads = asrThreads(), nCtx = spec.maxCtx,
-                sampler = spec.sampler, kvQ8 = studio.voxsum.core.llm.TextGen.KV_Q8, swaFull = spec.swaFull,
-            )
-        }
-        // The notes are model-written Chinese: they follow the same script as the summary.
-        val conv = outputConverter(TranscriptionConfig.Holder.config)
-        val emit: (AgentEvent) -> Unit = { ev ->
-            events.tryEmit(gen to TranscriptEvent.Agent(if (conv == null) ev else ev.mapText(conv::convert)))
-        }
-        val lane = ReaderLane(engine, system, emit)
-        lane.start()
-        return OpenReader(engine, lane, system, emit)
-    }
+    /** The current run's live reading task: queued now, fed as the transcript grows. */
+    private suspend fun startLiveReader(): ReadTask =
+        submitRead(ReadTask(currentGen(), outputConverter(TranscriptionConfig.Holder.config), withTitle = true))
+            .also { liveReader = it }
 
-    /** Start loading the live reader in the background; null when live mode does not apply. The
-     *  caller feeds snapshots only once it has completed, and must close it. */
-    private suspend fun startLiveReader(models: ModelManager): kotlinx.coroutines.Deferred<OpenReader?>? {
-        if (!liveReaderCapable()) return null
-        val gen = currentGen()
-        return lifecycleScope.async(Dispatchers.IO) {
-            try {
-                openReader(models, gen)
-            } catch (ce: CancellationException) {
-                throw ce
-            } catch (t: Throwable) {
-                Log.w("voxsum-reader", "live reader unavailable; will summarize after transcription", t)
-                null
-            }
-        }.also { liveReader = it }
-    }
+    /** The live reading task of the current run, if any. */
+    @Volatile private var liveReader: ReadTask? = null
 
-    /** The live reader of the current run, if any — closed at the end of the job whatever happened. */
-    @Volatile private var liveReader: kotlinx.coroutines.Deferred<OpenReader?>? = null
+    private fun feedLive(live: ReadTask?, snap: TranscriptEvent.UtteranceSnapshot) { live?.latest = snap }
 
-    /** Hand a live snapshot to the reader if it is loaded (feeding resumes from the stable index,
-     *  so snapshots that arrive while it is still loading are not lost). */
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    private fun feedLive(live: kotlinx.coroutines.Deferred<OpenReader?>?, snap: TranscriptEvent.UtteranceSnapshot) {
-        if (live == null || !live.isCompleted || live.isCancelled) return
-        runCatching { live.getCompleted() }.getOrNull()?.lane?.feed(snap)
-    }
-
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    private fun closeLive(live: kotlinx.coroutines.Deferred<OpenReader?>?) {
+    /** A run ended without handing its talk over: drop its reading. */
+    private fun closeLive(live: ReadTask?) {
         if (live == null) return
         if (liveReader === live) liveReader = null
-        if (live.isCompleted) runCatching { live.getCompleted() }.getOrNull()?.close()
-        else {
-            live.cancel()
-            live.invokeOnCompletion { runCatching { live.getCompleted() }.getOrNull()?.close() }
-        }
+        if (!live.final.isCompleted) abortRead(live)
     }
 
-    /** Final transcript -> reader finish -> minutes, action items, title (converted), emitted and returned. */
-    private suspend fun finishReader(
-        open: OpenReader,
-        final: List<TranscriptEvent.Utterance>?,
-        converter: OpenCcConverter?,
-        withTitle: Boolean,
-    ): SummaryResult {
-        updateNotification(getString(R.string.svc_summarizing))
-        emitEvent(TranscriptEvent.Status(getString(R.string.svc_summarizing)))
-        activeReader = open
-        try {
-            val res = open.lane.finish(final.orEmpty())
-            val conv: (String) -> String = { converter?.convert(it) ?: it }
-            // The summary is prose written from the notes; the grouped minutes are the fallback.
-            val prose = runCatching { open.lane.prose(res.journal) }
-                .onFailure { Log.w("voxsum-reader", "prose summary failed; using minutes", it) }.getOrNull()
-            val minutes = conv(prose ?: res.minutes)
-            val actions = conv(res.actions.joinToString("\n") { "- ${it.text.trimEnd('。')} [${it.ts}]" }.ifEmpty { "-" })
-            emitEvent(TranscriptEvent.SummaryComplete(minutes))
-            emitEvent(TranscriptEvent.ActionItemsComplete(actions))
-            val title = if (withTitle) runCatching { open.lane.title(res.journal) }.getOrNull()?.let(conv) else null
-            title?.let { emitEvent(TranscriptEvent.Title(it)) }
-            return SummaryResult(title, minutes, null, actions)
-        } finally {
-            activeReader = null
-        }
-    }
-
-    /** Post-hoc reading of a finished transcript (small devices, the queue drain's summary pass). */
-    private suspend fun summarize(
-        utterances: List<TranscriptEvent.Utterance>,
-        models: ModelManager,
-        converter: OpenCcConverter?,
-        withTitle: Boolean = true,
-    ): SummaryResult = openReader(models, currentGen()).use { open ->
-        open.lane.feedAll(utterances)
-        finishReader(open, null, converter, withTitle)
+    /** Wait for [task]'s result. A caller that is cancelled aborts a task it owns (no library entry);
+     *  a task with an entry is finished by the worker whatever happens to the caller. */
+    private suspend fun awaitRead(task: ReadTask): SummaryResult = try {
+        task.result.await()
+    } catch (ce: CancellationException) {
+        if (task.entry == null && !task.result.isCompleted) abortRead(task)
+        throw ce
     }
 
     /** Download the reader model if needed (progress → notification/UI, tagged with the run gen). */
@@ -1614,10 +1687,9 @@ class TranscriptionService : LifecycleService() {
     private suspend fun runSummarizeOnly(transcript: String, withTitle: Boolean = false) {
         val cfg = TranscriptionConfig.Holder.config
         if (transcript.isBlank()) { emitEvent(TranscriptEvent.ActionItemsComplete("-")); return }
-        openReader(ModelManager(this), currentGen()).use { open ->
-            open.lane.feedText(transcript)
-            finishReader(open, null, outputConverter(cfg), withTitle)
-        }
+        val task = ReadTask(currentGen(), outputConverter(cfg), withTitle, text = transcript)
+        task.final.complete(emptyList())
+        awaitRead(submitRead(task))
     }
 
     /**

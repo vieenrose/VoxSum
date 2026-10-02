@@ -1,5 +1,19 @@
 package studio.voxsum.ui
 
+import androidx.compose.foundation.layout.padding
+
+import androidx.compose.runtime.setValue
+
+import androidx.compose.runtime.getValue
+
+import androidx.compose.material.icons.filled.ExpandMore
+
+import androidx.compose.material.icons.filled.ExpandLess
+
+import androidx.compose.material3.Icon
+
+import androidx.compose.foundation.clickable
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -46,21 +60,34 @@ fun SpeakerStatsPanel(
     val pal = LocalVoxSumPalette.current
     if (stats.perSpeaker.isEmpty()) return
     val shares = stats.perSpeaker.sortedByDescending { it.percentage }
-    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            pluralStringResource(R.plurals.speaker_count, stats.totalSpeakers, stats.totalSpeakers),
-            style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, color = pal.Slate400,
-        )
-        Row(Modifier.fillMaxWidth().height(8.dp).clip(CircleShape).background(pal.Slate700)) {
-            shares.forEach { s ->
-                val w = (s.percentage / 100.0).toFloat()
-                if (w > 0f) Box(
-                    Modifier.weight(w).fillMaxHeight()
-                        .background(Color(speakerColorOn(s.speaker, pal.isDark))),
-                )
+    // Compact by default: ONE line — the count beside the share bar. The per-speaker legend is a
+    // tap away (it took three or four lines under every summary for something glanced at once).
+    var showLegend by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+    Column(
+        modifier.fillMaxWidth().clickable { showLegend = !showLegend },
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                pluralStringResource(R.plurals.speaker_count, stats.totalSpeakers, stats.totalSpeakers),
+                style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, color = pal.Slate400,
+            )
+            Spacer(Modifier.width(12.dp))
+            Row(Modifier.weight(1f).height(8.dp).clip(CircleShape).background(pal.Slate700)) {
+                shares.forEach { s ->
+                    val w = (s.percentage / 100.0).toFloat()
+                    if (w > 0f) Box(
+                        Modifier.weight(w).fillMaxHeight()
+                            .background(Color(speakerColorOn(s.speaker, pal.isDark))),
+                    )
+                }
             }
+            Icon(
+                if (showLegend) androidx.compose.material.icons.Icons.Filled.ExpandLess else androidx.compose.material.icons.Icons.Filled.ExpandMore,
+                contentDescription = null, tint = pal.Slate400, modifier = Modifier.padding(start = 6.dp).size(18.dp),
+            )
         }
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        if (showLegend) FlowRow(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             shares.forEach { s ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(8.dp).clip(RoundedCornerShape(2.dp)).background(Color(speakerColorOn(s.speaker, pal.isDark))))

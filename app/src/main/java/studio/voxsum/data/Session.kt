@@ -44,8 +44,10 @@ fun speakerLabel(speakerId: Int?, names: SpeakerNames): String? =
  * order put three blue-greens at speakers 2–4. ARGB Long, opaque.
  */
 private val SPEAKER_PALETTE = longArrayOf(
-    0xFFFF6B6B, 0xFF4ECDC4, 0xFFFFB347, 0xFFB39DDB, 0xFF45B7D1,
-    0xFFFF69B4, 0xFFA5D6A7, 0xFFFFEAA7, 0xFF96CEB4, 0xFFDDA0DD,
+    // First eight: one per hue family (red, blue, orange, violet, green, magenta, cyan, yellow) —
+    // teal/sky and coral/pink used to sit next to each other and read as the same speaker.
+    0xFFFF6B6B, 0xFF64B5F6, 0xFFFFB347, 0xFFB39DDB, 0xFF81C784,
+    0xFFF06292, 0xFF4DD0E1, 0xFFFFF176, 0xFF96CEB4, 0xFFDDA0DD,
     0xFF87CEEB, 0xFFF0E68C, 0xFF80CBC4, 0xFFFFAB91, 0xFF9FA8DA,
     0xFFFFCC80, 0xFF90CAF9, 0xFFCE93D8, 0xFFEF9A9A, 0xFFC5E1A5,
     0xFFFFE082, 0xFF80DEEA, 0xFFBCAAA4, 0xFFE6EE9C, 0xFFF48FB1,
@@ -66,9 +68,19 @@ fun speakerColor(speaker: Int?): Long {
  * them to ~55% for the light themes; since e-ink renders color as grey levels, a darker color is a
  * darker, higher-contrast grey, so the same transform serves both non-dark cases.
  */
+/** Light/e-ink colours for the first eight speakers: deep, saturated and hue-distinct on white
+ *  (darkening the dark-theme pastels uniformly made orange/yellow and teal/sky collapse into twins). */
+private val SPEAKER_LIGHT8 = longArrayOf(
+    0xFFD32F2F, 0xFF1565C0, 0xFFE65100, 0xFF6A1B9A, 0xFF2E7D32, 0xFFC2185B, 0xFF00838F, 0xFF8D6E00,
+)
+
 fun speakerColorOn(speaker: Int?, darkTheme: Boolean): Long {
     val c = speakerColor(speaker)
     if (darkTheme) return c
+    if (speaker != null) {
+        val i = ((speaker % SPEAKER_PALETTE.size) + SPEAKER_PALETTE.size) % SPEAKER_PALETTE.size
+        if (i < SPEAKER_LIGHT8.size) return SPEAKER_LIGHT8[i]
+    }
     val r = (((c ushr 16) and 0xFF) * 55 / 100)
     val g = (((c ushr 8) and 0xFF) * 55 / 100)
     val b = ((c and 0xFF) * 55 / 100)

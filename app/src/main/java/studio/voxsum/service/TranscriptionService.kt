@@ -1188,7 +1188,9 @@ class TranscriptionService : LifecycleService() {
     private suspend fun runRecordingPipeline() {
         val cfg = TranscriptionConfig.Holder.config
         val models = ModelManager(this)
-        ensureEngineModels(models)
+        // NOT here: ensureEngineModels(). On a first run it downloads ~275 MB, and the mic used to
+        // open only after that — minutes of the meeting were lost while the timer ran. The mic
+        // starts below first; the download happens while it records (the WAV keeps everything).
         val converter = outputConverter(cfg)
         val txtConverter = transcriptConverter()
         val snapConv = SnapshotConverter(txtConverter?.let { c -> c::convert })
@@ -1264,6 +1266,10 @@ class TranscriptionService : LifecycleService() {
         // Live mode: the reader writes notes while the meeting is still being recorded.
         val live = startLiveReader(models)
         try {
+        // Models after the mic: a first-run download no longer delays the capture. Audio recorded
+        // meanwhile is safe in the WAV (the live preview catches up within the channel's slack).
+        ensureEngineModels(models)
+        emitEvent(TranscriptEvent.Status(getString(R.string.status_recording)))
         createEngine(models).use { engine ->
             engine.transcribeLive(mic.consumeAsFlow())
                 .flowOn(Dispatchers.Default)

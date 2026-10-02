@@ -2206,6 +2206,7 @@ private fun TranscribeScreen(
             utterances = utterances,
             stable = liveStable,
             agent = agent,
+            notice = status.takeIf { it != context.getString(R.string.status_recording) },
             onNextTalk = { nextTalk() },
             onStop = { handleStop() },
             onBack = { screen = Screen.Studio },

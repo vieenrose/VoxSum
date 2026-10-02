@@ -78,6 +78,8 @@ fun CaptureScreen(
     stable: Int = 0,
     /** The meeting-reading agent, when it runs live alongside the recording. */
     agent: AgentUiState? = null,
+    /** Shown under the waiting state, e.g. a first-run model download (the mic records meanwhile). */
+    notice: String? = null,
     onNextTalk: () -> Unit,
     onStop: () -> Unit,
     onBack: () -> Unit,
@@ -127,7 +129,7 @@ fun CaptureScreen(
                 }
                 Spacer(Modifier.width(24.dp))
                 Column(Modifier.weight(1.2f).fillMaxHeight()) {
-                    LivePanel(utterances, stable, agent)
+                    LivePanel(utterances, stable, agent, notice)
                 }
             }
             Spacer(Modifier.height(12.dp))
@@ -136,7 +138,7 @@ fun CaptureScreen(
             Spacer(Modifier.height(16.dp))
             // Live transcript: a first-class panel filling everything between the timer and
             // the buttons — the full running transcript, auto-following the newest line.
-            LivePanel(utterances, stable, agent)
+            LivePanel(utterances, stable, agent, notice)
             Spacer(Modifier.height(16.dp))
             CaptureButtons(isRecording, onNextTalk, onStop, buttonHeight = 72.dp)
             Spacer(Modifier.height(16.dp))
@@ -182,6 +184,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.LivePanel(
     utterances: List<TranscriptEvent.Utterance>,
     stable: Int,
     agent: AgentUiState?,
+    notice: String? = null,
 ) {
     val pal = LocalVoxSumPalette.current
     // The summarizing agent works alongside ASR + diarization: its status stays pinned on top.
@@ -197,6 +200,10 @@ private fun androidx.compose.foundation.layout.ColumnScope.LivePanel(
                 )
                 Spacer(Modifier.height(10.dp))
                 Text(stringResource(R.string.capture_live_waiting), color = pal.Slate400, style = MaterialTheme.typography.titleMedium)
+                notice?.takeIf { it.isNotBlank() }?.let {
+                    Spacer(Modifier.height(6.dp))
+                    Text(it, color = pal.Slate400, style = MaterialTheme.typography.bodySmall)
+                }
             }
         }
     } else {

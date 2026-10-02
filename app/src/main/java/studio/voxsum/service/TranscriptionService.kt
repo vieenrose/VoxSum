@@ -1512,11 +1512,16 @@ class TranscriptionService : LifecycleService() {
                 val res = runCatching { withContext(RunGen(task.gen)) { readOne(task) } }
                 readCurrent = null
                 if (task.preempted && !task.aborted) { task.preempted = false; continue }   // read again later
+                // Save BEFORE leaving the task list: while it is listed the worker counts as busy, so
+                // the service does not tear itself down (cancelling this scope) mid-save — that left a
+                // finished meeting unsaved, still queued, and read a second time by the queue.
+                withContext(NonCancellable) {
+                    res.fold(
+                        { r -> task.result.complete(r); runCatching { readDone(task, r) }.onFailure { Log.w("voxsum-reader", "read done failed", it) } },
+                        { e -> task.result.completeExceptionally(e); runCatching { readFailed(task, e) } },
+                    )
+                }
                 synchronized(readLock) { readTasks.remove(task) }
-                res.fold(
-                    { r -> task.result.complete(r); runCatching { readDone(task, r) } },
-                    { e -> task.result.completeExceptionally(e); runCatching { readFailed(task, e) } },
-                )
             }
         } finally {
             readModel?.close(); readModel = null
@@ -1600,10 +1605,10 @@ class TranscriptionService : LifecycleService() {
 
     /** A task read to the end: save it into its library entry (when it has one). */
     private suspend fun readDone(task: ReadTask, r: SummaryResult) {
-        val entry = task.entry ?: return
+        val entry = task.entry ?: run { Log.i("voxsum-reader", "read done: no library entry (gen ${task.gen})"); return }
         val fin = task.final.getCompleted()
         // A talk with no speech stays as recorded; the queue's own pass decides about it.
-        if (fin.isEmpty() && task.gen != QUEUE_GEN) return
+        if (fin.isEmpty() && task.gen != QUEUE_GEN) { Log.i("voxsum-reader", "read done: ${entry.id} has no transcript"); return }
         if (SessionLibrary.byId(this, entry.id) == null) { ProcessingQueue.remove(this, entry.id); return }   // deleted meanwhile
         val cfg = TranscriptionConfig.Holder.config
         val updated = SessionLibrary.attachResults(
@@ -1611,6 +1616,7 @@ class TranscriptionService : LifecycleService() {
             cfg.asrModelId, cfg.asrBackend, cfg.llmModelId,
         )
         if (updated == null) {
+            Log.w("voxsum-reader", "read done: could not save ${entry.id} (gen ${task.gen})")
             // Could not be written (unreadable/truncated audio, disk full): say so, don't spin on it.
             if (task.gen == QUEUE_GEN) {
                 notifyItemFailed(entry.title ?: SessionLibrary.defaultTitle(entry.createdAt))
@@ -1620,6 +1626,7 @@ class TranscriptionService : LifecycleService() {
         }
         SessionLibrary.clearPendingTranscript(entry)
         ProcessingQueue.remove(this, entry.id)
+        Log.i("voxsum-reader", "read done: saved ${entry.id} (gen ${task.gen})")
         val saved = TranscriptEvent.LibrarySaved(Uri.fromFile(updated.sessionFile).toString(), updated.title)
         events.emit(task.gen to saved)
         if (task.gen != UNTAGGED) events.emit(UNTAGGED to saved)   // the library list, whatever is open

@@ -307,6 +307,8 @@
     <string name="agent_state_listening">Reading</string>
     <string name="agent_state_reading">Writing</string>
     <string name="agent_state_restarting">Compacting</string>
+    <string name="agent_state_summarizing">Writing summary</string>
+    <string name="agent_summarizing">Writing the summary and title from %1$d notes…</string>
     <string name="agent_state_done">Done</string>
     <string name="agent_gauge_window">Next reading</string>
     <string name="agent_gauge_context">Context</string>

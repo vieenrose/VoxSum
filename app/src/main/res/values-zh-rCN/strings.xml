@@ -289,6 +289,8 @@
     <string name="agent_state_listening">阅读转写文本</string>
     <string name="agent_state_reading">整理笔记中</string>
     <string name="agent_state_restarting">压缩中</string>
+    <string name="agent_state_summarizing">撰写摘要</string>
+    <string name="agent_summarizing">正在根据 %1$d 则笔记撰写摘要与标题…</string>
     <string name="agent_state_done">完成</string>
     <string name="agent_gauge_window">下次阅读</string>
     <string name="agent_gauge_context">上下文</string>

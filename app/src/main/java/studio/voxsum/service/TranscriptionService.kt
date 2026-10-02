@@ -1215,7 +1215,7 @@ class TranscriptionService : LifecycleService() {
                     // ASR decode falls &gt;33 s behind (channel full), a suspending send() would stall
                     // the recorder's read loop and DROP mic samples at the hardware buffer — instead
                     // we drop the chunk for the LIVE-PREVIEW recognizer only (the full WAV is
-                    // re-transcribed by the queue anyway) and keep the mic draining + the graceful
+                    // re-transcribable on request) and keep the mic draining + the graceful
                     // stop flag responsive.
                     if (!mic.trySend(chunk).isSuccess) liveDropped.set(true)
                 }
@@ -1294,10 +1294,11 @@ class TranscriptionService : LifecycleService() {
 
         // The live pass already transcribed and tagged this talk with the same engine the queue
         // would run; keep it as the item's pending transcript so the queue skips re-recognition
-        // (the costliest step, ~ the talk's own length) and only reads + summarizes. Not when the
-        // live recognizer missed audio — then the queue re-transcribes the full WAV.
+        // (the costliest step, ~ the talk's own length) and only reads + summarizes — also when the
+        // live recognizer missed a little audio (see the hand-over below).
         val entry = libEntry
-        if (entry != null && utterances.isNotEmpty() && !liveDropped.get() && !captureFailed.get()) {
+        if (entry != null && utterances.isNotEmpty() && !captureFailed.get()) {
+            if (liveDropped.get()) Log.w("voxsum-rec", "live recognizer missed audio; keeping its transcript")
             withContext(Dispatchers.IO) {
                 SessionLibrary.savePendingTranscript(entry, utterances.toList(), transcriptFingerprint(cfg))
             }
@@ -1307,12 +1308,13 @@ class TranscriptionService : LifecycleService() {
         // engine are free for the next talk, and the worker finishes THIS meeting first — notes,
         // summary, title, library save (it emits on this run's gen, so an open session sees it).
         // "Next talk" and "Stop & save" differ only in the UI. When the live recognizer missed
-        // audio its transcript is incomplete: the reading is dropped and the queued safety net
-        // re-transcribes the full WAV instead.
+        // audio (it fell behind, e.g. during a model download) the summary is still written now
+        // from what it heard: a full re-transcription first made a 7-minute meeting wait ~20 min
+        // for its summary. The WAV is complete, so "Re-transcribe" can redo it on request.
         val tagged = diarized?.first ?: utterances
         emitEvent(TranscriptEvent.Complete(tagged, if (deferred) null else diarized?.second))
         if (live != null) {
-            if (liveDropped.get() || captureFailed.get()) closeLive(live)
+            if (captureFailed.get()) closeLive(live)
             else {
                 live.entry = libEntry
                 live.complete(tagged.toList())
@@ -1592,6 +1594,7 @@ class TranscriptionService : LifecycleService() {
         emitEvent(TranscriptEvent.ActionItemsComplete(actions))
         val title = if (task.withTitle) runCatching { lane.title(res.journal) }.getOrNull()?.let(conv) else null
         title?.let { emitEvent(TranscriptEvent.Title(it)) }
+        emitEvent(TranscriptEvent.Agent(AgentEvent.State(AgentState.DONE, notes = res.journal.size)))
         return SummaryResult(title, minutes, null, actions)
     }
 

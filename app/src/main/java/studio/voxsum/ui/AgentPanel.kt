@@ -464,6 +464,7 @@ private fun StateChip(s: AgentState) {
                 AgentState.LISTENING -> R.string.agent_state_listening
                 AgentState.READING -> R.string.agent_state_reading
                 AgentState.RESTARTING -> R.string.agent_state_restarting
+                AgentState.SUMMARIZING -> R.string.agent_state_summarizing
                 AgentState.DONE -> R.string.agent_state_done
             },
         ),
@@ -492,6 +493,7 @@ private fun stateColor(s: AgentState): Color {
         AgentState.LISTENING -> pal.Sky
         AgentState.READING -> VoxSumPalette.Warning
         AgentState.RESTARTING -> VoxSumPalette.Neutral
+        AgentState.SUMMARIZING -> VoxSumPalette.Warning
         AgentState.DONE -> VoxSumPalette.Success
     }
 }
@@ -511,6 +513,7 @@ private fun statusLine(s: AgentEvent.State): String = when (s.state) {
     AgentState.LISTENING -> stringResource(R.string.agent_listening, s.notes)
     AgentState.READING -> stringResource(R.string.agent_reading, s.window)
     AgentState.RESTARTING -> stringResource(R.string.agent_restarting, s.ctxTokens)
+    AgentState.SUMMARIZING -> stringResource(R.string.agent_summarizing, s.notes)
     AgentState.DONE -> stringResource(R.string.agent_done, s.notes)
 }
 

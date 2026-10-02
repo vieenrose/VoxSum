@@ -289,6 +289,8 @@
     <string name="agent_state_listening">閱讀逐字稿</string>
     <string name="agent_state_reading">整理筆記中</string>
     <string name="agent_state_restarting">壓縮中</string>
+    <string name="agent_state_summarizing">撰寫摘要</string>
+    <string name="agent_summarizing">正在根據 %1$d 則筆記撰寫摘要與標題…</string>
     <string name="agent_state_done">完成</string>
     <string name="agent_gauge_window">下次閱讀</string>
     <string name="agent_gauge_context">上下文</string>

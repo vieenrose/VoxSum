@@ -69,7 +69,8 @@ class MeetingReader(
     /** End of meeting: read the last partial window. Returns the minutes. */
     fun finish(): String {
         if (windowLines > 0) closeWindow()
-        events(AgentEvent.State(AgentState.DONE, ctxTokens = llm.seqLength(), notes = journal.size))
+        // Reading is over; the summary and title calls follow (the caller reports DONE after them).
+        events(AgentEvent.State(AgentState.SUMMARIZING, ctxTokens = llm.seqLength(), notes = journal.size))
         return P.minutes(journal)
     }
 
@@ -190,7 +191,7 @@ fun AgentEvent.mapText(f: (String) -> String): AgentEvent = when (this) {
     else -> this
 }
 
-enum class AgentState { STARTING, LISTENING, READING, RESTARTING, DONE }
+enum class AgentState { STARTING, LISTENING, READING, RESTARTING, SUMMARIZING, DONE }
 
 enum class DropReason { PARSE, CITATION, CAP, DUPLICATE }
 

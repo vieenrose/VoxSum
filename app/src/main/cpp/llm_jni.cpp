@@ -29,6 +29,12 @@
 #include <atomic>
 
 #include "llama.h"
+#include "gguf.h"
+#include <sys/mman.h>
+#include <climits>
+#include <cstdlib>
+#include <fstream>
+#include <sstream>
 
 #define LOG_TAG "voxsum-llm"
 #ifdef __ANDROID__
@@ -160,6 +166,45 @@ extern "C" {
 
 // Load a GGUF model. nThreads should come from Kotlin (cf. num_vcpus in src/utils.py;
 // on a phone pass the big-core count, not all cores). CPU-only: n_gpu_layers = 0.
+
+// Gemma-4 E2B's per-layer embedding table (PLE, ~2 GB of the 3.35 GB file) is read one row per
+// token (GGML_OP_GET_ROWS), yet llama.cpp maps the whole file with MAP_POPULATE, so all of it
+// stayed resident (~3.3 GB RSS). After the load, drop the table's pages from this process and ask
+// for no read-ahead there: only the rows of tokens actually seen come back, on demand, from the
+// file. Google's "E2B text-only under 1 GB" figure counts memory the same way (PLE off-RAM).
+static void release_ple_pages(const std::string& path) {
+    gguf_init_params gp = { /*no_alloc*/ true, /*ctx*/ nullptr };
+    gguf_context* g = gguf_init_from_file(path.c_str(), gp);
+    if (!g) return;
+    const int64_t id = gguf_find_tensor(g, "per_layer_token_embd.weight");
+    if (id < 0) { gguf_free(g); return; }
+    const size_t beg = gguf_get_data_offset(g) + gguf_get_tensor_offset(g, id);
+    const size_t end = beg + gguf_get_tensor_size(g, id);
+    gguf_free(g);
+    const long page = sysconf(_SC_PAGESIZE);
+    // /proc/self/maps shows the canonical path (/data/data/… where the app passed /data/user/0/…).
+    char real[PATH_MAX];
+    const std::string mapped = realpath(path.c_str(), real) ? std::string(real) : path;
+    std::ifstream maps("/proc/self/maps");
+    std::string line;
+    size_t released = 0;
+    while (std::getline(maps, line)) {
+        if (line.find(mapped) == std::string::npos) continue;
+        unsigned long lo, hi, off; char perms[8];
+        if (sscanf(line.c_str(), "%lx-%lx %7s %lx", &lo, &hi, perms, &off) != 4) continue;
+        // Overlap of this mapping's file range [off, off + len) with the table's [beg, end).
+        const size_t mBeg = std::max<size_t>(off, beg), mEnd = std::min<size_t>(off + (hi - lo), end);
+        if (mBeg >= mEnd) continue;
+        uintptr_t a = lo + (mBeg - off), b = lo + (mEnd - off);
+        a = (a + page - 1) & ~(uintptr_t) (page - 1);
+        b &= ~(uintptr_t) (page - 1);
+        if (a >= b) continue;
+        madvise((void*) a, b - a, MADV_RANDOM);
+        if (madvise((void*) a, b - a, MADV_DONTNEED) == 0) released += b - a;
+    }
+    LOGI("PLE table: released %zu MB of %zu MB from RSS", released >> 20, (end - beg) >> 20);
+}
+
 JNIEXPORT jlong JNICALL
 Java_studio_voxsum_core_llm_LlmEngine_nativeLoad(
         JNIEnv* env, jobject /*thiz*/, jstring jPath, jint nThreads, jint nCtx,
@@ -196,8 +241,10 @@ Java_studio_voxsum_core_llm_LlmEngine_nativeLoad(
     h->topK = topK; h->topP = topP; h->temp = temp;
     h->repeatPenalty = repeatPenalty; h->presencePenalty = presencePenalty;
     h->model = llama_model_load_from_file(path, mp);
+    const std::string modelPath(path);
     env->ReleaseStringUTFChars(jPath, path);
     if (!h->model) { LOGE("model load failed"); delete h; return 0; }
+    release_ple_pages(modelPath);
 
     llama_context_params cp = llama_context_default_params();
     cp.n_ctx           = (uint32_t) nCtx;

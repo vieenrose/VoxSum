@@ -1594,7 +1594,7 @@ class TranscriptionService : LifecycleService() {
         emitEvent(TranscriptEvent.ActionItemsComplete(actions))
         val title = if (task.withTitle) runCatching { lane.title(res.journal) }.getOrNull()?.let(conv) else null
         title?.let { emitEvent(TranscriptEvent.Title(it)) }
-        emitEvent(TranscriptEvent.Agent(AgentEvent.State(AgentState.DONE, notes = res.journal.size)))
+        events.emit(task.gen to TranscriptEvent.Agent(AgentEvent.State(AgentState.DONE, notes = res.journal.size)))   // the task's gen, like the lane's own agent events
         return SummaryResult(title, minutes, null, actions)
     }
 

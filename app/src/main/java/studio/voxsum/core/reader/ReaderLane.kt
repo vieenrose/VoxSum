@@ -68,6 +68,9 @@ class ReaderLane(
      * lane has drained everything queued.
      */
     suspend fun finish(final: List<TranscriptEvent.Utterance>): ReaderResult {
+        // The input is over: say so now — the lane may still be prefilling queued lines, and its
+        // "reading the transcript, progress to the next notes" bar means nothing after Stop.
+        events(AgentEvent.State(AgentState.READING, window = maxOf(reader.window, 1), notes = reader.journal.size))
         offer(final.filter { it.startSec >= fedUntilSec - 0.01 })
         return withContext(dispatcher) {
             failure?.let { throw it }

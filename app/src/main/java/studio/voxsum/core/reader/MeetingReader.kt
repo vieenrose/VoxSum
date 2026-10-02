@@ -27,7 +27,9 @@ class MeetingReader(
 ) {
     val journal = ArrayList<Note>()
     private val lines = ArrayList<Line>()          // every line fed so far (citation resolution)
-    private var k = 0                              // windows opened
+    @Volatile private var k = 0                    // windows opened
+    /** Windows opened so far (the last one is being filled or read). */
+    val window: Int get() = k
     private var windowLines = 0
     private var windowTok = 0
     private var segEnd = 0

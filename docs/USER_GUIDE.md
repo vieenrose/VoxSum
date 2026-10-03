@@ -100,7 +100,7 @@ flowchart TD
 | Podcast → 搜尋 → 節目 → 轉錄 | ＋ → Podcast | 列出單集與長度，下載並轉錄所選單集 | ✅ 手動、✅ 自動（SourceSheetsTest，搜尋） |
 
 <img src="guide/27-podcast-episodes.png" width="270" alt="Podcast 單集">
-| YouTube → 搜尋或貼上連結 | ＋ → YouTube | 搜尋結果或直接前往影片，取得音訊並轉錄 | ✅ 自動（SourceSheetsTest，搜尋）；⬜ 轉錄 |
+| YouTube → 搜尋或貼上連結 | ＋ → YouTube | 搜尋結果或直接前往影片，下載音訊並轉錄；直播顯示「直播無法轉錄，請選擇一般影片。」 | ✅ 手動、✅ 自動（SourceSheetsTest，搜尋） |
 | 開啟工作階段（.ogg / .m4a） | ＋ → 開啟工作階段 | 開啟先前匯出的 VoxSum 檔，含逐字稿與摘要 | ✅ 手動、✅ 自動（AddSourceSheetTest） |
 | 從其他 App 分享 | 其他 App → 分享 → VoxSum | 閒置時直接轉錄；處理中時詢問「匯入這個檔案？」（匯入會中斷處理） | ✅ 手動 |
 
@@ -213,7 +213,7 @@ flowchart TD
 
 ### 尚未驗證（⬜）的節點
 
-更新橫幅、YouTube 的實際轉錄、模型刪除。
+更新橫幅、模型刪除。
 
 ### 如何重跑自動測試
 

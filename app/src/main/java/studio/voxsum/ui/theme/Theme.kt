@@ -244,12 +244,15 @@ fun VoxSumTheme(themeMode: ThemeMode = ThemeMode.AUTO, content: @Composable () -
     CompositionLocalProvider(LocalVoxSumPalette provides pal) {
         // Ripples fade over several frames and leave grey ghost smears on e-ink — kill them there
         // (taps then register instantly, no ghosting). Other themes keep the normal ripple.
-        if (themeMode == ThemeMode.EINK) {
-            CompositionLocalProvider(androidx.compose.material3.LocalRippleConfiguration provides null) {
-                MaterialTheme(colorScheme = schemeFor(pal), shapes = VoxSumShapes, content = content)
-            }
-            return@CompositionLocalProvider
+        // One call site for every theme: branching here moved the whole app to another place in the
+        // composition, so entering or leaving e-ink reset all screen state (the open settings sheet
+        // closed, an open session went back to the library).
+        MaterialTheme(colorScheme = schemeFor(pal), shapes = VoxSumShapes) {
+            val ripple = androidx.compose.material3.LocalRippleConfiguration.current
+            CompositionLocalProvider(
+                androidx.compose.material3.LocalRippleConfiguration provides (if (themeMode == ThemeMode.EINK) null else ripple),
+                content = content,
+            )
         }
-        MaterialTheme(colorScheme = schemeFor(pal), shapes = VoxSumShapes, content = content)
     }
 }

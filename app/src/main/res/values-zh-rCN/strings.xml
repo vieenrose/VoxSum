@@ -359,4 +359,5 @@
     <string name="reader_model_hint">移动版模型使用更快的引擎，记忆范围较短。E2B：下载 %1$d MB，约占 1.3 GB 内存。E4B：%2$d MB，约 3 GB 内存，错误较少。</string>
     <string name="reader_model_e4b_ram">E4B 需要 8 GB 内存的手机。</string>
     <string name="summary_no_notes">这段录音没有需要记下的决议、待办或数字。</string>
+    <string name="agent_simple_reading_all">逐段阅读转写文本中</string>
 </resources>

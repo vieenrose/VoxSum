@@ -1024,7 +1024,7 @@ private fun TranscribeScreen(
         SessionAutosave.clear(context)
         utterances.clear(); speakerNames.clear(); editingIndex = -1; editingSpeakerId = null
         liveStable = 0
-        agent.reset()
+        agent.reset(); agent.wholeTranscript = false
         editingTitle = false; editingSummary = false; editingActions = false
         // Also PAUSE the hoisted player, not just the flag: when the next run reuses the SAME
         // audioUri (Re-transcribe), DisposableEffect(audioUri) never rebuilds, so without this the
@@ -1577,7 +1577,7 @@ private fun TranscribeScreen(
                     // the PREVIOUS item, stop forwarding: item B's transcript must not stream into
                     // item A's open session view (A's terminal events already landed).
                     watchingQueue = false
-                    queueUtterances.clear(); queueTitle = null; queueSummary = null; queueAgent.reset()
+                    queueUtterances.clear(); queueTitle = null; queueSummary = null; queueAgent.reset(); queueAgent.wholeTranscript = true
                     queueItemId = qid; queueFraction = 0f
                 }
                 when (e) {
@@ -1870,6 +1870,7 @@ private fun TranscribeScreen(
         if (running || utterances.isEmpty()) return
         TranscriptionConfig.Holder.config = config
         resummaryUndo = ResummaryUndo(summary, meetingNotes, title, titleEdited, agent.journalText())
+        agent.reset(); agent.wholeTranscript = true
         summary = null
         // Drop the previous run's structured sections too. If this run falls back to prose (no
         // NotesComplete), stale decisions/open/topics would otherwise stay on screen beside a

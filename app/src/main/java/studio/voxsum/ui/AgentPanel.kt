@@ -100,6 +100,10 @@ class AgentUiState {
     var windowMax by mutableIntStateOf(ReaderProtocol.WINDOW_TOKENS)
     var ctxMax by mutableIntStateOf(ReaderProtocol.CTX_BUDGET)
         private set
+    /** Reading a whole transcript at once (a re-summarize, the queue), not keeping up with a
+     *  recording: the "next notes when the bar fills" wording only fits the latter. Set by
+     *  whoever starts the run; [reset] (which a STARTING event triggers) leaves it alone. */
+    var wholeTranscript by mutableStateOf(false)
     val notes = mutableStateListOf<Note>()
     val steps = mutableStateListOf<Step>()
     val log = mutableStateListOf<LogLine>()
@@ -308,7 +312,7 @@ private fun SimpleBody(agent: AgentUiState, st: AgentEvent.State, onSeek: ((Int)
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         when (st.state) {
             AgentState.LISTENING -> {
-                Text(stringResource(R.string.agent_simple_listening), style = MaterialTheme.typography.bodyMedium, color = pal.Slate200)
+                Text(stringResource(if (agent.wholeTranscript) R.string.agent_simple_reading_all else R.string.agent_simple_listening), style = MaterialTheme.typography.bodyMedium, color = pal.Slate200)
                 LinearProgressIndicator(
                     progress = { ((cur?.tokens ?: 0).toFloat() / agent.windowMax).coerceIn(0f, 1f) },
                     modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),

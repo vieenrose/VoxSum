@@ -3252,7 +3252,7 @@ private fun UtteranceRow(
                 Spacer(Modifier.height(2.dp))
                 Text(
                     highlightedTranscript(utt.text, highlight, pal.Sky, pal.Slate200),
-                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, lineHeight = 26.sp),
+                    style = MaterialTheme.typography.bodyMedium,
                     color = pal.Slate200,
                 )
                 LineMenu(utt.speaker, speakerIds, speakerNames, onBeginEdit, onReassignLine, onMergeSpeaker,

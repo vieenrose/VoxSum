@@ -2139,6 +2139,9 @@ private fun TranscribeScreen(
     fun deleteEntries(victims: List<SessionLibrary.Entry>) {
         if (victims.isEmpty()) return
         if (victims.any { it.dir == libraryDir }) {
+            // Its own run (a re-summarize, a re-transcription) has nothing left to save into: stop
+            // it, or it keeps the CPU busy for minutes on a deleted meeting.
+            if (running && !watchingQueue && !isRecording) onStop()
             clearSession()
             audioUri = null; libraryDir = null; recordingRun = false
             running = false; transcriptReady = false; status = ""

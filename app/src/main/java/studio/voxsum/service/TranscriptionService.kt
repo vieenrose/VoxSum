@@ -43,6 +43,7 @@ import studio.voxsum.core.asr.NemoStreamEngine
 import studio.voxsum.core.asr.SnapshotConverter
 import studio.voxsum.core.audio.AudioDecoder
 import studio.voxsum.core.audio.AudioRecorder
+import studio.voxsum.core.audio.SilenceSkipper
 import studio.voxsum.core.audio.RecordingRecovery
 import studio.voxsum.core.audio.WavIo
 import studio.voxsum.core.audio.WavNormalizer
@@ -961,12 +962,17 @@ class TranscriptionService : LifecycleService() {
         }
         engine.use {
             // One streaming pass transcribes AND diarizes: every snapshot carries speaker tags.
-            engine.transcribeLive(chunks)
+            // Long silences are shortened before the engine (it would spend real time on them) and
+            // the timestamps mapped back onto the original audio.
+            val skipper = SilenceSkipper()
+            engine.transcribeLive(skipper.apply(chunks))
                 .flowOn(Dispatchers.Default)
                 .collect { e ->
                     when (e) {
                         is TranscriptEvent.UtteranceSnapshot -> {
-                            val snap = snapConv.apply(e)
+                            val snap = snapConv.apply(e.copy(utterances = e.utterances.map {
+                                it.copy(startSec = skipper.toOriginal(it.startSec), endSec = skipper.toOriginal(it.endSec))
+                            }))
                             utterances.clear(); utterances += snap.utterances
                             emitEvent(snap)
                             feedLive(live, snap)

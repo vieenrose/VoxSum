@@ -2781,7 +2781,7 @@ private fun ActionItemsCard(
             ) else Spacer(Modifier.weight(1f))
             if (!isEditing) {
                 IconButton(onClick = onCopy, modifier = Modifier.size(28.dp)) {
-                    Icon(Icons.Filled.ContentCopy, contentDescription = stringResource(R.string.cd_copy_summary),
+                    Icon(Icons.Filled.ContentCopy, contentDescription = stringResource(R.string.cd_copy_actions),
                         tint = pal.Slate400, modifier = Modifier.size(16.dp))
                 }
                 EditPencil(onBeginEdit)

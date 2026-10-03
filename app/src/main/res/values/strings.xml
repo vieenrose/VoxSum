@@ -155,6 +155,7 @@
     <string name="session_share_failed">Couldn\'t share session</string>
     <string name="summary_copied">Summary copied</string>
     <string name="cd_copy_summary">Copy summary</string>
+    <string name="cd_copy_actions">Copy action items</string>
     <string name="exporting">Exporting session…</string>
     <string name="exporting_hint">Continues in the background — you can keep using the app</string>
     <string name="export_interrupted">Export was interrupted — please try again.</string>

@@ -193,6 +193,34 @@ void drop_mapped_pages(const std::string& path) {
     fclose(f);
 }
 
+// The embedder and per-layer-embedder tables are lookup tables: a token reads a few rows, but the
+// pages read stay resident (0.84 GB of PLE table for E4B; more of it resident as the vocabulary seen
+// grows). Their private read-only mappings are clean, so dropping them loses nothing: a later lookup
+// reads the page back from the page cache. Upstream fork commit bd9d499 (E4B peak 2.97 -> 2.65 GB on
+// a Reno7, same output and speed). Older VoxSum fix: the same idea, once, for shared mappings above.
+struct Range { void* a; size_t n; };
+std::vector<Range> clean_ranges(const std::string& path) {
+    std::vector<Range> out;
+    char want[4096];
+    if (!realpath(path.c_str(), want)) return out;
+    FILE* f = fopen("/proc/self/smaps", "r");
+    if (!f) return out;
+    char line[4608];
+    Range cur{nullptr, 0}; bool match = false;
+    while (fgets(line, sizeof line, f)) {
+        unsigned long a, b; char perms[8]; int off = 0;
+        if (sscanf(line, "%lx-%lx %7s %*s %*s %*s %n", &a, &b, perms, &off) >= 3 && off) {
+            char* name = line + off; name[strcspn(name, "\n")] = 0;
+            match = perms[0] == 'r' && perms[3] == 'p' && !strcmp(name, want);
+            cur = {(void*)a, (size_t)(b - a)};
+        } else if (match && !strncmp(line, "Private_Dirty:", 14) && atol(line + 14) == 0) {
+            out.push_back(cur);
+        }
+    }
+    fclose(f);
+    return out;
+}
+
 void build_weight_cache(LiteRtEnvironment env, const std::string& path, int threads, const std::string& cache) {
     std::atomic<bool> done{false};
     std::thread reclaim([&] { while (!done) { drop_mapped_pages(cache); usleep(200 * 1000); } });
@@ -232,6 +260,8 @@ struct Engine::Impl {
     std::vector<float> e, pl;
     std::vector<int> fed;   // tokens whose keys and values are in the cache, by position
     std::vector<std::pair<float, int>> cand;
+    std::vector<Range> tables;   // the embedder tables' clean pages, dropped every 8 lookups
+    int n_embed = 0;
 
     ~Impl() {
         lm.reset(); ple.reset(); emb.reset();
@@ -239,6 +269,7 @@ struct Engine::Impl {
     }
 
     void embed(int tok) {
+        if ((++n_embed & 7) == 0) for (auto& r : tables) madvise(r.a, r.n, MADV_DONTNEED);
         *(int32_t*)lockw(es->in[0]) = tok; unlock(es->in[0]); emb->run(*es);
         memcpy(e.data(), lockr(es->out[0]), hid * 4); unlock(es->out[0]);
         *(int32_t*)lockw(ps->in[0]) = tok; unlock(ps->in[0]); ple->run(*ps);
@@ -329,6 +360,10 @@ Engine::Engine(const std::string& dir, const std::string& main, int ctx, int thr
         build_weight_cache(m.env, main, threads, cache);
     m.lm.reset(new Model(m.env, main, threads, cache, true, &m.kv, {"prefill_128", "decode"}));
 
+    if (!getenv("MFA_KEEP_TABLES")) {
+        m.tables = clean_ranges(dir + "/Section2_TFLiteModel_tf_lite_embedder.tflite");
+        for (auto& r : clean_ranges(dir + "/Section3_TFLiteModel_tf_lite_per_layer_embedder.tflite")) m.tables.push_back(r);
+    }
     m.es = &m.emb->sig("embedder"); m.ps = &m.ple->sig("per_layer_embedder");
     m.hid = bytes_of(m.es->out[0]) / 4; m.ple_n = bytes_of(m.ps->out[0]) / 4;
     m.pf = &m.lm->sig("prefill_128"); m.dc = &m.lm->sig("decode");

@@ -359,4 +359,5 @@
     <string name="reader_model_e4b">行動版 E4B</string>
     <string name="reader_model_hint">行動版模型使用更快的引擎，記憶範圍較短。E2B：下載 %1$d MB，約佔 1.3 GB 記憶體。E4B：%2$d MB，約 3 GB 記憶體，錯誤較少。</string>
     <string name="reader_model_e4b_ram">E4B 需要 8 GB 記憶體的手機。</string>
+    <string name="summary_no_notes">這段錄音沒有需要記下的決議、待辦或數字。</string>
 </resources>

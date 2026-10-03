@@ -1630,7 +1630,8 @@ class TranscriptionService : LifecycleService() {
         // The summary is prose written from the notes; the grouped minutes are the fallback.
         val prose = runCatching { lane.prose(res.journal) }
             .onFailure { Log.w("voxsum-reader", "prose summary failed; using minutes", it) }.getOrNull()
-        val minutes = conv(prose ?: res.minutes)
+        // No notes at all (a short or off-topic recording): one plain line, not five empty sections.
+        val minutes = if (res.journal.isEmpty()) getString(R.string.summary_no_notes) else conv(prose ?: res.minutes)
         val actions = conv(res.actions.joinToString("\n") { "- ${it.text.trimEnd('。')} [${it.ts}]" }.ifEmpty { "-" })
         emitEvent(TranscriptEvent.SummaryComplete(minutes))
         emitEvent(TranscriptEvent.ActionItemsComplete(actions))

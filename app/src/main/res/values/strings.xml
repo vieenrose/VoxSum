@@ -365,4 +365,5 @@
     <string name="reader_model_e4b">Mobile E4B</string>
     <string name="reader_model_hint">Mobile models run on a faster engine with a shorter memory. E2B: %1$d MB download, about 1.3 GB RAM. E4B: %2$d MB, about 3 GB RAM, fewer mistakes.</string>
     <string name="reader_model_e4b_ram">E4B needs a phone with 8 GB of RAM.</string>
+    <string name="summary_no_notes">Nothing to note in this recording: no decisions, actions or figures.</string>
 </resources>

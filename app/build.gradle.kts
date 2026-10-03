@@ -12,6 +12,7 @@ android {
     ndkVersion = "27.2.12479018"
 
     defaultConfig {
+        manifestPlaceholders["appLabel"] = "@string/app_name"
         applicationId = "studio.voxsum"
         minSdk = 26          // MediaCodec PCM-float output + reasonable native perf
         targetSdk = 35
@@ -64,6 +65,9 @@ android {
             // coexists with an installed release build. Without it, a debug-signed install of the
             // same id forces an uninstall, taking the user's session library and models with it.
             if (project.hasProperty("isolatedTestId")) applicationIdSuffix = ".androidtest"
+            // ...and under a name of its own, so the share sheet and launcher tell the two apart.
+            manifestPlaceholders["appLabel"] =
+                if (project.hasProperty("isolatedTestId")) "VoxSum test" else "@string/app_name"
             // -PminifyDebug runs the debug build through R8 with the RELEASE keep rules, so
             // JNI-by-name breakage — which cannot reproduce in a normal debug build — is testable
             // on device. This is how the LiteRT-LM SamplerConfig abort was caught; without it the

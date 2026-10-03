@@ -59,3 +59,36 @@ object RecordingRecovery {
     fun seconds(wav: File): Int =
         ((wav.length() - WavIo.HEADER).coerceAtLeast(0) / 2 / WavIo.SAMPLE_RATE).toInt()
 }
+
+/**
+ * The same safety net for a shared / opened file: its import copy (filesDir/audio/shared_*) is the
+ * only copy until the pipeline saves the decoded audio into the library, which happens when the
+ * run ends. A process kill before that (swipe-away, low memory) used to lose the file silently and
+ * the cold-start sweep deleted the copy. The marker names the copy and its display name; the
+ * service clears it once the import is saved (or there was nothing to save).
+ */
+object ImportRecovery {
+    private const val MARKER = "import.inprogress"
+
+    private fun marker(context: Context) = File(context.filesDir, MARKER)
+
+    fun markStarted(context: Context, copy: File, name: String) {
+        runCatching { marker(context).writeText(copy.absolutePath + "\n" + name.replace('\n', ' ')) }
+    }
+
+    fun clear(context: Context) {
+        runCatching { marker(context).delete() }
+    }
+
+    /** The import copy the sweep must keep, if any. */
+    fun keptPath(context: Context): String? =
+        runCatching { marker(context).takeIf { it.exists() }?.readLines()?.firstOrNull()?.trim() }.getOrNull()
+
+    /** An import a kill interrupted: its copy and display name; null (marker cleared) otherwise. */
+    fun pending(context: Context): Pair<File, String>? {
+        val lines = runCatching { marker(context).takeIf { it.exists() }?.readLines() }.getOrNull() ?: return null
+        val copy = lines.firstOrNull()?.trim()?.let(::File)
+        if (copy == null || !copy.exists() || copy.length() == 0L) { clear(context); return null }
+        return copy to (lines.getOrNull(1)?.takeIf { it.isNotBlank() } ?: copy.name)
+    }
+}

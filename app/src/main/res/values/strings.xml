@@ -218,6 +218,8 @@
     <string name="recover_message">A %s recording was interrupted before it finished. Finish transcribing it now?</string>
     <string name="recover_finish">Finish transcribing</string>
     <string name="recover_discard">Discard</string>
+    <string name="recover_import_title">Finish the interrupted import?</string>
+    <string name="recover_import_message">Importing “%s” was interrupted before it finished. Transcribe it now?</string>
 
     <!-- Batch recording: "Next talk" + deferred processing queue -->
     <string name="cd_next_talk">Next talk (save and record the next one)</string>

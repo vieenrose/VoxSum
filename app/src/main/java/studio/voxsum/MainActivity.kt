@@ -159,6 +159,7 @@ import java.io.File
 import studio.voxsum.R
 import studio.voxsum.core.asr.AsrBackend
 import studio.voxsum.core.audio.AudioDecoder
+import studio.voxsum.core.audio.ImportRecovery
 import studio.voxsum.core.audio.RecordingRecovery
 import studio.voxsum.core.library.ProcessingQueue
 import studio.voxsum.core.library.SessionLibrary
@@ -289,8 +290,9 @@ private fun reclaimAudioTemps(context: android.content.Context) {
     val keep = runCatching {
         File(context.filesDir, "recording.inprogress").takeIf { it.exists() }?.readText()?.trim()
     }.getOrNull()
+    val keepImport = ImportRecovery.keptPath(context)   // a shared file a kill interrupted
     dir.listFiles()?.forEach { f ->
-        if (f.absolutePath != keep) runCatching { f.delete() }
+        if (f.absolutePath != keep && f.absolutePath != keepImport) runCatching { f.delete() }
     }
 }
 
@@ -598,6 +600,7 @@ private fun TranscribeScreen(
     // --- Crash recovery: a live recording the OS killed mid-capture (OEM freeze, OOM, swipe-away)
     // is repaired and offered on next launch, so a meeting is never silently lost. ---
     var recoveredRec by remember { mutableStateOf<File?>(null) }
+    var recoveredImport by remember { mutableStateOf<Pair<File, String>?>(null) }
     // A share/open-with import that arrived while a recording or run is active — confirm before it
     // supersedes (a co-installed app firing ACTION_SEND/VIEW must not silently kill a live capture).
     var importConfirm by remember { mutableStateOf<Uri?>(null) }
@@ -723,6 +726,7 @@ private fun TranscribeScreen(
             }
         }
         if (interrupted != null) { recoveredRec = interrupted; recentsVersion++ }
+        else if (!TranscriptionService.pipelineActive) recoveredImport = withContext(Dispatchers.IO) { ImportRecovery.pending(context) }
         // SessionAutosave is legacy: the library now durably holds every session, so restoring a
         // snapshot into a stale Session view on cold launch only hijacked the home (the user
         // expects the Studio shelf — the same content is a library row). Discard any old snapshot.
@@ -1092,7 +1096,28 @@ private fun TranscribeScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { importConfirm = null }) { Text(stringResource(R.string.cancel)) }
+                TextButton(onClick = { importConfirm = null; ImportRecovery.clear(context) }) { Text(stringResource(R.string.cancel)) }
+            },
+        )
+    }
+    // A shared file whose import a kill interrupted (see ImportRecovery): finish or drop it.
+    recoveredImport?.let { (copy, name) ->
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text(stringResource(R.string.recover_import_title)) },
+            text = { Text(stringResource(R.string.recover_import_message, name)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    recoveredImport = null
+                    launchAudio(Uri.fromFile(copy))
+                }) { Text(stringResource(R.string.recover_finish)) }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    recoveredImport = null
+                    ImportRecovery.clear(context)
+                    runCatching { copy.delete() }
+                }) { Text(stringResource(R.string.recover_discard)) }
             },
         )
     }
@@ -1144,6 +1169,9 @@ private fun TranscribeScreen(
             val local = withContext(Dispatchers.IO) { runCatching { copyToAppAudio(context, u) }.getOrNull() }
             if (local != null) {
                 val luri = Uri.fromFile(local)
+                // Until the service saves it into the library, this copy is the only one: mark it
+                // so a kill mid-import offers to finish it on the next launch.
+                if (!VoxsumSession.hasEmbeddedSession(local)) ImportRecovery.markStarted(context, local, documentLabel(context, u))
                 // If it embeds a session, route to recovery; otherwise transcribe it as before.
                 if (VoxsumSession.hasEmbeddedSession(local)) pendingSharedImport = luri
                 // Importing supersedes the open session/recording (clearSession). That's the point

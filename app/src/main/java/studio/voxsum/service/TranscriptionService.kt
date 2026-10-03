@@ -45,6 +45,7 @@ import studio.voxsum.core.audio.AudioDecoder
 import studio.voxsum.core.audio.AudioRecorder
 import studio.voxsum.core.audio.SilenceSkipper
 import studio.voxsum.core.audio.RecordingRecovery
+import studio.voxsum.core.audio.ImportRecovery
 import studio.voxsum.core.audio.WavIo
 import studio.voxsum.core.audio.WavNormalizer
 import studio.voxsum.core.config.SummaryScript
@@ -999,6 +1000,9 @@ class TranscriptionService : LifecycleService() {
             // which three failed fixes could not tell apart.
             Log.i(STOP_TAG, "runPipeline finally ENTERED")
             promoteImport()
+            // The audio is in the library now (or there was none to save): the shared copy is no
+            // longer the only one, so a later launch has nothing to recover.
+            if (foreground) ImportRecovery.clear(this@TranscriptionService)
             Log.i(STOP_TAG, "runPipeline finally DONE entry=${entry?.id ?: "null"}")
         }
 

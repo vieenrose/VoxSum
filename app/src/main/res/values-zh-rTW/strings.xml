@@ -200,6 +200,8 @@
     <string name="recover_message">一段 %s 的錄音在完成前被中斷。要立即完成轉錄嗎？</string>
     <string name="recover_finish">完成轉錄</string>
     <string name="recover_discard">捨棄</string>
+    <string name="recover_import_title">要完成中斷的匯入嗎？</string>
+    <string name="recover_import_message">「%s」在匯入完成前被中斷。要立即轉錄嗎？</string>
 
     <!-- Batch recording: "Next talk" + deferred processing queue -->
     <string name="cd_next_talk">下一場（儲存並開始下一段錄音）</string>

@@ -1751,7 +1751,24 @@ private fun TranscribeScreen(
                 }
                 is TranscriptEvent.Partial ->
                     summary = if (e.reset) "" else (summary ?: "") + e.chunk
-                is TranscriptEvent.SummaryComplete -> { resummaryUndo = null; summary = e.summary; status = context.getString(R.string.status_done); running = false; if (libraryDir != null && !watchingQueue) sessionDirty = true; autosaveSessionNow() }
+                is TranscriptEvent.SummaryComplete -> {
+                    // A finished re-summarize replaced the old summary (possibly hand-edited): offer it back.
+                    resummaryUndo?.takeIf { !it.summary.isNullOrBlank() && screen == Screen.Session }?.let { u ->
+                        val ticket = sessionGen
+                        scope.launch {
+                            val res = snackbarHostState.showSnackbar(
+                                message = context.getString(R.string.resummary_done),
+                                actionLabel = context.getString(R.string.undo),
+                                duration = SnackbarDuration.Long,
+                            )
+                            if (res == SnackbarResult.ActionPerformed && sessionGen == ticket && !running) {
+                                summary = u.summary; meetingNotes = u.notes; title = u.title; titleEdited = u.titleEdited
+                                agent.reset(); u.journal?.let { agent.restore(it) }
+                                sessionDirty = true; autosaveSessionNow()
+                            }
+                        }
+                    }
+                    resummaryUndo = null; summary = e.summary; status = context.getString(R.string.status_done); running = false; if (libraryDir != null && !watchingQueue) sessionDirty = true; autosaveSessionNow() }
                 // Queue events were already folded into queueAgent above (the view shows that one).
                 is TranscriptEvent.Agent -> if (gen != TranscriptionService.QUEUE_GEN) agent.apply(e.event)
                 is TranscriptEvent.ActionItemsComplete -> { actionItems = e.text.ifBlank { "-" }; status = context.getString(R.string.status_done); running = false; if (libraryDir != null && !watchingQueue) sessionDirty = true; autosaveSessionNow() }

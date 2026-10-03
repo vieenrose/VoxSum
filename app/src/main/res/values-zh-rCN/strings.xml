@@ -114,6 +114,8 @@
     <string name="retry">重试</string>
     <string name="summary_settings_changed">摘要设置已变更，请点“重新摘要”以应用。</string>
     <string name="transcript_changed_resummarize">转写文本已编辑，请点“重新摘要”以更新摘要。</string>
+    <string name="resummary_done">新摘要已完成。</string>
+    <string name="undo">撤销</string>
     <string name="svc_asr_model_corrupt">语音模型无法加载，文件可能不完整，已自动清除；请点“重试”重新下载。</string>
     <string name="mic_permission_required">录音需要麦克风权限</string>
 

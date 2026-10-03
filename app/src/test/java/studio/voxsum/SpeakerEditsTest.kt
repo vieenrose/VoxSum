@@ -14,22 +14,22 @@ class SpeakerEditsTest {
     }
     private fun name(n: String) = SpeakerName(n, "user", "")
 
-    @Test fun mergeRelabelsAndKeepsContiguous() {
+    @Test fun mergeRelabels() {
         val utts = spk(0, 1, 2, 1)
         val names = mapOf(0 to name("A"), 1 to name("B"), 2 to name("C"))
         val (u2, n2) = SpeakerEdits.merge(utts, names, from = 2, into = 0)
-        assertEquals(listOf(0, 1, 0, 1), u2.map { it.speaker })   // 2→0, remaining {0,1} already contiguous
+        assertEquals(listOf(0, 1, 0, 1), u2.map { it.speaker })   // 2→0
         assertEquals(setOf(0, 1), n2.keys)                         // C dropped
         assertEquals("A", n2[0]?.name); assertEquals("B", n2[1]?.name)
     }
 
-    @Test fun mergeMiddleRenumbersToContiguous() {
+    @Test fun mergeKeepsTheOtherSpeakersIds() {
         val utts = spk(0, 1, 2)
         val names = mapOf(0 to name("A"), 1 to name("B"), 2 to name("C"))
-        val (u2, n2) = SpeakerEdits.merge(utts, names, from = 1, into = 0)  // leaves {0,2} → renumber {0,1}
-        assertEquals(listOf(0, 0, 1), u2.map { it.speaker })
-        assertEquals(setOf(0, 1), n2.keys)
-        assertEquals("A", n2[0]?.name); assertEquals("C", n2[1]?.name)     // C carried to its new id
+        val (u2, n2) = SpeakerEdits.merge(utts, names, from = 0, into = 1)  // "merge 語者 1 into 語者 2"
+        assertEquals(listOf(1, 1, 2), u2.map { it.speaker })                // stays 語者 2; 語者 3 stays 語者 3
+        assertEquals(setOf(1, 2), n2.keys)
+        assertEquals("B", n2[1]?.name); assertEquals("C", n2[2]?.name)
     }
 
     @Test fun reassignMovesOneLineAndDropsEmptiedSpeaker() {

@@ -1858,7 +1858,7 @@ private fun TranscribeScreen(
         if (!summary.isNullOrBlank() || actionItems != null) reSummarize()
     }
 
-    // Speaker corrections — pure relabels via SpeakerEdits (renumbered to contiguous ids); the .ogg
+    // Speaker corrections — pure relabels via SpeakerEdits (ids kept, so labels stay put); the .ogg
     // round-trips the result, and summaries/exports pick up the fix on the next run.
     fun applySpeakerEdit(result: Pair<List<TranscriptEvent.Utterance>, Map<Int, SpeakerName>>) {
         val (newUtts, newNames) = result

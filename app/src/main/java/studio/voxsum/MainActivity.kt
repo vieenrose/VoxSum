@@ -1865,6 +1865,7 @@ private fun TranscribeScreen(
         utterances.clear(); utterances.addAll(newUtts)
         speakerNames.clear(); newNames.forEach { (k, v) -> speakerNames[k] = v }
         editingIndex = -1; editingSpeakerId = null
+        sessionDirty = true   // a merge/move was never saved: nothing marked the session changed
     }
     fun reassignLine(index: Int, target: Int) =
         applySpeakerEdit(SpeakerEdits.reassign(utterances.toList(), speakerNames.toMap(), index, target))

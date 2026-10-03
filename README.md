@@ -134,7 +134,7 @@ scripts/test-on-device.sh             # 裝置上的儀器測試（獨立 app ID
 | 元件 | 授權 |
 |---|---|
 | X-ASR（語音辨識） | Apache-2.0 |
-| Nemotron-3 Diarization（語者分離） | OpenMDW-1.1 |
-| Gemma-4-E2B 會議模型（AI 筆記、摘要） | Apache-2.0 |
+| [Nemotron-3 Diarization（語者分離）](https://github.com/vieenrose/nemo-x-asr-diarizer.cpp) | OpenMDW-1.1 |
+| [Gemma-4-E2B 會議模型（AI 筆記、摘要）](https://github.com/vieenrose/meeting-summarizer) | Apache-2.0 |
 
 示範音訊：合成會議（VibeVoice-1.5B，MIT）。準確度評測：AISHELL-4（CC BY-SA 4.0）、AMI（CC BY 4.0）。

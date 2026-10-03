@@ -131,13 +131,14 @@ scripts/test-on-device.sh             # 裝置上的儀器測試（獨立 app ID
 
 ## 授權
 
-應用程式以 [GPL-3.0-or-later](LICENSE) 授權；模型各依其授權：
+應用程式以 [GPL-3.0-or-later](LICENSE) 授權；模型與資料各依其授權：
 
 <table>
   <tr><th>元件</th><th>授權</th><th>相關子專案</th></tr>
   <tr><td>X-ASR（語音辨識）</td><td>Apache-2.0</td><td rowspan="2"><a href="https://github.com/vieenrose/nemo-x-asr-diarizer.cpp">nemo-x-asr-diarizer.cpp</a><br>（語音辨識與語者分離整合為單一串流引擎）</td></tr>
   <tr><td>Nemotron-3 Diarization（語者分離）</td><td>OpenMDW-1.1</td></tr>
   <tr><td>Gemma-4-E2B 會議模型（AI 筆記、摘要）</td><td>Apache-2.0</td><td><a href="https://github.com/vieenrose/meeting-summarizer">meeting-summarizer</a><br>（閱讀代理的訓練與協定）</td></tr>
+  <tr><td>示範會議音訊（以 VibeVoice-1.5B 合成）</td><td>MIT</td><td><a href="docs/demo">docs/demo</a></td></tr>
+  <tr><td>AISHELL-4（語者歸屬正確率評測）</td><td>CC BY-SA 4.0</td><td rowspan="2"><a href="tools/nemo-eval/README.md">tools/nemo-eval</a></td></tr>
+  <tr><td>AMI（語者歸屬正確率評測）</td><td>CC BY 4.0</td></tr>
 </table>
-
-示範音訊：合成會議（VibeVoice-1.5B，MIT）。準確度評測：AISHELL-4（CC BY-SA 4.0）、AMI（CC BY 4.0）。

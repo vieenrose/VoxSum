@@ -55,6 +55,7 @@ import studio.voxsum.core.library.SessionLibrary
 import studio.voxsum.core.reader.AgentEvent
 import studio.voxsum.core.reader.mapText
 import studio.voxsum.core.reader.AgentState
+import studio.voxsum.core.reader.ReaderProtocol
 import studio.voxsum.core.reader.ReaderLane
 import studio.voxsum.core.models.LlmRegistry
 import studio.voxsum.core.models.LlmSpec
@@ -1611,7 +1612,10 @@ class TranscriptionService : LifecycleService() {
         val title = if (task.withTitle) runCatching { lane.title(res.journal) }.getOrNull()?.let(conv) else null
         title?.let { emitEvent(TranscriptEvent.Title(it)) }
         events.emit(task.gen to TranscriptEvent.Agent(AgentEvent.State(AgentState.DONE, notes = res.journal.size)))   // the task's gen, like the lane's own agent events
-        return SummaryResult(title, minutes, null, actions)
+        // The AI notes themselves are saved with the meeting (one journal line each), so reopening
+        // it shows them again with their tap-to-check times; they used to be dropped here.
+        val notes = res.journal.takeIf { it.isNotEmpty() }?.joinToString("\n") { conv(ReaderProtocol.render(it)) }
+        return SummaryResult(title, minutes, notes, actions)
     }
 
     /** A task read to the end: save it into its library entry (when it has one). */

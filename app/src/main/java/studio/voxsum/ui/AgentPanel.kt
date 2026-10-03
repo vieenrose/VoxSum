@@ -99,6 +99,23 @@ class AgentUiState {
         state = null; reply = ""; ctxTokens = 0; notes.clear(); steps.clear(); log.clear()
     }
 
+    /** Journal text as saved with a session ("#id [ts] (TYPE) text" per line). */
+    fun journalText(): String? = notes.takeIf { it.isNotEmpty() }?.joinToString("\n") { ReaderProtocol.render(it) }
+
+    /** Show a saved meeting's notes again (finished reading). False if [text] is not a journal. */
+    fun restore(text: String): Boolean {
+        val parsed = text.lines().mapNotNull { l ->
+            JOURNAL_LINE_RE.find(l.trim())?.destructured?.let { (id, ts, tag, body) ->
+                Note(id.toInt(), 0, ts, tag.ifEmpty { null }, body)
+            }
+        }
+        if (parsed.isEmpty()) return false
+        reset()
+        notes += parsed.map { ReaderProtocol.reclassify(it) }
+        state = AgentEvent.State(AgentState.DONE, notes = parsed.size)
+        return true
+    }
+
     fun apply(e: AgentEvent) {
         when (e) {
             is AgentEvent.State -> {
@@ -188,7 +205,9 @@ fun AgentPanel(agent: AgentUiState, onSeek: ((Int) -> Unit)? = null, modifier: M
                     style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = pal.Slate200,
                 )
                 Text(
-                    pluralStringResource(R.plurals.agent_outcome, agent.windowsRead, agent.windowsRead, agent.notes.size),
+                    // A reopened meeting has its notes but not how many windows produced them.
+                    if (agent.windowsRead == 0 && agent.notes.isNotEmpty()) stringResource(R.string.agent_notes_count, agent.notes.size)
+                    else pluralStringResource(R.plurals.agent_outcome, agent.windowsRead, agent.windowsRead, agent.notes.size),
                     style = MaterialTheme.typography.labelMedium, color = pal.Slate400,
                 )
             }
@@ -662,3 +681,6 @@ fun AgentStrip(agent: AgentUiState, modifier: Modifier = Modifier) {
         }
     }
 }
+
+/** One saved AI-notes journal line: "#id [ts] (TYPE) text". */
+private val JOURNAL_LINE_RE = Regex("""^#(\d+) \[(\d+:\d{2}(?::\d{2})?)\] (?:\((\w[\w-]*)\) )?(.+)$""")

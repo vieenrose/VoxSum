@@ -981,7 +981,7 @@ private fun TranscribeScreen(
             entryId = id, audioUri = audioUri,
             utterances = utterances.toList(), speakerNames = speakerNames.toMap(),
             summary = summary, actionItems = actionItems, title = title,
-            notes = meetingNotes?.render(),
+            notes = meetingNotes?.render() ?: agent.journalText(),
             asrModelId = config.asrModelId, asrBackend = config.asrBackend, llmModelId = config.llmModelId,
         )
         sessionDirty = false
@@ -1228,7 +1228,7 @@ private fun TranscribeScreen(
         TranscriptionService.pendingExport = TranscriptionService.ExportRequest(
             share = share, saveUri = uri, audioUri = audioUri,
             utterances = utterances.toList(), speakerNames = speakerNames.toMap(),
-            summary = summary, actionItems = actionItems, title = title, notes = meetingNotes?.render(),
+            summary = summary, actionItems = actionItems, title = title, notes = meetingNotes?.render() ?: agent.journalText(),
             asrModelId = config.asrModelId, asrBackend = config.asrBackend, llmModelId = config.llmModelId,
             coverEnabled = coverEnabled,
             fileName = VoxsumSession.suggestFileName(title, format.ext), format = format,
@@ -1297,6 +1297,8 @@ private fun TranscribeScreen(
             // unconditionally is what stops the PREVIOUS session's decisions/open/topics from
             // staying on screen and being read as belonging to this meeting.
             meetingNotes = loaded.notes?.let { studio.voxsum.core.llm.MeetingNotes.parse(it) }
+            // Or the AI notes journal: rebuild the notes card (it used to be empty on reopen).
+            if (meetingNotes == null) loaded.notes?.let { agent.restore(it) }
             // A saved title is intentional (the user finalized it) → treat it as a sticky edit so
             // re-summarize won't silently overwrite it (they can still ↻ Re-title for a fresh one).
             titleEdited = !title.isNullOrBlank()

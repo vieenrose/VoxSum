@@ -53,7 +53,7 @@
 
 **匯入**：首頁 **＋** 可加入手機上的音訊檔、Podcast、YouTube，或從其他 App 分享音訊過來。
 
-**設定**：外觀（自動、淺色、深色、電子紙）、語言（English、繁體中文、简体中文，介面與產生的文字一起切換）、語者標註延遲、模型管理。
+**設定**：外觀（自動、淺色、深色、電子紙）、語言（English、繁體中文、简体中文，介面與產生的文字一起切換）、語者標註延遲、AI 筆記模型（E2B，或 8 GB 手機可選 E4B）、模型管理。
 
 <details>
 <summary>更多畫面：匯出、重新處理、設定、匯入</summary>
@@ -69,7 +69,7 @@
 從 [**Releases**](https://github.com/vieenrose/VoxSumDroid/releases/latest) 下載 APK。
 
 - Android 8.0 以上，ARMv8.2（dotprod）處理器，約 2019 年後的手機。
-- 模型首次使用時下載：語音引擎約 275 MB，摘要模型約 3.35 GB。
+- 模型首次使用時下載：語音引擎約 275 MB，AI 筆記模型 E2B 約 2.2 GB（E4B 約 3.3 GB），下載後準備一次（約一分鐘）。
 - RAM 8 GB 以上：AI 筆記在錄音中同步閱讀；較小的手機在錄音結束後閱讀。
 - 唯一的網路連線：下載模型，以及每天檢查一次新版本。
 
@@ -84,36 +84,9 @@
 - **聽寫**：[nemo-x-asr-diarizer](https://github.com/vieenrose/nemo-x-asr-diarizer.cpp) 是單一串流引擎，在同一條時間軸上完成語音辨識（X-ASR）與語者分離（Nemotron-3）。
 - **AI 筆記與摘要**：[Gemma-4-E2B 會議模型（行動版）](https://huggingface.co/Luigi/gemma-4-E2B-meeting-agent-zh-GGUF/tree/main/mobile-v1) 在 [LiteRT](https://github.com/google-ai-edge/LiteRT) 上執行（[自訂引擎](https://github.com/vieenrose/LiteRT-LM/tree/mobile-fused-attention)）；8 GB 記憶體的手機可改用 [E4B](https://huggingface.co/Luigi/gemma-4-E4B-meeting-agent-zh-LiteRT)。
 
-錄音時，語音辨識優先（它落後就會漏音）；AI 筆記在背景把已確定的句子讀進上下文，每累積約 2,000 token（數分鐘的語音）才真正閱讀一次並寫筆記。停止後只剩最後一段要讀，所以摘要很快完成。在 OPPO Reno7（8 GB）上，10 分鐘會議的摘要於停止後 87 秒完成，記憶體峰值 3.0 GB。
+錄音時，語音辨識優先（它落後就會漏音）；AI 筆記在背景把已確定的句子讀進上下文，每累積約 1,500 token（數分鐘的語音）才真正閱讀一次並寫筆記。停止後只剩最後一段要讀，所以摘要很快完成。在 Galaxy Note 10+（Snapdragon 855）上，約 7 分半的示範會議即時錄音，摘要於停止後約 77 秒完成，記憶體峰值 2.4 GB；改用 E4B 約 3 分鐘、4.0 GB。
 
-<details>
-<summary>時間軸：10 分鐘會議中各元件何時工作</summary>
-
-```mermaid
-gantt
-    title OPPO Reno7 上的 10 分鐘會議
-    dateFormat mm:ss
-    axisFormat %M:%S
-    section 語音辨識
-    說話後約 0.4 秒文字上螢幕                :active, a1, 00:00, 10:00
-    section 語者辨識
-    語者輪次落後音訊約 5 秒確定              :active, d1, 00:05, 10:00
-    section AI 筆記
-    載入模型                                :g0, 00:00, 00:08
-    讀入已確定的句子                         :active, g1, 00:15, 04:00
-    閱讀並寫筆記（第 1 段）                   :crit, g2, 04:00, 04:45
-    讀入已確定的句子                         :active, g3, 04:45, 08:00
-    閱讀並寫筆記（第 2 段）                   :crit, g4, 08:00, 08:25
-    讀入已確定的句子                         :active, g5, 08:25, 10:15
-    最後一段與摘要                           :crit, g6, 10:15, 11:27
-    section 你
-    停止錄音                                :milestone, m1, 10:00, 0s
-    摘要完成（停止後 87 秒）                  :milestone, m2, 11:27, 0s
-```
-
-</details>
-
-AI 筆記（閱讀代理）的設計——閱讀協定、筆記類型、約 2,000 token 的閱讀窗、8k 重啟、標題與摘要的呼叫——見 meeting-summarizer 的 [`docs/voxsumdroid-integration.md`](https://github.com/vieenrose/meeting-summarizer/blob/main/docs/voxsumdroid-integration.md)。VoxSum 與該協定只有兩處不同：每窗筆記超過上限時優先保留決議與待辦；錄音停止後即使即時辨識漏掉部分音訊，也直接以即時逐字稿寫摘要。
+AI 筆記（閱讀代理）的設計——閱讀協定、筆記類型、約 1,500 token 的閱讀窗、4k 上下文（每段從精簡過的筆記重新開始）、標題與摘要的呼叫——見 meeting-summarizer 的 [`docs/voxsumdroid-integration.md`](https://github.com/vieenrose/meeting-summarizer/blob/main/docs/voxsumdroid-integration.md)。VoxSum 與該協定只有兩處不同：每窗筆記超過上限時優先保留決議與待辦；錄音停止後即使即時辨識漏掉部分音訊，也直接以即時逐字稿寫摘要。
 
 完整操作說明（含介面測試地圖）見 [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md)。模組對應見 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)，準確度評測見 [`tools/nemo-eval`](tools/nemo-eval/README.md)。
 

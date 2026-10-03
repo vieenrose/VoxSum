@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Status-bar icon while processing: the app's waveform mark, white (the system tints it). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M11,3h2v18h-2zM7,7h2v10H7zM15,7h2v10h-2zM3,10h2v4H3zM19,10h2v4h-2z"/>
+</vector>

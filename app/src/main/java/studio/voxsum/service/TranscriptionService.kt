@@ -840,7 +840,7 @@ class TranscriptionService : LifecycleService() {
             Notification.Builder(this, CHANNEL_ID)
                 .setContentTitle(getString(R.string.app_name))
                 .setContentText(text)
-                .setSmallIcon(android.R.drawable.stat_sys_download)
+                .setSmallIcon(R.drawable.ic_stat_voxsum)
                 .setAutoCancel(true)
                 .build(),
         )
@@ -1910,18 +1910,22 @@ class TranscriptionService : LifecycleService() {
         val b = Notification.Builder(this, CHANNEL_ID)
             .setContentTitle("VoxSum")
             .setContentText(text)
-            .setSmallIcon(android.R.drawable.stat_sys_download)
+            // A microphone while capturing, the app's mark while processing (it was the system
+            // "download" arrow for both).
+            .setSmallIcon(if (notifRecording) R.drawable.ic_stat_mic else R.drawable.ic_stat_voxsum)
             .setOngoing(true)
             .setContentIntent(openPi)   // tap the notification to reopen the app
-        // While recording, "Finish" ends capture but continues into diarization/summary; "Stop"
-        // (always present) cancels the whole run.
+        // While recording, one action, the capture screen's own "Stop & save": capture ends, the
+        // talk is saved and processed. (A cancelling "Stop" here ended the run behind the app's
+        // back: the capture screen kept counting with nothing recording.) Once processing, "Stop".
         if (notifRecording) {
             val finishPi = PendingIntent.getService(
                 this, 2, Intent(this, TranscriptionService::class.java).setAction(ACTION_STOP_RECORDING), flags,
             )
-            b.addAction(android.R.drawable.ic_media_pause, getString(R.string.notif_finish_recording), finishPi)
+            b.addAction(android.R.drawable.ic_media_pause, getString(R.string.capture_stop), finishPi)
+        } else {
+            b.addAction(android.R.drawable.ic_menu_close_clear_cancel, getString(R.string.stop), stopPi)
         }
-        b.addAction(android.R.drawable.ic_menu_close_clear_cancel, getString(R.string.stop), stopPi)
         return b.build()
     }
 }

@@ -196,7 +196,6 @@
     <string name="search_prev">Previous match</string>
     <string name="search_next">Next match</string>
     <string name="search_close">Close search</string>
-    <string name="notif_finish_recording">Finish</string>
     <string name="svc_transcribing">Transcribing…</string>
     <string name="card_action_items">Action items</string>
     <string name="action_items_copied">Action items copied</string>

@@ -178,7 +178,6 @@
     <string name="search_prev">上一个</string>
     <string name="search_next">下一个</string>
     <string name="search_close">关闭搜索</string>
-    <string name="notif_finish_recording">完成</string>
     <string name="svc_transcribing">转录中…</string>
     <string name="card_action_items">待办事项</string>
     <string name="action_items_copied">已复制待办事项</string>

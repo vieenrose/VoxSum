@@ -1663,6 +1663,9 @@ private fun TranscribeScreen(
                     // null, so this is skipped and the first player correctly starts at 0.)
                     if (audioUri != null && newUri != audioUri) swapAudioKeepingPlayhead(newUri)
                     else audioUri = newUri
+                    // Capture ended without the screen's own button (the notification's "Stop & save"):
+                    // leave the capture screen for the session, as that button does.
+                    if (isRecording && screen == Screen.Capture && !pendingNextTalk) screen = Screen.Session
                     isRecording = false; micLevel = 0f
                     // A finished recording was auto-saved into the library (promoted on mic stop) —
                     // its raw-capture row is already in Recents; refresh the home list and bind the

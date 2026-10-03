@@ -480,6 +480,12 @@ private fun unbreakable(name: String) =
     // NBSP for the space, WORD JOINER between characters: Han text breaks between any two characters.
     name.replace(' ', '\u00A0').toList().joinToString("\u2060")
 
+/** The summary, notes and title a re-summarize cleared, with the AI notes journal. */
+private data class ResummaryUndo(
+    val summary: String?, val notes: studio.voxsum.core.llm.MeetingNotes?, val title: String?,
+    val titleEdited: Boolean, val journal: String?,
+)
+
 /** Studio navigation: list-first stack — Studio (home) → Capture / Session, back returns home. */
 /**
  * Decode a (possibly untrusted) JPEG/PNG byte array with its longest side capped at [maxDim] px, so
@@ -574,6 +580,8 @@ private fun TranscribeScreen(
     // The queue drain's agent, folded even while nobody watches: opening a queued item mid-summary
     // must show the whole trace so far, not just the events after the tap.
     val queueAgent = remember { studio.voxsum.ui.AgentUiState() }
+    // What a re-summarize replaced, put back if it is stopped before a new summary arrives.
+    var resummaryUndo by remember { mutableStateOf<ResummaryUndo?>(null) }
 
     // --- Update notifier: once/day GitHub release check → dismissible banner → download+install. ---
     var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
@@ -1194,7 +1202,15 @@ private fun TranscribeScreen(
             status = context.getString(R.string.status_processing)
             onStopRecording()
             screen = Screen.Session
-        } else { onStop(); running = false; status = context.getString(R.string.status_stopped) }
+        } else {
+            onStop(); running = false; status = context.getString(R.string.status_stopped)
+            // A stopped re-summarize keeps the summary it was replacing (it is still on disk).
+            resummaryUndo?.takeIf { summary == null }?.let { u ->
+                summary = u.summary; meetingNotes = u.notes; title = u.title; titleEdited = u.titleEdited
+                agent.reset(); u.journal?.let { agent.restore(it) }
+            }
+            resummaryUndo = null
+        }
     }
 
     // Live view of the queue's current item: adopt its buffered results into the session view and
@@ -1698,7 +1714,7 @@ private fun TranscribeScreen(
                 }
                 is TranscriptEvent.Partial ->
                     summary = if (e.reset) "" else (summary ?: "") + e.chunk
-                is TranscriptEvent.SummaryComplete -> { summary = e.summary; status = context.getString(R.string.status_done); running = false; if (libraryDir != null && !watchingQueue) sessionDirty = true; autosaveSessionNow() }
+                is TranscriptEvent.SummaryComplete -> { resummaryUndo = null; summary = e.summary; status = context.getString(R.string.status_done); running = false; if (libraryDir != null && !watchingQueue) sessionDirty = true; autosaveSessionNow() }
                 // Queue events were already folded into queueAgent above (the view shows that one).
                 is TranscriptEvent.Agent -> if (gen != TranscriptionService.QUEUE_GEN) agent.apply(e.event)
                 is TranscriptEvent.ActionItemsComplete -> { actionItems = e.text.ifBlank { "-" }; status = context.getString(R.string.status_done); running = false; if (libraryDir != null && !watchingQueue) sessionDirty = true; autosaveSessionNow() }
@@ -1850,6 +1866,7 @@ private fun TranscribeScreen(
     fun reSummarize(regenerateTitle: Boolean = !titleEdited) {
         if (running || utterances.isEmpty()) return
         TranscriptionConfig.Holder.config = config
+        resummaryUndo = ResummaryUndo(summary, meetingNotes, title, titleEdited, agent.journalText())
         summary = null
         // Drop the previous run's structured sections too. If this run falls back to prose (no
         // NotesComplete), stale decisions/open/topics would otherwise stay on screen beside a

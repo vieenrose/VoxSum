@@ -18,7 +18,7 @@ import kotlin.math.floor
 class ReaderLane(
     private val llm: ReaderLlm,
     private val systemPrompt: String,
-    budget: ReaderBudget = ReaderBudget.STANDARD,
+    private val budget: ReaderBudget = ReaderBudget.STANDARD,
     /** Title and prose read the journal compacted to this many characters (0 = all of it): a whole
      *  meeting's journal does not fit a 4k context (integration note §12.3). */
     private val notesChars: Int = 0,
@@ -98,10 +98,7 @@ class ReaderLane(
     suspend fun title(journal: List<Note>): String? = withContext(dispatcher) {
         if (journal.isEmpty()) return@withContext null
         llm.reset()
-        val prompt = "以下是一場會議的筆記：\n\n" + notesFor(journal).joinToString("\n") { ReaderProtocol.render(it) } +
-            "\n\n為這場會議寫一個標題，不超過 20 個字。只輸出標題。"
-        val toks = llm.tokenize("<bos><|turn>user\n", true) + llm.tokenize(prompt, false) +
-            llm.tokenize("<turn|>\n<|turn>model\n", true)
+        val toks = fitting(journal, 48) { notes -> "以下是一場會議的筆記：\n\n" + notes + "\n\n為這場會議寫一個標題，不超過 20 個字。只輸出標題。" }
         if (llm.append(toks) < 0) return@withContext null
         val raw = llm.generateContinue(48, "<turn|>", ReaderProtocol.TEMP) {}
         raw.substringBefore("<turn|>").lines().firstOrNull { it.isNotBlank() }
@@ -117,12 +114,10 @@ class ReaderLane(
     suspend fun prose(journal: List<Note>): String? = withContext(dispatcher) {
         if (journal.isEmpty()) return@withContext null
         llm.reset()
-        val prompt = "以下是一場會議的筆記：\n\n" + notesFor(journal).joinToString("\n") { ReaderProtocol.render(it) } +
+        val toks = fitting(journal, PROSE_MAX) { notes -> "以下是一場會議的筆記：\n\n" + notes +
             "\n\n根據這些筆記，用連貫的段落寫一份會議摘要（不要條列、不要標題），" +
             "說明討論了什麼、決定了什麼、誰要做什麼、還有什麼沒解決。" +
-            "只寫筆記裡有的內容；提到某件事時在句尾附上筆記的時間，例如 [1:23]。"
-        val toks = llm.tokenize("<bos><|turn>user\n", true) + llm.tokenize(prompt, false) +
-            llm.tokenize("<turn|>\n<|turn>model\n", true)
+            "只寫筆記裡有的內容；提到某件事時在句尾附上筆記的時間，例如 [1:23]。" }
         if (llm.append(toks) < 0) return@withContext null
         val raw = llm.generateContinue(PROSE_MAX, "<turn|>", ReaderProtocol.TEMP) {}
         val known = journal.map { it.ts }.toSet()
@@ -133,8 +128,22 @@ class ReaderLane(
         text.takeIf { it.length >= 20 }
     }
 
-    private fun notesFor(journal: List<Note>): List<Note> =
-        if (notesChars > 0) ReaderProtocol.compactNotes(journal, notesChars) else journal
+    private fun notesFor(journal: List<Note>, chars: Int = notesChars): List<Note> =
+        if (chars > 0) ReaderProtocol.compactNotes(journal, chars) else journal
+
+    /** The one-shot prompt over the notes, compacted further while it would not leave [maxOut]
+     *  tokens of room in the context (3,900 characters is upstream's measure; Chinese runs denser
+     *  in some meetings). */
+    private fun fitting(journal: List<Note>, maxOut: Int, prompt: (String) -> String): IntArray {
+        var chars = notesChars
+        while (true) {
+            val notes = notesFor(journal, chars).joinToString("\n") { ReaderProtocol.render(it) }
+            val toks = llm.tokenize("<bos><|turn>user\n", true) + llm.tokenize(prompt(notes), false) +
+                llm.tokenize("<turn|>\n<|turn>model\n", true)
+            if (chars <= 0 || toks.size + maxOut + 8 <= budget.ctxBudget || chars <= 800) return toks
+            chars -= 400
+        }
+    }
 
     private fun offer(utts: List<TranscriptEvent.Utterance>) {
         val lines = utts.mapNotNull { toLine(it) }

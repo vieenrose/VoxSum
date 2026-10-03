@@ -53,6 +53,30 @@ class MeetingReader(
     /** Feed one stable transcript line (in order). May run a reading turn. */
     fun offer(line: Line) {
         check(started) { "start() first" }
+        // A line longer than a whole window (a long unbroken monologue) would overflow a small
+        // context: it is read as several lines with the same time. Never seen in upstream's data.
+        if (count(line.render()) > budget.windowTokens) { splitLong(line).forEach(::offerLine); return }
+        offerLine(line)
+    }
+
+    private fun splitLong(line: Line): List<Line> {
+        val out = ArrayList<Line>()
+        var rest = line.text
+        while (rest.isNotEmpty()) {
+            // The longest prefix that fits, preferably ending at a sentence end.
+            var lo = 1; var hi = rest.length
+            while (lo < hi) {
+                val mid = (lo + hi + 1) / 2
+                if (count(line.copy(text = rest.substring(0, mid)).render()) <= budget.windowTokens) lo = mid else hi = mid - 1
+            }
+            val cut = rest.substring(0, lo).indexOfLast { it in "。？！?!；;，," }.takeIf { it >= lo / 2 }?.plus(1) ?: lo
+            out += line.copy(text = rest.substring(0, cut))
+            rest = rest.substring(cut)
+        }
+        return out
+    }
+
+    private fun offerLine(line: Line) {
         val t = count(line.render())
         if (windowLines > 0 && windowTok + t > budget.windowTokens) closeWindow()
         if (windowLines == 0) openWindow(line)

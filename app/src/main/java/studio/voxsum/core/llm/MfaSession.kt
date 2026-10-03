@@ -31,12 +31,15 @@ class MfaSession(
     }
 
     override fun append(tokens: IntArray): Int {
-        seq += tokens.toList()
+        val next = seq + tokens.toList()
+        // The prompt must leave room in the cache; a refused append leaves the sequence as it was.
+        if (next.size >= engine.context) return -1
         return try {
-            engine.generate(seq.toIntArray(), maxNew = 0, temp = 0f, topK = 1, topP = 1f, seed = seed)
+            engine.generate(next.toIntArray(), maxNew = 0, temp = 0f, topK = 1, topP = 1f, seed = seed)
+            seq += tokens.toList()
             seq.size
         } catch (e: IllegalStateException) {
-            -1   // e.g. the prompt no longer fits the context
+            -1
         }
     }
 
@@ -44,7 +47,10 @@ class MfaSession(
         val gen = ArrayList<Int>()
         var shown = ""
         var stopped = false
-        engine.generate(seq.toIntArray(), maxTokens, temp, topK, topP, seed) { id ->
+        // Never ask past the cache: the reply is cut at its end, like a length stop.
+        val room = engine.context - seq.size - 1
+        if (room <= 0) return ""
+        engine.generate(seq.toIntArray(), minOf(maxTokens, room), temp, topK, topP, seed) { id ->
             gen += id
             val text = tok.decode(gen.toIntArray())
             // Stream only complete characters: a reply cut mid-character decodes to U+FFFD.

@@ -46,6 +46,10 @@ data class LlmSpec(
     /** llama.cpp `swa_full`: false for Gemma's sliding-window layers in session mode (the reader
      *  only appends, so the SWA cache never rolls back). */
     val swaFull: Boolean = true,
+    /** Which engine runs it: llama.cpp (a GGUF) or the mobile LiteRT engine (a `mfa/` folder). */
+    val backend: LlmBackend = LlmBackend.LLAMA_CPP,
+    /** The reader's system prompt, shipped next to the weights (they must stay paired). */
+    val systemPromptFile: String = "",
 ) {
     val totalBytes: Long get() = files.values.sumOf { it.first }
 }
@@ -64,6 +68,8 @@ data class LlmSpec(
  * No BOS literal in any of these: the JNI tokenizes with `addSpecial=true`, so llama.cpp
  * already prepends whatever the GGUF's metadata declares. Writing one here would double it.
  */
+enum class LlmBackend { LLAMA_CPP, MOBILE }
+
 enum class ChatTemplate { CHATML, QWEN3, MINICPM5, GRANITE, GEMMA4, NONE }
 
 /**
@@ -156,7 +162,59 @@ object LlmRegistry {
             // phone CPU); 12288 leaves room for the window and the output (integration note §3).
             maxCtx = 12288,
             swaFull = false,
+            systemPromptFile = SYSTEM_PROMPT_FILE,
         ),
+        // The mobile graphs (integration note §12, §13): Google's Gemma-4 mobile weights carrying our
+        // fine-tune, run by the forked LiteRT engine on the CPU at 4k (cpp/mfa). The same system
+        // prompt as v11, byte for byte.
+        mobile(
+            id = E2B_MOBILE_ID, displayName = "Gemma-4-E2B meeting agent mobile-v1 (zh)", shortName = "E2B",
+            dirName = "gemma4-meeting-agent-e2b-mobile-v1",
+            repo = "Luigi/gemma-4-E2B-meeting-agent-zh-GGUF", rev = "f47086170552f9b8e8719e9884af9fb9b56156d1",
+            dir = "mobile-v1/mfa", prompt = "mobile-v1/system_prompt.txt",
+            sizes = listOf(
+                103_811_720L to "280327ee5720663acd2268c2e5d42caad33f70ba7931eef8c8b3018b4e2a4980",
+                1_284_518_392L to "dca1e5553b4159558b17073c94fcc7ff16646e99a56a0614728435ac4b571720",
+                818_394_320L to "6a7555ccc349be490fca4ed63ebf7fdafd8e4a4510012f3ae9c38f8009b5fcae",
+            ),
+        ),
+        mobile(
+            id = E4B_MOBILE_ID, displayName = "Gemma-4-E4B meeting agent (zh)", shortName = "E4B",
+            dirName = "gemma4-meeting-agent-e4b-mobile",
+            repo = "Luigi/gemma-4-E4B-meeting-agent-zh-LiteRT", rev = "70e095dc5db8d4edac901578a6e0f04d994ad95e",
+            dir = "mfa", prompt = "system_prompt.txt",
+            sizes = listOf(
+                170_920_584L to "94cf45ffd3d0dd7040d27b22e70845cf1054db90613bf31d8ffc1623d23d4a40",
+                836_778_512L to "d35fe41db89fa0128f5da9530886a12581cee715369e1b9ed9a3644e43d16a6a",
+                2_260_210_576L to "34858194f4f596fae132470a2e0f2f0f276e540c7af8502e4ef7cca99e871424",
+            ),
+        ),
+    )
+
+    const val E2B_MOBILE_ID = "gemma4-e2b-meeting-agent-zh-mobile-v1"
+    const val E4B_MOBILE_ID = "gemma4-e4b-meeting-agent-zh-mobile"
+
+    /** embedder, per-layer embedder and the fused graph, in that order; plus the shared tokenizer. */
+    private fun mobile(
+        id: String, displayName: String, shortName: String, dirName: String, repo: String, rev: String,
+        dir: String, prompt: String, sizes: List<Pair<Long, String>>,
+    ) = LlmSpec(
+        id = id, displayName = displayName, shortName = shortName, dirName = dirName,
+        revision = "https://huggingface.co/$repo/resolve/$rev",
+        files = mapOf(
+            "$dir/Section1_SP_Tokenizer.spiece" to (4_689_013L to "e594c8a90eb08d8bda498ff4747977dc827ae0c3c56b5c0d41a605a22d02ef03"),
+            "$dir/Section2_TFLiteModel_tf_lite_embedder.tflite" to sizes[0],
+            "$dir/Section3_TFLiteModel_tf_lite_per_layer_embedder.tflite" to sizes[1],
+            "$dir/prefill_decode_fused.tflite" to sizes[2],
+            prompt to (1_686L to "406040c70270b5b9d47a4222138fcf2177f361dcbfb79fba164ca2559e0ffbf3"),
+        ),
+        mainFile = "$dir/prefill_decode_fused.tflite",
+        tokenizerFile = "$dir/Section1_SP_Tokenizer.spiece",
+        chatTemplate = ChatTemplate.GEMMA4,
+        sampler = SamplerProfile.GEMMA_READER,
+        maxCtx = 4096,
+        backend = LlmBackend.MOBILE,
+        systemPromptFile = prompt,
     )
 
     fun byId(id: String): LlmSpec =

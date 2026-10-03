@@ -1448,8 +1448,17 @@ class TranscriptionService : LifecycleService() {
     // never holds the model while a recording runs (it waits, and gives way if one starts).
 
     /** The loaded model, shared by every task's lane (one lane at a time). */
-    private class ReaderModel(val engine: studio.voxsum.core.llm.LlmEngine, val system: String) : AutoCloseable {
-        override fun close() = engine.close()
+    private class ReaderModel(
+        val llm: studio.voxsum.core.reader.ReaderLlm,
+        val system: String,
+        val budget: studio.voxsum.core.reader.ReaderBudget,
+        /** Title/prose input cap in characters (0 = the whole journal), see ReaderLane. */
+        val notesChars: Int,
+        private val cancelFn: () -> Unit,
+        private val closeFn: () -> Unit,
+    ) : AutoCloseable {
+        fun cancel() = cancelFn()
+        override fun close() = closeFn()
     }
 
     /** One meeting for the worker. A live task is fed snapshots while its talk is recorded and
@@ -1503,7 +1512,7 @@ class TranscriptionService : LifecycleService() {
     private fun abortRead(task: ReadTask) {
         task.aborted = true
         task.final.complete(emptyList())
-        if (readCurrent === task) readModel?.engine?.cancel()
+        if (readCurrent === task) readModel?.cancel()
         else synchronized(readLock) { readTasks.remove(task) }
         task.result.completeExceptionally(CancellationException("reading aborted"))
     }
@@ -1511,7 +1520,7 @@ class TranscriptionService : LifecycleService() {
     /** A recording is starting on a device that cannot hold both models: give way. */
     private fun readerYieldForRecording() {
         if (liveReaderCapable()) return
-        readCurrent?.let { it.preempted = true; readModel?.engine?.cancel() }
+        readCurrent?.let { it.preempted = true; readModel?.cancel() }
     }
 
     private suspend fun readLoop() {
@@ -1556,14 +1565,33 @@ class TranscriptionService : LifecycleService() {
     /** Load (downloading first if needed) the reader model. */
     private suspend fun loadReaderModel(): ReaderModel {
         val models = ModelManager(this)
-        val spec = LlmRegistry.byId(LlmRegistry.DEFAULT_ID)
+        val spec = LlmRegistry.byId(TranscriptionConfig.Holder.config.llmModelId)
         ensureLlm(spec, models)
-        val system = File(models.llmDir(spec), LlmRegistry.SYSTEM_PROMPT_FILE).readText()
+        val dir = models.llmDir(spec)
+        val system = File(dir, spec.systemPromptFile).readText()
+        if (spec.backend == studio.voxsum.core.models.LlmBackend.MOBILE) {
+            // The mobile graphs on the forked LiteRT engine (integration note §13): CPU only, 4k,
+            // the XNNPACK weight cache built on the first load next to the weights.
+            val main = File(dir, spec.mainFile)
+            val engine = studio.voxsum.core.llm.MfaEngine.load(
+                main.parentFile!!.path, ctx = spec.maxCtx, threads = asrThreads(),
+                weightCache = File(dir, "weights.xnnpack_cache").path,
+            )
+            val tok = studio.voxsum.core.llm.SpTokenizer.load(File(dir, spec.tokenizerFile).path)
+            val session = studio.voxsum.core.llm.MfaSession(engine, tok, spec.sampler.topK, spec.sampler.topP)
+            return ReaderModel(
+                session, system, studio.voxsum.core.reader.ReaderBudget.MOBILE, notesChars = 3900,
+                cancelFn = engine::cancel, closeFn = { engine.close(); tok.close() },
+            )
+        }
         val engine = studio.voxsum.core.llm.LlmEngine.load(
             models.llmFile(spec).absolutePath, nThreads = asrThreads(), nCtx = spec.maxCtx,
             sampler = spec.sampler, kvQ8 = studio.voxsum.core.llm.TextGen.KV_Q8, swaFull = spec.swaFull,
         )
-        return ReaderModel(engine, system)
+        return ReaderModel(
+            engine, system, studio.voxsum.core.reader.ReaderBudget.STANDARD, notesChars = 0,
+            cancelFn = engine::cancel, closeFn = engine::close,
+        )
     }
 
     /** Read one meeting to the end (runs under the task's RunGen, so its events reach its session). */
@@ -1576,7 +1604,7 @@ class TranscriptionService : LifecycleService() {
         val emit: (AgentEvent) -> Unit = { ev ->
             events.tryEmit(gen to TranscriptEvent.Agent(if (conv == null) ev else ev.mapText(conv::convert)))
         }
-        val lane = ReaderLane(model.engine, model.system, emit)
+        val lane = ReaderLane(model.llm, model.system, emit, model.budget, model.notesChars)
         lane.start()
         try {
             if (task.text != null) {

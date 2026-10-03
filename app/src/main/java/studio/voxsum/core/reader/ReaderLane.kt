@@ -19,6 +19,10 @@ class ReaderLane(
     private val llm: ReaderLlm,
     private val systemPrompt: String,
     private val events: (AgentEvent) -> Unit,
+    budget: ReaderBudget = ReaderBudget.STANDARD,
+    /** Title and prose read the journal compacted to this many characters (0 = all of it): a whole
+     *  meeting's journal does not fit a 4k context (integration note §12.3). */
+    private val notesChars: Int = 0,
 ) : AutoCloseable {
 
     private val executor = Executors.newSingleThreadExecutor { r ->
@@ -28,7 +32,7 @@ class ReaderLane(
         }, "voxsum-reader")
     }
     private val dispatcher = executor.asCoroutineDispatcher()
-    private val reader = MeetingReader(llm, systemPrompt, events = events)
+    private val reader = MeetingReader(llm, systemPrompt, events = events, budget = budget)
 
     /** Utterances already handed to the reader (by index in the live snapshot). */
     private var fed = 0
@@ -94,7 +98,7 @@ class ReaderLane(
     suspend fun title(journal: List<Note>): String? = withContext(dispatcher) {
         if (journal.isEmpty()) return@withContext null
         llm.reset()
-        val prompt = "以下是一場會議的筆記：\n\n" + journal.joinToString("\n") { ReaderProtocol.render(it) } +
+        val prompt = "以下是一場會議的筆記：\n\n" + notesFor(journal).joinToString("\n") { ReaderProtocol.render(it) } +
             "\n\n為這場會議寫一個標題，不超過 20 個字。只輸出標題。"
         val toks = llm.tokenize("<bos><|turn>user\n", true) + llm.tokenize(prompt, false) +
             llm.tokenize("<turn|>\n<|turn>model\n", true)
@@ -113,7 +117,7 @@ class ReaderLane(
     suspend fun prose(journal: List<Note>): String? = withContext(dispatcher) {
         if (journal.isEmpty()) return@withContext null
         llm.reset()
-        val prompt = "以下是一場會議的筆記：\n\n" + journal.joinToString("\n") { ReaderProtocol.render(it) } +
+        val prompt = "以下是一場會議的筆記：\n\n" + notesFor(journal).joinToString("\n") { ReaderProtocol.render(it) } +
             "\n\n根據這些筆記，用連貫的段落寫一份會議摘要（不要條列、不要標題），" +
             "說明討論了什麼、決定了什麼、誰要做什麼、還有什麼沒解決。" +
             "只寫筆記裡有的內容；提到某件事時在句尾附上筆記的時間，例如 [1:23]。"
@@ -128,6 +132,9 @@ class ReaderLane(
             .joinToString("\n\n")
         text.takeIf { it.length >= 20 }
     }
+
+    private fun notesFor(journal: List<Note>): List<Note> =
+        if (notesChars > 0) ReaderProtocol.compactNotes(journal, notesChars) else journal
 
     private fun offer(utts: List<TranscriptEvent.Utterance>) {
         val lines = utts.mapNotNull { toLine(it) }

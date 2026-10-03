@@ -83,6 +83,21 @@ object ReaderProtocol {
         return (x intersect y).size.toDouble() / maxOf(1, (x union y).size)
     }
 
+    /** conversion_prompts.compact_notes: the notes a small context can take for the title and prose
+     *  calls — decisions, then open issues, then actions, newest first within each, then the rest
+     *  newest first, each costing its text length + 24 characters, kept in chronological order. */
+    fun compactNotes(notes: List<Note>, budgetChars: Int): List<Note> {
+        val key = mapOf("DECISION" to 0, "OPEN-ISSUE" to 1, "ACTION" to 2)
+        val order = notes.indices.sortedWith(compareBy<Int>({ key[notes[it].tag?.uppercase()] ?: 3 }, { -it }))
+        val chosen = HashSet<Int>()
+        var used = 0
+        for (i in order) {
+            val t = notes[i].text.length + 24
+            if (used + t <= budgetChars) { chosen += i; used += t }
+        }
+        return chosen.sorted().map { notes[it] }
+    }
+
     /** realtime_agent.render. */
     fun render(n: Note): String = "#${n.id} [${n.ts}] " + (n.tag?.let { "($it) " } ?: "") + n.text
 

@@ -113,6 +113,8 @@ gantt
 
 </details>
 
+AI 筆記（閱讀代理）的設計——閱讀協定、筆記類型、約 2,000 token 的閱讀窗、8k 重啟、標題與摘要的呼叫——見 meeting-summarizer 的 [`docs/voxsumdroid-integration.md`](https://github.com/vieenrose/meeting-summarizer/blob/main/docs/voxsumdroid-integration.md)。VoxSum 與該協定只有兩處不同：每窗筆記超過上限時優先保留決議與待辦；錄音停止後即使即時辨識漏掉部分音訊，也直接以即時逐字稿寫摘要。
+
 完整操作說明（含介面測試地圖）見 [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md)。模組對應見 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)，準確度評測見 [`tools/nemo-eval`](tools/nemo-eval/README.md)。
 
 ## 從原始碼建置

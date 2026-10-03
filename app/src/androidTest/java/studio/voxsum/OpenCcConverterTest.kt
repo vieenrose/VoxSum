@@ -49,4 +49,10 @@ class OpenCcConverterTest {
         assertEquals("繁体中文", t2s.convert("繁體中文"))
         assertEquals("Hello 123", t2s.convert("Hello 123"))
     }
+
+    /** 地點選在… is 地點 + 選在, not 地 + 點選 ("click" → 点击): seen live as "地点击在信义区". */
+    @Test fun aPlaceIsNotAClick() {
+        assertEquals("地点选在信义区饭店", t2s.convert("地點選在信義區飯店"))
+        assertEquals("请点击这里", t2s.convert("請點選這裡"))   // the real Taiwan "click" still converts
+    }
 }

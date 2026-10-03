@@ -147,11 +147,19 @@ class OpenCcConverter private constructor(
             loadReverseInto(context, "opencc/TWPhrases.txt", twRev)
             loadReverseInto(context, "opencc/TWVariantsPhrases.txt", twRev)
             loadReverseInto(context, "opencc/TWVariants.txt", twRev)
+            // "點選" (Taiwan for "click") also ends a common noun: 地點選在… is 地點 + 選在, not
+            // 地 + 點選 (seen live: "地点击在信义区"). Longest match from the left prefers these
+            // longer keys, which stay as they are for t2s.
+            NOUN_THEN_SELECT.forEach { twRev[it] = it }
             val t2s = HashMap<String, String>(8192)
             loadInto(context, "opencc/TSPhrases.txt", t2s)
             loadInto(context, "opencc/TSCharacters.txt", t2s)
             return build(listOf(twRev, t2s))
         }
+
+        private val NOUN_THEN_SELECT = listOf(
+            "地點選", "重點選", "景點選", "觀點選", "優點選", "缺點選", "起點選", "終點選", "站點選", "據點選", "時點選", "焦點選",
+        )
 
         /** OpenCC `*Rev` dictionary: every target of a line maps back to its source; earlier files win. */
         private fun loadReverseInto(context: Context, asset: String, into: MutableMap<String, String>) {

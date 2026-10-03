@@ -33,6 +33,33 @@ bool word_char(const std::string& s, size_t off, size_t len) {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '\'';
 }
 
+// Sentence-final punctuation, as UTF-8.
+bool sentence_end(const std::string& cp) {
+    return cp == "\u3002" || cp == "\uFF1F" || cp == "\uFF01" || cp == "?" || cp == "!";   // not ".": decimals and abbreviations
+}
+
+// A speaker change estimated 1-3 characters AFTER a sentence end is almost always the next speaker's
+// first word left on the wrong side ("...想法？我覺 | 得地點..."): character timing is coarse at a turn
+// change, the punctuation is not. Move that short tail to the next piece. The mirror case (a short
+// "了。" opening the next piece) is NOT moved: it is indistinguishable from a real one-word reply ("好。").
+void snap_to_sentence_end(std::vector<TaggedPiece>& pieces) {
+    for (size_t k = 0; k + 1 < pieces.size(); k++) {
+        TaggedPiece& a = pieces[k];
+        TaggedPiece& b = pieces[k + 1];
+        if (a.speaker == b.speaker || a.speaker.empty() || b.speaker.empty()) continue;
+        const auto cps = codepoints(a.text);
+        size_t cut = cps.size();
+        for (size_t i = cps.size(); i-- > 0;) {
+            if (sentence_end(a.text.substr(cps[i].first, cps[i].second))) { cut = i + 1; break; }
+        }
+        const size_t tail = cps.size() - cut;
+        if (cut == cps.size() || tail == 0 || tail > 3 || cut == 0) continue;
+        const size_t byte = cps[cut].first;
+        b.text = a.text.substr(byte) + b.text;
+        a.text.resize(byte);
+    }
+}
+
 // Turn the per-character verdicts into pieces. Where words exist, the WORD is the unit of attribution:
 // a boundary that would fall inside a word moves to the word's majority speaker instead.
 //
@@ -84,6 +111,7 @@ std::vector<TaggedPiece> tag_sequence(const std::string& text, const std::vector
         }
         i = j;
     }
+    snap_to_sentence_end(pieces);
     return pieces;
 }
 

@@ -488,7 +488,9 @@ class TranscriptionService : LifecycleService() {
         // startForeground() before returning or Android kills the process (RemoteServiceException).
         // Both flags are written on MAIN (here and in the teardown's main hop), so this main-thread
         // guard cannot race them.
-        if (processQueue && (queueDraining || recordingJobActive)) {
+        // Only while that run is really alive: a stopped run whose job never finished unwinding left
+        // these flags up, and every later "Process now" was ignored — the row stayed "Queued".
+        if (processQueue && (queueDraining || recordingJobActive) && pipelineJob?.isActive == true) {
             satisfyForegroundContract()
             return START_NOT_STICKY
         }
@@ -1486,12 +1488,15 @@ class TranscriptionService : LifecycleService() {
 
     /** Queue [task] (a task for an entry already queued or being read is not read twice). */
     private fun submitRead(task: ReadTask): ReadTask = synchronized(readLock) {
-        task.entry?.id?.let { id -> readTasks.firstOrNull { it.entry?.id == id }?.let { return it } }
-        readTasks += task
+        val queued = task.entry?.id?.let { id -> readTasks.firstOrNull { it.entry?.id == id } }
+        if (queued == null) readTasks += task
+        // Whether the task is new or already listed, the loop must be running: a listed task whose
+        // loop had ended was returned here and awaited forever ("Process now" did nothing, the row
+        // stayed "Queued").
         if (readJob?.isActive != true) {
             readJob = lifecycleScope.launch(Dispatchers.IO) { readLoop() }
         }
-        task
+        queued ?: task
     }
 
     /** Abort [task]: dropped if waiting, cut short if being read. Its entry stays as it was. */

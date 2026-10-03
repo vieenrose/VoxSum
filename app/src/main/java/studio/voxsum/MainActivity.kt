@@ -534,6 +534,11 @@ private fun TranscribeScreen(
     LaunchedEffect(running) { if (running) statusIsError = false }
     var progress by remember { mutableFloatStateOf(0f) }
     // Load the user's persisted settings (survives restarts) and seed the process-wide Holder.
+    // Which models produced the OPEN session's text (from its file, or the run that just made it).
+    // Kept apart from [config], the user's settings: opening an old session must not switch the
+    // model the next run uses (it did: a re-summarize then ran the session's old model, and the
+    // next settings change saved it).
+    var sessionModels by remember { mutableStateOf<Triple<String, String, String>?>(null) }
     var config by remember {
         mutableStateOf(ConfigStore.load(context).also { TranscriptionConfig.Holder.config = it })
     }
@@ -995,7 +1000,7 @@ private fun TranscribeScreen(
             utterances = utterances.toList(), speakerNames = speakerNames.toMap(),
             summary = summary, actionItems = actionItems, title = title,
             notes = meetingNotes?.render() ?: agent.journalText(),
-            asrModelId = config.asrModelId, asrBackend = config.asrBackend, llmModelId = config.llmModelId,
+            asrModelId = sessionModels?.second ?: config.asrModelId, asrBackend = sessionModels?.third ?: config.asrBackend, llmModelId = sessionModels?.first ?: config.llmModelId,
         )
         sessionDirty = false
         ContextCompat.startForegroundService(
@@ -1025,6 +1030,7 @@ private fun TranscribeScreen(
         utterances.clear(); speakerNames.clear(); editingIndex = -1; editingSpeakerId = null
         liveStable = 0
         agent.reset(); agent.wholeTranscript = false
+        sessionModels = null   // a new run is made with the current settings
         editingTitle = false; editingSummary = false; editingActions = false
         // Also PAUSE the hoisted player, not just the flag: when the next run reuses the SAME
         // audioUri (Re-transcribe), DisposableEffect(audioUri) never rebuilds, so without this the
@@ -1250,7 +1256,7 @@ private fun TranscribeScreen(
             share = share, saveUri = uri, audioUri = audioUri,
             utterances = utterances.toList(), speakerNames = speakerNames.toMap(),
             summary = summary, actionItems = actionItems, title = title, notes = meetingNotes?.render() ?: agent.journalText(),
-            asrModelId = config.asrModelId, asrBackend = config.asrBackend, llmModelId = config.llmModelId,
+            asrModelId = sessionModels?.second ?: config.asrModelId, asrBackend = sessionModels?.third ?: config.asrBackend, llmModelId = sessionModels?.first ?: config.llmModelId,
             coverEnabled = coverEnabled,
             fileName = VoxsumSession.suggestFileName(title, format.ext), format = format,
         )
@@ -1324,10 +1330,10 @@ private fun TranscribeScreen(
             // re-summarize won't silently overwrite it (they can still ↻ Re-title for a fresh one).
             titleEdited = !title.isNullOrBlank()
             // Attribute the summary/title to the model that ACTUALLY produced them, not the current default.
-            config = config.copy(
-                llmModelId = loaded.llmModelId ?: config.llmModelId,
-                asrModelId = loaded.asrModelId ?: config.asrModelId,
-                asrBackend = loaded.asrBackend ?: config.asrBackend,
+            sessionModels = Triple(
+                loaded.llmModelId ?: config.llmModelId,
+                loaded.asrModelId ?: config.asrModelId,
+                loaded.asrBackend ?: config.asrBackend,
             )
             // Restore the EMBEDDED cover. Bounded decode: an opened session is an untrusted file, and
             // a cover declaring huge pixel dimensions would OOM-crash an unbounded decodeByteArray.
@@ -1869,6 +1875,7 @@ private fun TranscribeScreen(
     fun reSummarize(regenerateTitle: Boolean = !titleEdited) {
         if (running || utterances.isEmpty()) return
         TranscriptionConfig.Holder.config = config
+        sessionModels = sessionModels?.copy(first = config.llmModelId)
         resummaryUndo = ResummaryUndo(summary, meetingNotes, title, titleEdited, agent.journalText())
         agent.reset(); agent.wholeTranscript = true
         summary = null
@@ -1962,12 +1969,12 @@ private fun TranscribeScreen(
     }
 
     // Active-model summary for the summary/title cards' attribution chip.
-    val llmDisplay = LlmRegistry.byId(config.llmModelId).displayName
+    val llmDisplay = LlmRegistry.byId(sessionModels?.first ?: config.llmModelId).displayName
     // Provenance for the TRANSCRIPT half of the pipeline, mirroring the summary's "via ..." line.
     // Reads config, which the session-load path has already patched with the ids that ACTUALLY
     // produced this transcript — so reopening an old session does not mislabel it with today's
     // default backend.
-    val asrDisplay = AsrBackend.fromId(config.asrBackend).displayName
+    val asrDisplay = AsrBackend.fromId(sessionModels?.third ?: config.asrBackend).displayName
     val diarizationDisplay = stringResource(R.string.pipeline_diar_nemotron)
 
     // The utterance list — shared by the portrait (single column) and landscape (right pane) layouts.

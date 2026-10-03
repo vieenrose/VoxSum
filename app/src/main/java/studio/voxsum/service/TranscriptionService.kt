@@ -1451,6 +1451,8 @@ class TranscriptionService : LifecycleService() {
 
     /** The loaded model, shared by every task's lane (one lane at a time). */
     private class ReaderModel(
+        /** The LlmRegistry id it was loaded for: a changed setting must not keep reading with it. */
+        val specId: String,
         val llm: studio.voxsum.core.reader.ReaderLlm,
         val system: String,
         val budget: studio.voxsum.core.reader.ReaderBudget,
@@ -1605,7 +1607,7 @@ class TranscriptionService : LifecycleService() {
         val tok = studio.voxsum.core.llm.SpTokenizer.load(File(dir, spec.tokenizerFile).path)
         val session = studio.voxsum.core.llm.MfaSession(engine, tok, spec.sampler.topK, spec.sampler.topP)
         return ReaderModel(
-            session, system, studio.voxsum.core.reader.ReaderBudget.MOBILE, notesChars = 3900,
+            spec.id, session, system, studio.voxsum.core.reader.ReaderBudget.MOBILE, notesChars = 3900,
             cancelFn = session::cancel, resumeFn = session::resume, closeFn = { engine.close(); tok.close() },
         )
     }
@@ -1614,6 +1616,10 @@ class TranscriptionService : LifecycleService() {
     private suspend fun readOne(task: ReadTask): SummaryResult {
         val gen = task.gen
         events.tryEmit(gen to TranscriptEvent.Agent(AgentEvent.State(AgentState.STARTING)))
+        // The model setting changed since this one was loaded (E2B ↔ E4B): load the chosen one.
+        val wanted = LlmRegistry.byId(TranscriptionConfig.Holder.config.llmModelId).id
+        readModel?.takeIf { it.specId != wanted }?.let { it.close(); readModel = null }
+        Log.i("voxsum-reader", "reader model: wanted=$wanted loaded=${readModel?.specId}")
         val model = readModel ?: loadReaderModel().also { readModel = it }
         model.resume()
         // The notes are model-written Chinese: they follow the same script as the summary.

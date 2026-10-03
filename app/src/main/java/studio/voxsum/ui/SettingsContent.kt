@@ -321,6 +321,11 @@ private fun prettyModelName(name: String): String {
     val i = name.indexOf(".xnnpack_cache")
     if (i > 0) return stringResource(R.string.storage_compile_cache, name.substring(0, i))
     if (name == "nemo") return "X-ASR + Nemotron-3"
+    // A reader model folder: its chip name (行動版 E2B / 行動版 E4B), not the folder.
+    when (LlmRegistry.ALL.firstOrNull { it.dirName == name }?.id) {
+        LlmRegistry.E2B_MOBILE_ID -> return stringResource(R.string.reader_model_e2b)
+        LlmRegistry.E4B_MOBILE_ID -> return stringResource(R.string.reader_model_e4b)
+    }
     return name.removeSuffix("-gguf")
 }
 

@@ -84,7 +84,7 @@ object Podcast {
                     XmlPullParser.END_TAG -> if (name.equals("item", true)) {
                         inItem = false
                         if (audio.isNotBlank()) {
-                            episodes += Episode(title.ifBlank { "Untitled Episode" }, audio, pub, dur.ifBlank { "" })
+                            episodes += Episode(title.ifBlank { "Untitled Episode" }, audio, pub, formatDuration(dur))
                         }
                     }
                 }
@@ -153,4 +153,12 @@ object Podcast {
             ?.sortedBy { it.lastModified() } ?: return
         if (files.size > max) files.take(files.size - max).forEach { it.delete() }
     }
+}
+
+/** itunes:duration is either "HH:MM:SS"/"MM:SS" or plain seconds ("3080"); show the latter as "51:20". */
+internal fun formatDuration(raw: String): String {
+    val t = raw.trim()
+    val secs = t.toLongOrNull() ?: return t
+    val h = secs / 3600; val m = secs % 3600 / 60; val s = secs % 60
+    return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%d:%02d".format(m, s)
 }

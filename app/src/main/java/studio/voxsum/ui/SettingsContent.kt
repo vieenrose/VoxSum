@@ -145,6 +145,9 @@ fun SettingsContent(
             color = pal.Slate400,
         )
 
+        Section(stringResource(R.string.settings_reader_model))
+        ReaderModelSelector(config.llmModelId, enabled) { onChange(config.copy(llmModelId = it)) }
+
         // Experimental — features whose output is not reliable enough to be on by default.
         Section(stringResource(R.string.settings_experimental))
         SwitchRow(stringResource(R.string.settings_show_actions), config.showActionItems, enabled) {
@@ -158,7 +161,7 @@ fun SettingsContent(
 
         // (6) Storage — downloaded models, per-item delete (each re-downloads on next use).
         Section(stringResource(R.string.settings_storage))
-        StoragePanel(enabled, summaryReady = LlmRegistry.byId(config.llmModelId).id in readyLlm)
+        StoragePanel(enabled, summaryReady = LlmRegistry.byId(config.llmModelId).id in readyLlm, llmId = config.llmModelId)
 
         // (7) Background reliability — keep screen-off runs alive across OEM power policies.
         Section(stringResource(R.string.settings_background))
@@ -205,9 +208,52 @@ private fun AppearanceSelector(enabled: Boolean) {
     )
 }
 
+/** The AI-notes model: the llama.cpp v11 reader or a mobile graph (E2B, or E4B on 8 GB phones). */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ReaderModelSelector(selected: String, enabled: Boolean, onSelect: (String) -> Unit) {
+    val pal = LocalVoxSumPalette.current
+    val context = LocalContext.current
+    val bigRam = remember {
+        val mi = android.app.ActivityManager.MemoryInfo()
+        (context.getSystemService(android.content.Context.ACTIVITY_SERVICE) as android.app.ActivityManager).getMemoryInfo(mi)
+        mi.totalMem >= LlmRegistry.E4B_MIN_RAM
+    }
+    val current = LlmRegistry.byId(selected).id
+    val options = listOf(
+        LlmRegistry.DEFAULT_ID to R.string.reader_model_v11,
+        LlmRegistry.E2B_MOBILE_ID to R.string.reader_model_e2b,
+        LlmRegistry.E4B_MOBILE_ID to R.string.reader_model_e4b,
+    )
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        options.forEach { (id, labelRes) ->
+            FilterChip(
+                selected = current == id,
+                enabled = enabled && (id != LlmRegistry.E4B_MOBILE_ID || bigRam),
+                onClick = { onSelect(id) },
+                label = { Text(stringResource(labelRes)) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = pal.Sky.copy(alpha = 0.15f),
+                    selectedLabelColor = pal.Sky,
+                    labelColor = pal.Slate400,
+                ),
+            )
+        }
+    }
+    Text(
+        stringResource(
+            R.string.reader_model_hint,
+            (LlmRegistry.byId(LlmRegistry.E2B_MOBILE_ID).totalBytes / 1_000_000).toInt(),
+            (LlmRegistry.byId(LlmRegistry.E4B_MOBILE_ID).totalBytes / 1_000_000).toInt(),
+        ) + if (bigRam) "" else "\n" + stringResource(R.string.reader_model_e4b_ram),
+        style = MaterialTheme.typography.bodySmall,
+        color = pal.Slate400,
+    )
+}
+
 /** Lists downloaded models with sizes and a per-item delete (re-downloads on next use). */
 @Composable
-private fun StoragePanel(enabled: Boolean, summaryReady: Boolean) {
+private fun StoragePanel(enabled: Boolean, summaryReady: Boolean, llmId: String) {
     val pal = LocalVoxSumPalette.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -218,7 +264,7 @@ private fun StoragePanel(enabled: Boolean, summaryReady: Boolean) {
     }
     if (!summaryReady) {
         // The one summary model is fetched on first use — say so where its size would be listed.
-        val mb = LlmRegistry.byId(LlmRegistry.DEFAULT_ID).totalBytes / 1_000_000
+        val mb = LlmRegistry.byId(llmId).totalBytes / 1_000_000
         Text(
             stringResource(R.string.storage_model_pending, mb),
             style = MaterialTheme.typography.bodySmall, color = pal.Slate400,

@@ -353,4 +353,10 @@
     <string name="agent_view_detailed">显示详细过程</string>
     <string name="agent_view_simple">简化显示</string>
     <string name="agent_simple_listening">阅读转写文本中——距离下一次整理笔记：</string>
+    <string name="settings_reader_model">AI 笔记模型</string>
+    <string name="reader_model_v11">标准（llama.cpp）</string>
+    <string name="reader_model_e2b">移动版 E2B</string>
+    <string name="reader_model_e4b">移动版 E4B</string>
+    <string name="reader_model_hint">移动版模型使用更快的引擎，记忆范围较短。E2B：下载 %1$d MB，约占 1.3 GB 内存。E4B：%2$d MB，约 3 GB 内存，错误较少。</string>
+    <string name="reader_model_e4b_ram">E4B 需要 8 GB 内存的手机。</string>
 </resources>

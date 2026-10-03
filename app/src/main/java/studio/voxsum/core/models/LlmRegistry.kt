@@ -193,6 +193,8 @@ object LlmRegistry {
 
     const val E2B_MOBILE_ID = "gemma4-e2b-meeting-agent-zh-mobile-v1"
     const val E4B_MOBILE_ID = "gemma4-e4b-meeting-agent-zh-mobile"
+    /** E4B takes ~3 GB next to the ASR engine: offered on 8 GB phones only (totalMem reads ~7.3 GiB there). */
+    const val E4B_MIN_RAM = 7L * 1024 * 1024 * 1024
 
     /** embedder, per-layer embedder and the fused graph, in that order; plus the shared tokenizer. */
     private fun mobile(

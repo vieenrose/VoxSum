@@ -141,20 +141,20 @@
     <string name="update_check_failed">无法检查更新</string>
 
     <!-- Session as a self-describing .ogg + share -->
-    <string name="source_session">打开会话（.ogg / .m4a）</string>
+    <string name="source_session">打开场次（.ogg / .m4a）</string>
     <string name="source_session_desc">重新加载已保存的 .ogg 或 .m4a 以继续编辑转写文本</string>
-    <string name="session_save_m4a">保存会话（.m4a）</string>
-    <string name="session_share_m4a">分享会话（.m4a）</string>
-    <string name="session_saved">会话已保存</string>
+    <string name="session_save_m4a">保存场次（.m4a）</string>
+    <string name="session_share_m4a">分享场次（.m4a）</string>
+    <string name="session_saved">场次已保存</string>
     <string name="session_saved_as">已保存 %1$s</string>
     <string name="session_saved_partial">已保存 %1$s — 转写文本太大无法内嵌；仅含音频与摘要</string>
-    <string name="session_save_failed">无法保存会话</string>
-    <string name="session_open_failed">无法打开会话</string>
-    <string name="session_share_failed">无法分享会话</string>
+    <string name="session_save_failed">无法保存场次</string>
+    <string name="session_open_failed">无法打开场次</string>
+    <string name="session_share_failed">无法分享场次</string>
     <string name="summary_copied">已复制摘要</string>
     <string name="cd_copy_summary">复制摘要</string>
     <string name="cd_copy_actions">复制行动项目</string>
-    <string name="exporting">正在导出会话…</string>
+    <string name="exporting">正在导出场次…</string>
     <string name="exporting_hint">将在后台继续完成，您可以继续使用应用程序</string>
     <string name="export_copy_transcript">复制转写文本</string>
     <string name="export_share_transcript">分享转写文本…</string>
@@ -170,7 +170,7 @@
     <string name="status_importing">正在导入分享的音频…</string>
     <string name="import_failed">无法导入该文件</string>
     <string name="recent_sessions">最近</string>
-    <string name="recent_untitled">未命名会话</string>
+    <string name="recent_untitled">未命名场次</string>
     <string name="search_transcript">搜索转写文本</string>
     <string name="search_transcript_hint">搜索转写文本…</string>
     <string name="search_match_count">%1$d / %2$d</string>
@@ -184,7 +184,7 @@
     <string name="cd_line_actions">此句操作</string>
     <string name="speaker_move_line">将此句移至</string>
     <string name="speaker_merge_into">合并说话人至</string>
-    <string name="status_session_loaded">已加载会话 — %d 行</string>
+    <string name="status_session_loaded">已加载场次 — %d 行</string>
 
     <!-- 背景可靠性（設定區） -->
     <string name="settings_background">后台可靠性</string>
@@ -319,7 +319,7 @@
     <string name="actions_verify_hint">约五分之一的项目可能与转写文本不符——点时间即可听原话核对。</string>
     <string name="export_interrupted">导出中断，请再试一次。</string>
     <string name="export_sheet_title">导出</string>
-    <string name="export_group_session">VoxSum 会话（.m4a）</string>
+    <string name="export_group_session">VoxSum 场次（.m4a）</string>
     <string name="export_group_session_desc">音频、转写文本、说话人、摘要与待办事项合为一个文件。可在 VoxSum 重新打开，任何播放器都能播放。</string>
     <string name="export_group_document">文件</string>
     <string name="export_group_document_desc">标题、摘要、待办事项与含时间戳的转写文本。</string>

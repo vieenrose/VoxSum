@@ -18,7 +18,7 @@ flowchart TD
     Add --> File["音訊檔案"]
     Add --> Podcast["Podcast"]
     Add --> YouTube["YouTube"]
-    Add --> Open["開啟工作階段 .ogg/.m4a"]
+    Add --> Open["開啟場次 .ogg/.m4a"]
     Home -->|設定圖示| Settings["設定"]
     Home -->|錄音| Booth["錄音室<br/>即時逐字稿・AI 筆記"]
     Booth -->|下一場| Booth
@@ -101,7 +101,7 @@ flowchart TD
 
 <img src="guide/27-podcast-episodes.png" width="270" alt="Podcast 單集">
 | YouTube → 搜尋或貼上連結 | ＋ → YouTube | 搜尋結果或直接前往影片，下載音訊並轉錄；直播顯示「直播無法轉錄，請選擇一般影片。」 | ✅ 手動、✅ 自動（SourceSheetsTest，搜尋） |
-| 開啟工作階段（.ogg / .m4a） | ＋ → 開啟工作階段 | 開啟先前匯出的 VoxSum 檔，含逐字稿與摘要 | ✅ 手動、✅ 自動（AddSourceSheetTest） |
+| 開啟場次（.ogg / .m4a） | ＋ → 開啟場次 | 開啟先前匯出的 VoxSum 檔，含逐字稿與摘要 | ✅ 手動、✅ 自動（AddSourceSheetTest） |
 | 從其他 App 分享 | 其他 App → 分享 → VoxSum | 閒置時直接轉錄；處理中時詢問「匯入這個檔案？」（匯入會中斷處理） | ✅ 手動 |
 
 <img src="guide/26-import-confirm.png" width="270" alt="匯入確認">

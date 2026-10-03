@@ -43,7 +43,7 @@ class ExportSheetTest {
     @After fun tidy() = SessionFixture.cleanUp()
 
     private fun openSheet() {
-        compose.onNodeWithContentDescription(str(R.string.cd_export)).performClick()
+        compose.onNodeWithContentDescription(str(R.string.cd_more_options)).performClick()
         compose.onNodeWithText(str(R.string.export_menu_entry)).assertIsDisplayed().performClick()
         compose.waitUntil(10_000) {
             compose.onAllNodesWithText(str(R.string.export_group_document)).fetchSemanticsNodes().isNotEmpty()
@@ -51,7 +51,7 @@ class ExportSheetTest {
     }
 
     @Test fun overflowCarriesOneExportEntryNotEight() {
-        compose.onNodeWithContentDescription(str(R.string.cd_export)).performClick()
+        compose.onNodeWithContentDescription(str(R.string.cd_more_options)).performClick()
         compose.onNodeWithText(str(R.string.export_menu_entry)).assertIsDisplayed()
         // The per-format items moved into the sheet; none of them remain in the menu.
         listOf(R.string.export_txt, R.string.export_srt, R.string.export_vtt,

@@ -4,7 +4,7 @@
 
     <!-- Top bar -->
     <string name="cd_settings">設定</string>
-    <string name="cd_export">匯出</string>
+    <string name="cd_more_options">更多選項</string>
 
     <!-- Empty / home state -->
     <string name="empty_status">請選擇音訊檔案以開始。</string>

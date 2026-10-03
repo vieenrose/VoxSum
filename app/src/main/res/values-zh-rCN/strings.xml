@@ -4,7 +4,7 @@
 
     <!-- Top bar -->
     <string name="cd_settings">设置</string>
-    <string name="cd_export">导出</string>
+    <string name="cd_more_options">更多选项</string>
 
     <!-- Empty / home state -->
     <string name="empty_status">请选择音频文件以开始。</string>

@@ -182,7 +182,7 @@ private fun OverflowMenu(
     fun pick(action: () -> Unit): () -> Unit = { open = false; action() }
     Box {
         IconButton(onClick = { open = true }) {
-            Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.cd_export), tint = pal.Slate400)
+            Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.cd_more_options), tint = pal.Slate400)
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             // --- re-run ---

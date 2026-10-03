@@ -4,7 +4,7 @@
 
     <!-- Top bar -->
     <string name="cd_settings">Settings</string>
-    <string name="cd_export">Export</string>
+    <string name="cd_more_options">More options</string>
 
     <!-- Empty / home state -->
     <string name="empty_status">Pick an audio file to begin.</string>

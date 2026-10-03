@@ -1703,6 +1703,9 @@ private fun TranscribeScreen(
                         Toast.makeText(context, context.getString(R.string.status_error, e.error), Toast.LENGTH_LONG).show()
                     }
                     status = context.getString(R.string.status_error, e.error); statusIsError = true; running = false
+                    // The capture is over (its audio is saved and queued): leave the booth, whose timer
+                    // and buttons are dead now — it used to stay on screen at 0:00 with Stop doing nothing.
+                    if (screen == Screen.Capture) screen = Screen.Studio
                     // Offer a one-tap Retry for the same source (a corrupt model was cleared server-
                     // side, so the retry re-downloads it). Only when we still hold the source Uri.
                     // The Retry snackbar is only useful in-context: on Studio/Capture the error is

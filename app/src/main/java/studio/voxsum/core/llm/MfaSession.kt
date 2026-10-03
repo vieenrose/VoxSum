@@ -19,6 +19,14 @@ class MfaSession(
 
     private val seq = ArrayList<Int>()
 
+    /** Sticky: the engine clears its own flag at each request, but a stopped reading must stay
+     *  stopped through its remaining windows. Cleared by [resume] before the next reading. */
+    @Volatile private var cancelled = false
+
+    fun cancel() { cancelled = true; engine.cancel() }
+
+    fun resume() { cancelled = false }
+
     override fun tokenize(text: String, special: Boolean): IntArray {
         // SentencePiece parses the template's pieces (<|turn>, <turn|>) but not <bos>: map it here.
         if (!special || !text.contains(BOS_TEXT)) return tok.encode(text)
@@ -31,11 +39,13 @@ class MfaSession(
     }
 
     override fun append(tokens: IntArray): Int {
+        if (cancelled) return -1
         val next = seq + tokens.toList()
         // The prompt must leave room in the cache; a refused append leaves the sequence as it was.
         if (next.size >= engine.context) return -1
         return try {
             engine.generate(next.toIntArray(), maxNew = 0, temp = 0f, topK = 1, topP = 1f, seed = seed)
+            if (cancelled) return -1
             seq += tokens.toList()
             seq.size
         } catch (e: IllegalStateException) {
@@ -49,7 +59,7 @@ class MfaSession(
         var stopped = false
         // Never ask past the cache: the reply is cut at its end, like a length stop.
         val room = engine.context - seq.size - 1
-        if (room <= 0) return ""
+        if (room <= 0 || cancelled) return ""
         engine.generate(seq.toIntArray(), minOf(maxTokens, room), temp, topK, topP, seed) { id ->
             gen += id
             val text = tok.decode(gen.toIntArray())

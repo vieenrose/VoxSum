@@ -278,7 +278,7 @@
     <string name="agent_starting">正在加载 AI 笔记…</string>
     <string name="agent_listening">阅读转写文本 · 已写 %1$d 则笔记</string>
     <string name="agent_reading">正在阅读第 %1$d 段并写笔记…</string>
-    <string name="agent_restarting">上下文已满（%1$d tokens）——以精简笔记重新开始…</string>
+    <string name="agent_restarting">以精简笔记开始读下一段…</string>
     <string name="agent_done">完成 · %1$d 则笔记</string>
     <string name="agent_notes_caution">这是工作笔记，不是正式记录——约五则中有一则可能有误。</string>
     <string name="agent_show_log">显示活动记录（%1$d）</string>
@@ -353,7 +353,7 @@
     <string name="settings_show_actions_hint">在摘要下方列出模型提取的行动项目。约五分之一可能与转写文本不符，点时间即可核对。</string>
     <string name="agent_view_detailed">显示详细过程</string>
     <string name="agent_view_simple">简化显示</string>
-    <string name="agent_simple_listening">阅读转写文本中——距离下一次整理笔记：</string>
+    <string name="agent_simple_listening">阅读转写文本中——进度条满时整理下一批笔记</string>
     <string name="settings_reader_model">AI 笔记模型</string>
     <string name="reader_model_e2b">移动版 E2B</string>
     <string name="reader_model_e4b">移动版 E4B</string>

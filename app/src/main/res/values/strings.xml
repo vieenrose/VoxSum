@@ -296,7 +296,7 @@
     <string name="agent_starting">Loading AI notes…</string>
     <string name="agent_listening">Reading the transcript · %1$d notes so far</string>
     <string name="agent_reading">Reading window %1$d and writing notes…</string>
-    <string name="agent_restarting">Context full (%1$d tokens) — restarting from the compacted notes…</string>
+    <string name="agent_restarting">Starting the next part from the compacted notes…</string>
     <string name="agent_done">Done · %1$d notes</string>
     <string name="agent_notes_caution">Working notes, not minutes — about 1 in 5 may be wrong.</string>
     <string name="agent_show_log">Show activity (%1$d)</string>
@@ -359,7 +359,7 @@
     <string name="settings_show_actions_hint">Lists the action items the model extracts under the summary. About one in five may not match the transcript — tap a time to check.</string>
     <string name="agent_view_detailed">Show details</string>
     <string name="agent_view_simple">Simple view</string>
-    <string name="agent_simple_listening">Reading the transcript — progress to the next notes:</string>
+    <string name="agent_simple_listening">Reading the transcript — notes are written when the bar fills</string>
     <string name="settings_reader_model">AI notes model</string>
     <string name="reader_model_e2b">Mobile E2B</string>
     <string name="reader_model_e4b">Mobile E4B</string>

@@ -1457,9 +1457,12 @@ class TranscriptionService : LifecycleService() {
         /** Title/prose input cap in characters (0 = the whole journal), see ReaderLane. */
         val notesChars: Int,
         private val cancelFn: () -> Unit,
+        private val resumeFn: () -> Unit,
         private val closeFn: () -> Unit,
     ) : AutoCloseable {
         fun cancel() = cancelFn()
+        /** Before each reading: a cancel stays in force until then. */
+        fun resume() = resumeFn()
         override fun close() = closeFn()
     }
 
@@ -1582,7 +1585,7 @@ class TranscriptionService : LifecycleService() {
         val session = studio.voxsum.core.llm.MfaSession(engine, tok, spec.sampler.topK, spec.sampler.topP)
         return ReaderModel(
             session, system, studio.voxsum.core.reader.ReaderBudget.MOBILE, notesChars = 3900,
-            cancelFn = engine::cancel, closeFn = { engine.close(); tok.close() },
+            cancelFn = session::cancel, resumeFn = session::resume, closeFn = { engine.close(); tok.close() },
         )
     }
 
@@ -1591,6 +1594,7 @@ class TranscriptionService : LifecycleService() {
         val gen = task.gen
         events.tryEmit(gen to TranscriptEvent.Agent(AgentEvent.State(AgentState.STARTING)))
         val model = readModel ?: loadReaderModel().also { readModel = it }
+        model.resume()
         // The notes are model-written Chinese: they follow the same script as the summary.
         val conv = outputConverter(TranscriptionConfig.Holder.config)
         val emit: (AgentEvent) -> Unit = { ev ->

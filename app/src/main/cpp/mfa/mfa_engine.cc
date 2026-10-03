@@ -245,8 +245,11 @@ struct Engine::Impl {
         memcpy(pl.data(), lockr(ps->out[0]), ple_n * 4); unlock(ps->out[0]);
     }
 
-    void prefill(const std::vector<int>& ids, int from, int to) {
+    // Stops between chunks when *stop is set (a long prefill on E4B takes seconds); `fed` always
+    // matches what the cache holds, so the next request reuses the chunks already done.
+    bool prefill(const std::vector<int>& ids, int from, int to, const std::atomic<bool>* stop = nullptr) {
         for (int start = from; start < to; start += T) {
+            if (stop && stop->load()) return false;
             const int n = std::min(T, to - start);
             float* E = (float*)lockw(pf->in[iE]); float* P = (float*)lockw(pf->in[iP]);
             memset(E, 0, bytes_of(pf->in[iE])); memset(P, 0, bytes_of(pf->in[iP]));
@@ -267,6 +270,7 @@ struct Engine::Impl {
             fed.assign(ids.begin(), ids.begin() + start + n);
         }
         fed.assign(ids.begin(), ids.begin() + to);
+        return true;
     }
 
     const float* step(int tok, int pos) {
@@ -361,12 +365,14 @@ std::vector<int> Engine::generate(const std::vector<int>& ids, int max_new, floa
     // fed by the first decode step.
     const int upto = max_new > 0 ? n - 1 : n;
     const double t0 = now_s();
-    if (reuse < upto) m.prefill(ids, reuse, upto);
+    bool prefilled = true;
+    if (reuse < upto) prefilled = m.prefill(ids, reuse, upto, &cancel_);
     else m.fed.resize(upto);
     const double prefill_s = now_s() - t0, t1 = now_s();
     std::vector<int> out;
     const char* reason = "length";
-    if (max_new > 0) {
+    if (!prefilled) reason = "cancel";
+    if (max_new > 0 && prefilled) {
         std::mt19937 rng(seed);
         int tok = ids.back(), pos = n - 1;
         for (int g = 0; g < max_new; ++g, ++pos) {

@@ -278,7 +278,7 @@
     <string name="agent_starting">正在載入 AI 筆記…</string>
     <string name="agent_listening">閱讀逐字稿 · 已寫 %1$d 則筆記</string>
     <string name="agent_reading">正在閱讀第 %1$d 段並寫筆記…</string>
-    <string name="agent_restarting">上下文已滿（%1$d tokens）——以精簡筆記重新開始…</string>
+    <string name="agent_restarting">以精簡筆記開始讀下一段…</string>
     <string name="agent_done">完成 · %1$d 則筆記</string>
     <string name="agent_notes_caution">這是工作筆記，不是正式紀錄——約五則中有一則可能有誤。</string>
     <string name="agent_show_log">顯示活動紀錄（%1$d）</string>
@@ -353,7 +353,7 @@
     <string name="settings_show_actions_hint">在摘要下方列出模型擷取的行動項目。約五分之一可能與逐字稿不符，點時間即可核對。</string>
     <string name="agent_view_detailed">顯示詳細過程</string>
     <string name="agent_view_simple">簡化顯示</string>
-    <string name="agent_simple_listening">閱讀逐字稿中——距離下一次整理筆記：</string>
+    <string name="agent_simple_listening">閱讀逐字稿中——進度條滿時整理下一批筆記</string>
     <string name="settings_reader_model">AI 筆記模型</string>
     <string name="reader_model_e2b">行動版 E2B</string>
     <string name="reader_model_e4b">行動版 E4B</string>

@@ -39,7 +39,7 @@ class MfaSession(
     }
 
     override fun append(tokens: IntArray): Int {
-        if (cancelled) return -1
+        if (cancelled || engine.context == 0) return -1   // stopped, or the model was closed
         val next = seq + tokens.toList()
         // The prompt must leave room in the cache; a refused append leaves the sequence as it was.
         if (next.size >= engine.context) return -1

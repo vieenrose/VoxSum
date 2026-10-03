@@ -1,6 +1,7 @@
 package studio.voxsum.core.llm
 
 import java.io.Closeable
+import kotlin.concurrent.withLock
 
 /**
  * The mobile meeting reader's engine: the forked LiteRT-LM CPU engine (`cpp/mfa/`) running Google's
@@ -12,10 +13,14 @@ import java.io.Closeable
  * One instance per loaded model. Not thread-safe: call [generate] from one thread; [cancel] may be
  * called from any thread.
  */
-class MfaEngine private constructor(private var handle: Long) : Closeable {
+class MfaEngine private constructor(@Volatile private var handle: Long) : Closeable {
+
+    /** Calls share it, [close] takes it alone: a call from a reader thread still queued when the
+     *  model is closed must never reach the freed native engine (seen as a SIGSEGV in context()). */
+    private val lock = java.util.concurrent.locks.ReentrantReadWriteLock()
 
     /** The context length the graph was loaded with (tokens). */
-    val context: Int get() = nativeContext(handle)
+    val context: Int get() = lock.readLock().withLock { if (handle == 0L) 0 else nativeContext(handle) }
 
     /** What the last [generate] call did. */
     data class Stats(val prefilled: Int, val reused: Int, val generated: Int, val prefillSec: Double, val decodeSec: Double)
@@ -33,17 +38,20 @@ class MfaEngine private constructor(private var handle: Long) : Closeable {
         ids: IntArray, maxNew: Int, temp: Float, topK: Int, topP: Float, seed: Int,
         onToken: TokenCallback? = null,
     ): IntArray {
-        check(handle != 0L) { "engine closed" }
-        val st = DoubleArray(5)
-        val out = nativeGenerate(handle, ids, maxNew, temp, topK, topP, seed, onToken, st)
-        lastStats = Stats(st[0].toInt(), st[1].toInt(), st[2].toInt(), st[3], st[4])
-        return out
+        lock.readLock().withLock {
+            check(handle != 0L) { "engine closed" }
+            val st = DoubleArray(5)
+            val out = nativeGenerate(handle, ids, maxNew, temp, topK, topP, seed, onToken, st)
+            lastStats = Stats(st[0].toInt(), st[1].toInt(), st[2].toInt(), st[3], st[4])
+            return out
+        }
     }
 
-    fun cancel() { if (handle != 0L) nativeCancel(handle) }
+    fun cancel() { lock.readLock().withLock { if (handle != 0L) nativeCancel(handle) } }
 
+    /** Waits for a running [generate] (cancel it first to make that quick). */
     override fun close() {
-        if (handle != 0L) { nativeFree(handle); handle = 0L }
+        lock.writeLock().withLock { if (handle != 0L) { nativeFree(handle); handle = 0L } }
     }
 
     companion object {
@@ -74,15 +82,20 @@ class MfaEngine private constructor(private var handle: Long) : Closeable {
 
 /** The Gemma-4 SentencePiece tokenizer (`Section1_SP_Tokenizer.spiece`). It parses the chat
  *  template's special tokens itself (`<|turn>` = 105, `<turn|>` = 106); `<bos>` is not added. */
-class SpTokenizer private constructor(private var handle: Long) : Closeable {
+class SpTokenizer private constructor(@Volatile private var handle: Long) : Closeable {
 
-    fun encode(text: String): IntArray = nativeEncode(handle, text)
+    private val lock = java.util.concurrent.locks.ReentrantReadWriteLock()   // see MfaEngine.lock
+
+    /** Empty once closed. */
+    fun encode(text: String): IntArray = lock.readLock().withLock { if (handle == 0L) IntArray(0) else nativeEncode(handle, text) }
 
     /** Decoded text; a reply cut mid-character ends with U+FFFD, which a later call completes. */
-    fun decode(ids: IntArray): String = String(nativeDecode(handle, ids), Charsets.UTF_8)
+    fun decode(ids: IntArray): String = lock.readLock().withLock {
+        if (handle == 0L) "" else String(nativeDecode(handle, ids), Charsets.UTF_8)
+    }
 
     override fun close() {
-        if (handle != 0L) { nativeFree(handle); handle = 0L }
+        lock.writeLock().withLock { if (handle != 0L) { nativeFree(handle); handle = 0L } }
     }
 
     companion object {

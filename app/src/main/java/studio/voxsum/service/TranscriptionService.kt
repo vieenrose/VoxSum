@@ -1548,7 +1548,13 @@ class TranscriptionService : LifecycleService() {
                 // finished meeting unsaved, still queued, and read a second time by the queue.
                 withContext(NonCancellable) {
                     res.fold(
-                        { r -> task.result.complete(r); runCatching { readDone(task, r) }.onFailure { Log.w("voxsum-reader", "read done failed", it) } },
+                        { r ->
+                            // Saved first, then released: whoever awaits the task (the queue drain,
+                            // which then clears its row's 'processing' state) must not see it done
+                            // during the seconds the .m4a takes to write.
+                            runCatching { readDone(task, r) }.onFailure { Log.w("voxsum-reader", "read done failed", it) }
+                            task.result.complete(r)
+                        },
                         { e -> task.result.completeExceptionally(e); runCatching { readFailed(task, e) } },
                     )
                 }
@@ -1652,8 +1658,15 @@ class TranscriptionService : LifecycleService() {
     private suspend fun readDone(task: ReadTask, r: SummaryResult) {
         val entry = task.entry ?: run { Log.i("voxsum-reader", "read done: no library entry (gen ${task.gen})"); return }
         val fin = task.final.getCompleted()
-        // A talk with no speech stays as recorded; the queue's own pass decides about it.
-        if (fin.isEmpty() && task.gen != QUEUE_GEN) { Log.i("voxsum-reader", "read done: ${entry.id} has no transcript"); return }
+        // A talk with no live speech stays as recorded; the queue's own pass decides about it —
+        // unless that pass already ran: its read was merged into this task (one task per entry),
+        // so if its own transcript of the audio is empty too, this is the queue's answer. Without
+        // this the item stayed queued until the next app start.
+        if (fin.isEmpty() && task.gen != QUEUE_GEN) {
+            val queueSaw = SessionLibrary.loadPendingTranscript(entry, transcriptFingerprint(TranscriptionConfig.Holder.config))
+            if (queueSaw == null || queueSaw.isNotEmpty()) { Log.i("voxsum-reader", "read done: ${entry.id} has no transcript"); return }
+            Log.i("voxsum-reader", "read done: ${entry.id} has no speech (confirmed by the queue)")
+        }
         if (SessionLibrary.byId(this, entry.id) == null) { ProcessingQueue.remove(this, entry.id); return }   // deleted meanwhile
         val cfg = TranscriptionConfig.Holder.config
         val updated = SessionLibrary.attachResults(

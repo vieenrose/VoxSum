@@ -9,16 +9,26 @@ six notes, a reply cut off before NEXT - so every guard fires. The Kotlin test
 (app/src/test/.../ReaderParityTest.kt) replays the same replies through MeetingReader with the same
 tokenizer and must reproduce every conversation byte for byte.
 
-    tools/reader-parity/make_golden.py <meeting-summarizer checkout> <out.json> <nemo.json>...
+    tools/reader-parity/make_golden.py [--mobile] <meeting-summarizer checkout> <out.json> <nemo.json | golden.json>...
+
+--mobile: the LiteRT mobile graphs' 4k protocol (integration note §12.3) - window 1500 tokens,
+context 4096, journal compacted to 1200 tokens at each restart - and compact_notes() of the final
+notes at a few budgets (the title/prose input). An input may be an earlier golden: its lines are reused.
 """
 import json, os, re, sys, types
 
-MS, OUT, INPUTS = sys.argv[1], sys.argv[2], sys.argv[3:]
+MOBILE = "--mobile" in sys.argv
+ARGS = [x for x in sys.argv[1:] if x != "--mobile"]
+MS, OUT, INPUTS = ARGS[0], ARGS[1], ARGS[2:]
 
 # --- the transcript: nemo segments split into sentence lines, meetings back to back, one hour apart
 lines = []
 for m, path in enumerate(INPUTS):
-    for seg in json.load(open(path, encoding="utf-8")):
+    data = json.load(open(path, encoding="utf-8"))
+    if isinstance(data, dict) and "lines" in data:          # an earlier golden: reuse its lines
+        lines += [(l["start"], l["speaker"], l["text"]) for l in data["lines"]]
+        continue
+    for seg in data:
         parts = [p for p in re.split(r"(?<=[。？！?!])", seg["text"]) if p.strip()]
         total = sum(len(p) for p in parts) or 1
         t, acc = seg["start"], 0
@@ -99,15 +109,20 @@ with open(os.path.join(tmp, "tx", "golden.txt"), "w", encoding="utf-8") as f:
     for s, spk, text in lines:
         f.write(Line(s, spk, text).render() + "\n")
 import eval.phone_live as pl  # noqa: E402
+import eval.realtime_agent as ra  # noqa: E402
 pl.time.sleep = lambda *_: None
+if MOBILE:
+    ra.WINDOW_TOKENS = 1500     # windows_of reads it at call time
+    pl.RESTART_BUDGET = 1200    # compact() reads it at call time
+    # phone_live's restart check is `len + 2*2000 + READ_MAX + 600 > ctx`; at ctx 4096 it fires before
+    # every window whether the literal is 2000 or 1500 (the fresh prompt alone passes the margin).
 sys.argv = ["phone_live.py", "--session", "golden", "--transcripts", os.path.join(tmp, "tx"),
-            "--speed", "1e9", "--ctx", "8192", "--out", os.path.join(tmp, "out")]
+            "--speed", "1e9", "--ctx", "4096" if MOBILE else "8192", "--out", os.path.join(tmp, "out")]
 pl.main()
 rec = json.load(open(os.path.join(tmp, "out", "golden.json"), encoding="utf-8"))
 
 # --- v5 minutes, assembled exactly as upstream realtime_agent does for --harness v5: the proposal
 # guard (reclassify_proposals) on every kept note, then the five sections in order.
-import eval.realtime_agent as ra  # noqa: E402
 kept = [dict(n) for n in rec["notes"]]
 for e in kept:
     ra.reclassify_proposals(e)
@@ -126,5 +141,9 @@ json.dump({
     "minutes": rec["minutes"],        # phone_live.py's own (v3) assembly
     "minutes_v5": minutes_v5,
     "restarts": rec["restarts"],
+    **({"window_tokens": 1500, "ctx": 4096, "restart_budget": 1200,
+        "compact_notes": {str(b): [n["id"] for n in __import__("eval.conversion_prompts", fromlist=["x"])
+                                   .compact_notes(rec["notes"], b)] for b in (300, 800, 3900)}}
+       if MOBILE else {}),
 }, open(OUT, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 print(f"{len(lines)} lines, {len(turns)} turns, {len(rec['notes'])} notes, {rec['restarts']} restarts -> {OUT}")

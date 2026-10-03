@@ -6,6 +6,9 @@ import org.junit.Test
 import studio.voxsum.core.reader.AgentEvent
 import studio.voxsum.core.reader.Line
 import studio.voxsum.core.reader.MeetingReader
+import studio.voxsum.core.reader.Note
+import studio.voxsum.core.reader.ReaderBudget
+import studio.voxsum.core.reader.ReaderProtocol
 import studio.voxsum.core.reader.ReaderLlm
 
 /**
@@ -38,8 +41,25 @@ class ReaderParityTest {
     }
 
     @Test
-    fun matchesPhoneLiveTurnByTurn() {
-        val g = JSONObject(javaClass.getResource("/reader_parity.json")!!.readText())
+    fun matchesPhoneLiveTurnByTurn() { replay("/reader_parity.json", ReaderBudget.STANDARD) }
+
+    /** The mobile graphs' 4k protocol: make_golden.py --mobile (window 1500, ctx 4096, journal 1200). */
+    @Test
+    fun matchesPhoneLiveAt4k() {
+        val (g, reader) = replay("/reader_parity_mobile.json", ReaderBudget.MOBILE)
+        assertEquals(g.getInt("window_tokens"), ReaderBudget.MOBILE.windowTokens)
+        assertEquals(g.getInt("ctx"), ReaderBudget.MOBILE.ctxBudget)
+        assertEquals(g.getInt("restart_budget"), ReaderBudget.MOBILE.restartBudget)
+        // conversion_prompts.compact_notes: the title/prose input at several budgets.
+        val compact = g.getJSONObject("compact_notes")
+        for (b in compact.keys()) {
+            val want = compact.getJSONArray(b).let { a -> (0 until a.length()).map(a::getInt) }
+            assertEquals("compact_notes at $b chars", want, ReaderProtocol.compactNotes(reader.journal, b.toInt()).map(Note::id))
+        }
+    }
+
+    private fun replay(golden: String, budget: ReaderBudget): Pair<JSONObject, MeetingReader> {
+        val g = JSONObject(javaClass.getResource(golden)!!.readText())
         val turns = g.getJSONArray("turns")
         val replies = (0 until turns.length()).map {
             turns.getJSONObject(it).let { t -> t.getString("content") to t.getBoolean("stopped") }
@@ -50,6 +70,7 @@ class ReaderParityTest {
             llm, g.getString("system_prompt"),
             count = { it.codePointCount(0, it.length) },
             events = { if (it is AgentEvent.Restart) restarts++ },
+            budget = budget,
         )
         reader.start()
         val lines = g.getJSONArray("lines")
@@ -76,5 +97,6 @@ class ReaderParityTest {
         }
         assertEquals(g.getString("minutes_v5"), minutes)   // v5 assembly (proposal guard + 討論要點)
         assertEquals(g.getInt("restarts"), restarts)
+        return g to reader
     }
 }

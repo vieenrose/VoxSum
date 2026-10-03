@@ -1569,28 +1569,18 @@ class TranscriptionService : LifecycleService() {
         ensureLlm(spec, models)
         val dir = models.llmDir(spec)
         val system = File(dir, spec.systemPromptFile).readText()
-        if (spec.backend == studio.voxsum.core.models.LlmBackend.MOBILE) {
-            // The mobile graphs on the forked LiteRT engine (integration note §13): CPU only, 4k,
-            // the XNNPACK weight cache built on the first load next to the weights.
-            val main = File(dir, spec.mainFile)
-            val engine = studio.voxsum.core.llm.MfaEngine.load(
-                main.parentFile!!.path, ctx = spec.maxCtx, threads = asrThreads(),
-                weightCache = File(dir, "weights.xnnpack_cache").path,
-            )
-            val tok = studio.voxsum.core.llm.SpTokenizer.load(File(dir, spec.tokenizerFile).path)
-            val session = studio.voxsum.core.llm.MfaSession(engine, tok, spec.sampler.topK, spec.sampler.topP)
-            return ReaderModel(
-                session, system, studio.voxsum.core.reader.ReaderBudget.MOBILE, notesChars = 3900,
-                cancelFn = engine::cancel, closeFn = { engine.close(); tok.close() },
-            )
-        }
-        val engine = studio.voxsum.core.llm.LlmEngine.load(
-            models.llmFile(spec).absolutePath, nThreads = asrThreads(), nCtx = spec.maxCtx,
-            sampler = spec.sampler, kvQ8 = studio.voxsum.core.llm.TextGen.KV_Q8, swaFull = spec.swaFull,
+        // The mobile graphs on the forked LiteRT engine (integration note §13): CPU only, 4k,
+        // the XNNPACK weight cache built on the first load next to the weights.
+        val main = File(dir, spec.mainFile)
+        val engine = studio.voxsum.core.llm.MfaEngine.load(
+            main.parentFile!!.path, ctx = spec.maxCtx, threads = asrThreads(),
+            weightCache = File(dir, "weights.xnnpack_cache").path,
         )
+        val tok = studio.voxsum.core.llm.SpTokenizer.load(File(dir, spec.tokenizerFile).path)
+        val session = studio.voxsum.core.llm.MfaSession(engine, tok, spec.sampler.topK, spec.sampler.topP)
         return ReaderModel(
-            engine, system, studio.voxsum.core.reader.ReaderBudget.STANDARD, notesChars = 0,
-            cancelFn = engine::cancel, closeFn = engine::close,
+            session, system, studio.voxsum.core.reader.ReaderBudget.MOBILE, notesChars = 3900,
+            cancelFn = engine::cancel, closeFn = { engine.close(); tok.close() },
         )
     }
 

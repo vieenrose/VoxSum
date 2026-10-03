@@ -160,8 +160,8 @@ data class Line(val startS: Int, val speaker: String?, val text: String) {
 data class Note(val id: Int, val window: Int, val ts: String, val tag: String?, val text: String)
 
 /**
- * Window size, context budget and the journal budget on restart. [STANDARD] is the llama.cpp
- * reader's (§4: one 8k conversation kept across windows). [MOBILE] is the LiteRT mobile graphs'
+ * Window size, context budget and the journal budget on restart. [STANDARD] is the upstream
+ * 8k protocol (§4, the parity golden). [MOBILE] is the LiteRT mobile graphs'
  * 4k protocol (§12.3): a 1,500-token window and a 1,200-token compacted journal — with 4k of
  * context the restart check fires before every window, so each window is read from a fresh
  * prompt (system, compacted journal, window), exactly the per-window protocol.

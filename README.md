@@ -82,7 +82,7 @@
 ## 運作方式
 
 - **聽寫**：[nemo-x-asr-diarizer](https://github.com/vieenrose/nemo-x-asr-diarizer.cpp) 是單一串流引擎，在同一條時間軸上完成語音辨識（X-ASR）與語者分離（Nemotron-3）。
-- **AI 筆記與摘要**：[Gemma-4-E2B 會議模型](https://huggingface.co/Luigi/gemma-4-E2B-meeting-agent-zh-GGUF) 在 [llama.cpp](https://github.com/ggml-org/llama.cpp) 上執行。
+- **AI 筆記與摘要**：[Gemma-4-E2B 會議模型（行動版）](https://huggingface.co/Luigi/gemma-4-E2B-meeting-agent-zh-GGUF/tree/main/mobile-v1) 在 [LiteRT](https://github.com/google-ai-edge/LiteRT) 上執行（[自訂引擎](https://github.com/vieenrose/LiteRT-LM/tree/mobile-fused-attention)）；8 GB 記憶體的手機可改用 [E4B](https://huggingface.co/Luigi/gemma-4-E4B-meeting-agent-zh-LiteRT)。
 
 錄音時，語音辨識優先（它落後就會漏音）；AI 筆記在背景把已確定的句子讀進上下文，每累積約 2,000 token（數分鐘的語音）才真正閱讀一次並寫筆記。停止後只剩最後一段要讀，所以摘要很快完成。在 OPPO Reno7（8 GB）上，10 分鐘會議的摘要於停止後 87 秒完成，記憶體峰值 3.0 GB。
 

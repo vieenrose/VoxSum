@@ -208,7 +208,7 @@ private fun AppearanceSelector(enabled: Boolean) {
     )
 }
 
-/** The AI-notes model: the llama.cpp v11 reader or a mobile graph (E2B, or E4B on 8 GB phones). */
+/** The AI-notes model: E2B, or E4B on 8 GB phones. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ReaderModelSelector(selected: String, enabled: Boolean, onSelect: (String) -> Unit) {
@@ -221,7 +221,6 @@ private fun ReaderModelSelector(selected: String, enabled: Boolean, onSelect: (S
     }
     val current = LlmRegistry.byId(selected).id
     val options = listOf(
-        LlmRegistry.DEFAULT_ID to R.string.reader_model_v11,
         LlmRegistry.E2B_MOBILE_ID to R.string.reader_model_e2b,
         LlmRegistry.E4B_MOBILE_ID to R.string.reader_model_e4b,
     )
@@ -452,7 +451,7 @@ private val COMPONENT_LICENSES = listOf(
     R.string.lic_nemo to "Apache-2.0",
     R.string.lic_crispasr to "MIT",
     R.string.lic_audiocpp to "Apache-2.0",
-    R.string.lic_ggml to "MIT",
+    R.string.lic_ggml to "Apache-2.0",
     R.string.lic_xasr to "Apache-2.0",
     R.string.lic_nemotron to "OpenMDW-1.1",
     R.string.lic_opencc to "Apache-2.0",

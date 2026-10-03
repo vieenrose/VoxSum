@@ -52,7 +52,7 @@ class MfaSession(
             if (stable.length > shown.length && stable.startsWith(shown)) { onToken(stable.substring(shown.length)); shown = stable }
             if (stop.isNotEmpty() && text.contains(stop)) { stopped = true; false } else true
         }
-        // Like llama.cpp's session, the reply joins the sequence, and the stop string with it. The
+        // The reply joins the sequence, and the stop string with it. The
         // generated ids themselves go in (re-tokenizing the text could differ and break the
         // engine's prefix reuse); an end-of-turn id is the model's, not the text's, so it is left out.
         val kept = gen.filter { it !in STOP_IDS }

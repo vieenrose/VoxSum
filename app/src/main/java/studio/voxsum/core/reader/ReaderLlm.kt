@@ -3,7 +3,7 @@ package studio.voxsum.core.reader
 /**
  * The KV-keeping session the meeting reader drives: one growing conversation, extended by
  * [append] (prefill only) and [generateContinue] (its tokens join the sequence), restarted by
- * [reset]. Implemented by [studio.voxsum.core.llm.LlmEngine]; tests use a fake. Not thread-safe:
+ * [reset]. Implemented by [studio.voxsum.core.llm.MfaSession]; tests use a fake. Not thread-safe:
  * the reader serializes every call on one thread.
  */
 interface ReaderLlm {

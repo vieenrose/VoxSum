@@ -18,8 +18,8 @@ as a `Flow` from a **foreground service** and collected by Compose. Incremental 
 | `server/routers/api.py` (HTTP) | `service/TranscriptionService.kt` | foreground service, not a router |
 | NDJSON events | `core/events/TranscriptEvent.kt` | sealed Flow events; `AgentEvent`s ride inside for the Agent panel |
 | `asr.py::transcribe_file` + `diarization.py` | `core/asr/NemoStreamEngine.kt` + `cpp/nemo/` | ONE streaming pass: X-ASR (CrispASR) + Nemotron-3 diarization (audio.cpp) on one timeline |
-| `summarization.py::summarize_transcript` | `core/reader/` (`MeetingReader`, `ReaderLane`, `ReaderProtocol`) | live reading agent over a KV-keeping llama.cpp session |
-| `get_llm` (lru_cache) | `core/llm/LlmEngine.kt` + `cpp/llm_jni.cpp` | one model resident |
+| `summarization.py::summarize_transcript` | `core/reader/` (`MeetingReader`, `ReaderLane`, `ReaderProtocol`) | live reading agent on the mobile LiteRT engine (prefix-reusing) |
+| `get_llm` (lru_cache) | `core/llm/MfaEngine.kt` + `MfaSession.kt` + `cpp/mfa/` | one model resident |
 | `utils.py` registry + lazy download | `core/models/ModelManager.kt`, `LlmRegistry.kt` | revision- and SHA-256-pinned |
 | `get_speaker_color` | `data/Session.kt::speakerColor` | same palette idea |
 | global `state` (app.js) | `data/Session.kt` | reset on new audio source |
@@ -28,7 +28,7 @@ as a `Flow` from a **foreground service** and collected by Compose. Incremental 
 ## What changes and why
 
 - **LangChain is dropped.** It was used only for chunking + prompt templates; both are a
-  few lines of Kotlin. Inference runs on llama.cpp, the same runtime as the desktop build.
+  few lines of Kotlin. Inference runs on a fork of the LiteRT-LM CPU engine (`cpp/mfa/`).
 - **The summarizer is an agent, not a map-reduce.** The model reads the transcript as it
   arrives and writes typed, cited notes (see "Meeting reader"); the summary is written from
   those notes. The old chunked summarizer, verifier and action-item extractor are gone —
@@ -71,23 +71,27 @@ Speakers are always produced: there is no switch to turn diarization off, and re
 same audio gives the same tags. The only setting is the *live* speaker delay (5–30 s), which
 changes when the booth freezes a line's speaker, not the saved transcript.
 
-Three ggml copies share the process (llama.cpp's, CrispASR's, audio.cpp's). audio.cpp builds as
+Two ggml copies share the process (CrispASR's, audio.cpp's). audio.cpp builds as
 `libaudiocpp.so` with its ggml hidden behind a version script; CrispASR and its ggml link
 statically into `libvoxsum-nemo.so`, which exports only JNI symbols. Both are CMake
 ExternalProjects from the `native/audiocpp`, `native/crispasr` and `native/crispasr-ggml`
-submodules, compiled for `armv8.2-a+dotprod` like llama.cpp (ARMv8.0 devices are unsupported,
+submodules, compiled for `armv8.2-a+dotprod` (ARMv8.0 devices are unsupported,
 checked by `core/power/CpuSupport.kt`).
 
 `tools/nemo-eval/` drives the same engine on the host for accuracy runs.
 
 ## Meeting reader (`core/reader/`)
 
-The summarizer is a Gemma-4-E2B model fine-tuned as a reading agent (pinned in `LlmRegistry`; the
-weights and `system_prompt.txt` live together under `v11/` and must stay paired).
+The summarizer is a Gemma-4 model fine-tuned as a reading agent, in Google's mobile graph format:
+E2B mobile-v1 by default, E4B on 8 GB phones (pinned in `LlmRegistry`; the weights and
+`system_prompt.txt` are pinned together and must stay paired).
 
-- **Session.** `llm_jni.cpp` exposes a KV-keeping llama.cpp session (`nativeAppend`,
-  `nativeGenerateContinue`, `nativeReset`) wrapped by `ReaderLlm`; every call runs on the lane's
-  single thread.
+- **Engine.** `cpp/mfa/` is the forked LiteRT-LM CPU engine (vieenrose/LiteRT-LM, branch
+  `mobile-fused-attention`) on the stock `libLiteRt.so`, with the attention fused into one int8
+  op. It keeps no sessions: it reuses the longest prompt prefix already in its KV cache, so
+  `MfaSession` (the `ReaderLlm`) keeps the token list and resends it. Context is 4k, so the
+  reader runs `ReaderBudget.MOBILE` (window 1,500 tokens, journal compacted to 1,200) and the
+  title/prose calls read the notes compacted to 3,900 characters (`compactNotes`).
 - **Protocol.** `ReaderProtocol` + `MeetingReader` are a port of upstream `eval/phone_live.py`
   (vieenrose/meeting-summarizer): journal header, ~20 s segments, a window closed at ~2,000 tokens,
   a reading turn of up to 400 tokens writing `NOTE [m:ss] (TYPE) text` lines (DECISION, ACTION,

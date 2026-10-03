@@ -20,7 +20,7 @@ jobs:
     env:
       HAS_KEYSTORE: ${{ secrets.KEYSTORE_BASE64 != '' }}
     steps:
-      # Native code builds from submodules: native/llama.cpp (summarizer) and native/audiocpp,
+      # Native code builds from submodules: native/sentencepiece (reader tokenizer) and native/audiocpp,
       # native/crispasr, native/crispasr-ggml (ASR + diarization). NOT recursive: audio.cpp carries
       # a nested submodule with an SSH URL a runner cannot fetch, and CrispASR's own nested ggml is
       # replaced by the top-level native/crispasr-ggml pin (see app/src/main/cpp/CMakeLists.txt).

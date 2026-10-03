@@ -28,95 +28,20 @@ data class LlmSpec(
     val weightCacheFile: String = "",
     /** Relative path of a separate tokenizer blob, or "" — a GGUF embeds its own. */
     val tokenizerFile: String = "",
-    val chatTemplate: ChatTemplate,
     val shortName: String = "",
-    val sampler: SamplerProfile = SamplerProfile.LEGACY,
-    /**
-     * Largest context this model may be asked for, in tokens.
-     *
-     * A CEILING, not an allocation, and — unlike the LiteRT export it replaces — a genuine
-     * runtime knob. The `.litertlm`/`.tflite` bundles baked `cache_length` in at export time:
-     * the graph allocated its KV from that value and rescanned the whole allocation every step,
-     * so a 32k bundle decoded at 1.5 tok/s where the 16k one did 3.4, and serving two window
-     * sizes meant shipping two multi-hundred-MB bundles. llama.cpp takes `n_ctx` at
-     * `llama_init_from_model`, so one file serves every size and [Summarizer.contextFor] picks
-     * the smallest that fits the transcript.
-     */
+    val sampler: SamplerProfile = SamplerProfile.GEMMA_READER,
+    /** The context the graph is loaded with, in tokens (the mobile graphs run at 4k). */
     val maxCtx: Int,
-    /** llama.cpp `swa_full`: false for Gemma's sliding-window layers in session mode (the reader
-     *  only appends, so the SWA cache never rolls back). */
-    val swaFull: Boolean = true,
-    /** Which engine runs it: llama.cpp (a GGUF) or the mobile LiteRT engine (a `mfa/` folder). */
-    val backend: LlmBackend = LlmBackend.LLAMA_CPP,
     /** The reader's system prompt, shipped next to the weights (they must stay paired). */
     val systemPromptFile: String = "",
 ) {
     val totalBytes: Long get() = files.values.sumOf { it.first }
 }
 
-/**
- * NONE = the runtime applies the model's own chat template. QWEN3 = ChatML with the empty
- * `<think></think>` block Qwen3.5 wants for non-thinking mode, applied app-side. MINICPM5 =
- * the same shape for MiniCPM5, but carrying a CALLER-SUPPLIED system prompt.
- *
- * That last difference is the point of the variant: [ChatTemplate.CHATML] and
- * [ChatTemplate.QWEN3] hardcode "You are a helpful assistant", which is right for a model
- * given its instructions in the user turn. The CURSOR protocol is not an instruction, it is
- * a SYSTEM contract the checkpoint was fine-tuned against, so it has to occupy the system
- * turn — see [studio.voxsum.core.agentic.CursorPrompts].
- *
- * No BOS literal in any of these: the JNI tokenizes with `addSpecial=true`, so llama.cpp
- * already prepends whatever the GGUF's metadata declares. Writing one here would double it.
- */
-enum class LlmBackend { LLAMA_CPP, MOBILE }
-
-enum class ChatTemplate { CHATML, QWEN3, MINICPM5, GRANITE, GEMMA4, NONE }
-
-/**
- * llama.cpp sampler settings, chosen per model. The chain itself is built in native code
- * (llm_jni.cpp); the values are picked here so each model family gets what it expects.
- */
-data class SamplerProfile(
-    val topK: Int,
-    val topP: Float,
-    val temp: Float,
-    val repeatPenalty: Float,
-    val presencePenalty: Float,
-) {
+/** The reader's sampler (integration note §13.4: top-k 40, top-p 0.95, T 0.2). */
+data class SamplerProfile(val topK: Int, val topP: Float, val temp: Float) {
     companion object {
-        /** Legacy small-instruct chain: a heavy repeat penalty stops the "say the same sentence
-         *  forever" loops older sub-2B instruct models fall into on summarization. */
-        val LEGACY = SamplerProfile(topK = 40, topP = 0.9f, temp = 0.7f, repeatPenalty = 1.3f, presencePenalty = 0.0f)
-
-        /** Qwen's own recommended non-thinking sampler. A high repeat penalty makes Qwen3.5 drop
-         *  punctuation and structure into a run-on wall-of-text on long inputs, so repeat is OFF
-         *  (1.0) and a flat presence penalty guards repetition instead. */
-        val QWEN35 = SamplerProfile(topK = 20, topP = 0.8f, temp = 0.7f, repeatPenalty = 1.0f, presencePenalty = 1.0f)
-
-        /** The ANCHORED checkpoint's measured setting: greedy, temperature 0. Every quality number
-         *  in its integration note (faith 4.60 / 5% inversions, gemma-4-26B judge, n=20) was
-         *  produced at temp 0 with thinking disabled. Greedy also makes the NOTES format
-         *  reproducible, which matters because a parser downstream depends on the section keys.
-         *  No repeat penalty: the note warns that penalties above ~1.15 eat the structural tokens
-         *  that delimit the sections. */
-        val QWEN35_ANCHORED = SamplerProfile(topK = 1, topP = 1.0f, temp = 0.0f, repeatPenalty = 1.0f, presencePenalty = 0.0f)
-
-        /**
-         * The CURSOR protocol's setting: greedy, temperature 0, no penalties.
-         *
-         * Every measured number for MiniCPM5-1B-CURSOR and the 350M verifier was produced at
-         * `--temp 0` (upstream's serve flags, integration note §2). Greedy is not merely a
-         * fidelity choice here — the student's output is a GRAMMAR, and sampling an op line is
-         * sampling whether it parses. A repeat penalty is actively harmful for the same reason:
-         * `ADD`, `UPD`, the section keys and the `[m:ss]` brackets are meant to recur on every
-         * line, and penalising them is penalising the protocol itself.
-         */
-        val CURSOR = SamplerProfile(topK = 1, topP = 1.0f, temp = 0.0f, repeatPenalty = 1.0f, presencePenalty = 0.0f)
-
-        /** The meeting reader's ONE-SHOT calls (title, speaker names): llama-server's defaults at
-         *  the reference temperature. The reading turns themselves build their chain natively
-         *  (top_k 40, top_p 0.95, min_p 0.05, T 0.2 — llm_jni.cpp nativeGenerateContinue). */
-        val GEMMA_READER = SamplerProfile(topK = 40, topP = 0.95f, temp = 0.2f, repeatPenalty = 1.0f, presencePenalty = 0.0f)
+        val GEMMA_READER = SamplerProfile(topK = 40, topP = 0.95f, temp = 0.2f)
     }
 }
 
@@ -132,38 +57,12 @@ data class SamplerProfile(
  * lag after each ~4 min window.
  */
 object LlmRegistry {
-    const val DEFAULT_ID = "gemma4-e2b-meeting-agent-zh"
-
-    // v11 (2026-10-02): v8 (title and prose calls fine-tuned on ReaderLane's prompts) + a
-    // contrastive DPO — the most precise decisions (71 % really decided vs v5's 61 %) and the best
-    // titles; same protocol, and its prompt is byte-identical to v5's. Weights and prompt live
-    // under v11/ and must stay paired (integration note §11).
-    private const val REV = "a862b705f3aaf7edee2018f4e3abae286826f11d"
-    private const val GGUF = "v11/gemma-4-E2B-meeting-agent-zh-v11-Q4_0.gguf"
-    const val SYSTEM_PROMPT_FILE = "v11/system_prompt.txt"
+    const val E2B_MOBILE_ID = "gemma4-e2b-meeting-agent-zh-mobile-v1"
+    const val E4B_MOBILE_ID = "gemma4-e4b-meeting-agent-zh-mobile"
+    /** E2B mobile-v1 on the LiteRT engine; it replaced the llama.cpp v11 GGUF (2026-10-03). */
+    const val DEFAULT_ID = E2B_MOBILE_ID
 
     val ALL: List<LlmSpec> = listOf(
-        LlmSpec(
-            id = DEFAULT_ID,
-            displayName = "Gemma-4-E2B meeting agent (zh)",
-            shortName = "Meeting agent",
-            dirName = "gemma4-meeting-agent-v11-gguf",
-            revision = "https://huggingface.co/Luigi/gemma-4-E2B-meeting-agent-zh-GGUF/resolve/$REV",
-            files = mapOf(
-                GGUF to
-                    (3_349_515_904L to "16c69abb76e09821bdd08a022091dbb9b84620cc589491f36d294e6ee92f73f0"),
-                SYSTEM_PROMPT_FILE to
-                    (1_686L to "406040c70270b5b9d47a4222138fcf2177f361dcbfb79fba164ca2559e0ffbf3"),
-            ),
-            mainFile = GGUF,
-            chatTemplate = ChatTemplate.GEMMA4,
-            sampler = SamplerProfile.GEMMA_READER,
-            // The reader restarts its conversation at 8k (prefill slows sharply with depth on a
-            // phone CPU); 12288 leaves room for the window and the output (integration note §3).
-            maxCtx = 12288,
-            swaFull = false,
-            systemPromptFile = SYSTEM_PROMPT_FILE,
-        ),
         // The mobile graphs (integration note §12, §13): Google's Gemma-4 mobile weights carrying our
         // fine-tune, run by the forked LiteRT engine on the CPU at 4k (cpp/mfa). The same system
         // prompt as v11, byte for byte.
@@ -191,8 +90,6 @@ object LlmRegistry {
         ),
     )
 
-    const val E2B_MOBILE_ID = "gemma4-e2b-meeting-agent-zh-mobile-v1"
-    const val E4B_MOBILE_ID = "gemma4-e4b-meeting-agent-zh-mobile"
     /** E4B takes ~3 GB next to the ASR engine: offered on 8 GB phones only (totalMem reads ~7.3 GiB there). */
     const val E4B_MIN_RAM = 7L * 1024 * 1024 * 1024
 
@@ -212,10 +109,8 @@ object LlmRegistry {
         ),
         mainFile = "$dir/prefill_decode_fused.tflite",
         tokenizerFile = "$dir/Section1_SP_Tokenizer.spiece",
-        chatTemplate = ChatTemplate.GEMMA4,
         sampler = SamplerProfile.GEMMA_READER,
         maxCtx = 4096,
-        backend = LlmBackend.MOBILE,
         systemPromptFile = prompt,
     )
 

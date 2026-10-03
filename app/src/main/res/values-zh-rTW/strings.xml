@@ -341,7 +341,7 @@
     <string name="lic_nemo">nemo-x-asr-diarizer（串流語音辨識與語者分離）</string>
     <string name="lic_crispasr">CrispASR（X-ASR 執行環境）</string>
     <string name="lic_audiocpp">audio.cpp（Nemotron-3 語者分離執行環境）</string>
-    <string name="lic_ggml">ggml · llama.cpp（摘要）</string>
+    <string name="lic_ggml">LiteRT · SentencePiece（AI 筆記）</string>
     <string name="lic_xasr">X-ASR 中英模型</string>
     <string name="lic_nemotron">Nemotron-3 語者分離模型</string>
     <string name="lic_opencc">OpenCC（繁體 / 簡體）</string>
@@ -354,7 +354,6 @@
     <string name="agent_view_simple">簡化顯示</string>
     <string name="agent_simple_listening">閱讀逐字稿中——距離下一次整理筆記：</string>
     <string name="settings_reader_model">AI 筆記模型</string>
-    <string name="reader_model_v11">標準（llama.cpp）</string>
     <string name="reader_model_e2b">行動版 E2B</string>
     <string name="reader_model_e4b">行動版 E4B</string>
     <string name="reader_model_hint">行動版模型使用更快的引擎，記憶範圍較短。E2B：下載 %1$d MB，約佔 1.3 GB 記憶體。E4B：%2$d MB，約 3 GB 記憶體，錯誤較少。</string>

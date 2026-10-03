@@ -32,6 +32,9 @@ class SpeakerRefsTest {
     @Test fun wrapsForMarkdown() =
         assertEquals("而**語者 1**則", SpeakerRefs.resolve("而 S1則", zh, wrap = { "**$it**" }))
 
+    @Test fun spaceAfterALatinNameBeforeChinese() =
+        assertEquals("由 Speaker 1 負責，Mary 將回覆", SpeakerRefs.resolve("由 S1負責，S2將回覆", { if (it == 0) "Speaker 1" else "Mary" }))
+
     @Test fun englishLabel() =
         assertEquals("Speaker 3 will call", SpeakerRefs.resolve("S3 will call", { "Speaker ${it + 1}" }))
 }

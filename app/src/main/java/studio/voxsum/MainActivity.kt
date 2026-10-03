@@ -475,6 +475,11 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/** On screen a speaker name never breaks across lines ("語者" / "1"). */
+private fun unbreakable(name: String) =
+    // NBSP for the space, WORD JOINER between characters: Han text breaks between any two characters.
+    name.replace(' ', '\u00A0').toList().joinToString("\u2060")
+
 /** Studio navigation: list-first stack — Studio (home) → Capture / Session, back returns home. */
 /**
  * Decode a (possibly untrusted) JPEG/PNG byte array with its longest side capped at [maxDim] px, so
@@ -1352,8 +1357,9 @@ private fun TranscribeScreen(
     val speakerLabel: (Int) -> String = { sid -> speakerNames[sid]?.name ?: context.getString(R.string.speaker_n, sid + 1) }
     /** Model text (title, summary, actions, notes) as shown and exported: its S1, S2 become the
      *  transcript's speaker names, in the app's language. The saved text keeps S1, S2. */
-    fun refs(text: String?): String? = text?.let { t ->
-        studio.voxsum.core.reader.SpeakerRefs.resolve(t, speakerLabel, utterances.mapNotNull { it.speaker }.toSet().ifEmpty { null })
+    fun refs(text: String?, screen: Boolean = false): String? = text?.let { t ->
+        studio.voxsum.core.reader.SpeakerRefs.resolve(t, speakerLabel, utterances.mapNotNull { it.speaker }.toSet().ifEmpty { null },
+            wrap = if (screen) ::unbreakable else ({ n -> n }))
     }
     /**
      * Everything below the summary that an export should carry: action items plus the v2 NOTES
@@ -1997,8 +2003,8 @@ private fun TranscribeScreen(
     val anchorSeek: ((Int) -> Unit)? = if (audioUri != null) ({ ms -> seekAndPlay(ms) }) else null
     val summaryCards: @Composable () -> Unit = {
         CompositionLocalProvider(
-            studio.voxsum.ui.LocalSpeakerRefs provides { t -> refs(t) ?: t },
-            studio.voxsum.ui.LocalSpeakerNames provides utterances.mapNotNull { it.speaker }.toSet().associateWith(speakerLabel),
+            studio.voxsum.ui.LocalSpeakerRefs provides { t -> refs(t, screen = true) ?: t },
+            studio.voxsum.ui.LocalSpeakerNames provides utterances.mapNotNull { it.speaker }.toSet().associateWith { unbreakable(speakerLabel(it)) },
         ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             // The reading agent at work (live during recording/processing; stays after as a log).
@@ -2248,7 +2254,7 @@ private fun TranscribeScreen(
                 cover = null,   // no per-session art (the generated identicon was removed)
                 // The title lives in the top bar on every tab (tap it to edit); the two-pane overview
                 // carries its own title card, so the bar stays blank there.
-                title = if (twoPane && !title.isNullOrBlank()) "" else refs(title) ?: entryTitle,
+                title = if (twoPane && !title.isNullOrBlank()) "" else refs(title, screen = true) ?: entryTitle,
                 onTitleClick = if (!twoPane && !title.isNullOrBlank() && !running) ({ sessTab = 0; editingTitle = true }) else null,
                 status = status,
                 running = running,
@@ -2708,7 +2714,7 @@ private fun CollapsibleMarkdown(
     Text(
         // Speaker names (already resolved from the model's S1, S2) in their transcript colour.
         studio.voxsum.ui.colorSpeakerNames(
-            renderMarkdown(text, anchorColor = if (onSeek != null) pal.Sky else null, onSeek = onSeek),
+            renderMarkdown(text, anchorColor = if (onSeek != null) pal.Slate400 else null, onSeek = onSeek),
             studio.voxsum.ui.LocalSpeakerNames.current,
         ) { id -> Color(speakerColorOn(id, pal.isDark)) },
         style = MaterialTheme.typography.bodyMedium,

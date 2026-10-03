@@ -1,6 +1,7 @@
 package studio.voxsum.ui
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
@@ -76,7 +77,12 @@ private fun AnnotatedString.Builder.appendWithAnchors(
             LinkAnnotation.Clickable(
                 tag = "anchor-$secs",
                 styles = TextLinkStyles(
-                    style = SpanStyle(color = anchorColor, fontWeight = FontWeight.Medium),
+                    // A small grey chip: the colours belong to the speaker names (语者 2's blue sat
+                    // next to blue timestamps and read as one thing).
+                    style = SpanStyle(
+                        color = anchorColor, fontWeight = FontWeight.Medium,
+                        fontSize = 0.85.em, background = anchorColor.copy(alpha = 0.14f),
+                    ),
                     pressedStyle = SpanStyle(color = anchorColor, textDecoration = TextDecoration.Underline),
                 ),
             ) { onSeek(secs * 1000) },

@@ -54,6 +54,8 @@
     <string name="storage_model_pending">Summary model not downloaded yet (%1$d MB) — it downloads on first use.</string>
     <string name="storage_none">No models downloaded yet</string>
     <string name="storage_delete">Delete model</string>
+    <string name="storage_delete_title">Delete this model?</string>
+    <string name="storage_delete_body">%1$s (%2$s) will be downloaded again the next time it is needed.</string>
     <string name="model_kind_asr">Transcription model</string>
     <string name="model_kind_llm">Summary model</string>
     <string name="model_kind_other">Other</string>

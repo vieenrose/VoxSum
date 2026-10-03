@@ -235,6 +235,22 @@ private fun StoragePanel(enabled: Boolean, summaryReady: Boolean) {
         style = MaterialTheme.typography.bodySmall, color = pal.Slate400,
         modifier = Modifier.padding(bottom = 4.dp),
     )
+    // One tap used to delete a model outright — 3.3 GB to download again for the summary model.
+    var confirm by remember { mutableStateOf<ModelManager.StoredModel?>(null) }
+    confirm?.let { m ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirm = null },
+            title = { Text(stringResource(R.string.storage_delete_title)) },
+            text = { Text(stringResource(R.string.storage_delete_body, kindLabel(m.kind), fmt(m.bytes))) },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    confirm = null
+                    scope.launch { withContext(Dispatchers.IO) { m.delete() }; version++ }
+                }) { Text(stringResource(R.string.action_delete)) }
+            },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { confirm = null }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
     models.forEach { m ->
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -243,7 +259,7 @@ private fun StoragePanel(enabled: Boolean, summaryReady: Boolean) {
             }
             IconButton(
                 enabled = enabled,
-                onClick = { scope.launch { withContext(Dispatchers.IO) { m.delete() }; version++ } },
+                onClick = { confirm = m },
             ) {
                 Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.storage_delete), tint = pal.Slate400)
             }

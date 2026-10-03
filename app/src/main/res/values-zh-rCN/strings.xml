@@ -53,6 +53,8 @@
     <string name="storage_model_pending">摘要模型尚未下载（%1$d MB），首次使用时自动下载。</string>
     <string name="storage_none">尚未下载任何模型</string>
     <string name="storage_delete">删除模型</string>
+    <string name="storage_delete_title">删除这个模型？</string>
+    <string name="storage_delete_body">%1$s（%2$s）下次使用时会重新下载。</string>
     <string name="model_kind_asr">转录模型</string>
     <string name="model_kind_llm">摘要模型</string>
     <string name="model_kind_other">其他</string>

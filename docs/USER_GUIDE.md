@@ -9,18 +9,32 @@
 
 畫面結構：
 
-```
-首頁（場次庫）
-├── 場次 ⋮ 選單 ─ 開啟／重新命名／分享音訊／刪除／立即處理／從佇列移除／停止處理
-├── 多選模式 ─ 全選／刪除
-├── ＋ 加入音訊 ─ 音訊檔案／Podcast／YouTube／開啟工作階段
-├── 設定
-└── 錄音 → 錄音室 ─ 下一場／停止並儲存
-                      └→ 場次
-                          ├── 摘要分頁 ─ AI 筆記卡片／摘要／語者比例
-                          ├── 逐字稿分頁 ─ 點句播放／長按選單／語者改名／搜尋
-                          ├── 播放列
-                          └── ⋮ ─ 重新轉錄／重新摘要／匯出與分享／設定
+```mermaid
+flowchart TD
+    Home["首頁（場次庫）"]
+    Home -->|"⋮"| RowMenu["場次選單<br/>開啟・重新命名・分享音訊・刪除<br/>立即處理・從佇列移除・停止處理"]
+    Home -->|長按| Select["多選模式<br/>全選・刪除"]
+    Home -->|＋| Add["加入音訊"]
+    Add --> File["音訊檔案"]
+    Add --> Podcast["Podcast"]
+    Add --> YouTube["YouTube"]
+    Add --> Open["開啟工作階段 .ogg/.m4a"]
+    Home -->|設定圖示| Settings["設定"]
+    Home -->|錄音| Booth["錄音室<br/>即時逐字稿・AI 筆記"]
+    Booth -->|下一場| Booth
+    Booth -->|停止並儲存| Session
+    Home -->|點已完成場次| Session["場次"]
+    File --> Session
+    Podcast --> Session
+    YouTube --> Session
+    Open --> Session
+    Session --> Summary["摘要分頁<br/>AI 筆記卡片・摘要・語者比例"]
+    Session --> Transcript["逐字稿分頁<br/>點句播放・長按選單・語者改名・搜尋"]
+    Session --> Player["播放列<br/>播放・±5 秒・進度・音量"]
+    Session -->|"⋮ 更多選項"| More["重新轉錄・重新摘要・匯出與分享・設定"]
+    More --> Export["匯出<br/>.m4a・PDF・MD・TXT・SRT・VTT・LRC"]
+    More --> Settings
+    Recovery["復原對話框<br/>（錄音中被終止後）"] -->|完成轉錄| Session
 ```
 
 ---

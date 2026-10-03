@@ -69,12 +69,24 @@ fun PodcastPanel(onEpisodeReady: (Uri, String?) -> Unit) {
         Modifier.fillMaxWidth().padding(vertical = 4.dp).verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        val search: () -> Unit = {
+            if (query.isNotBlank() && !busy) scope.launch {
+                busy = true; error = null; selected = null; episodes = emptyList()
+                progress = null; statusRes = R.string.dl_searching
+                series = runCatching { Podcast.searchSeries(query) }
+                    .getOrElse { error = it.userMessage(context); emptyList() }
+                busy = false
+            }
+        }
         Row(verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
                 label = { Text(stringResource(R.string.podcast_search_hint)) },
                 singleLine = true,
+                // The keyboard's action key searches, like the button.
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Search),
+                keyboardActions = androidx.compose.foundation.text.KeyboardActions(onSearch = { search() }),
                 colors = voxSumTextFieldColors(),
                 modifier = Modifier.weight(1f),
             )
@@ -82,15 +94,7 @@ fun PodcastPanel(onEpisodeReady: (Uri, String?) -> Unit) {
             GradientButton(
                 stringResource(R.string.podcast_search),
                 enabled = query.isNotBlank() && !busy,
-                onClick = {
-                    scope.launch {
-                        busy = true; error = null; selected = null; episodes = emptyList()
-                        progress = null; statusRes = R.string.dl_searching
-                        series = runCatching { Podcast.searchSeries(query) }
-                            .getOrElse { error = it.userMessage(context); emptyList() }
-                        busy = false
-                    }
-                },
+                onClick = search,
             )
         }
         if (busy) {

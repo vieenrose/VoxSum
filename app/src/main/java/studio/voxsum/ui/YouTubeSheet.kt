@@ -106,7 +106,8 @@ fun YouTubeSheet(onAudioReady: (Uri, String?) -> Unit, onDismiss: () -> Unit) {
                     label = { Text(stringResource(R.string.youtube_search_hint)) },
                     singleLine = true,
                     enabled = !busy,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = androidx.compose.ui.text.input.ImeAction.Search),
+                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(onSearch = { if (query.isNotBlank() && !busy) go() }),
                     colors = voxSumTextFieldColors(),
                     modifier = Modifier.weight(1f),
                 )

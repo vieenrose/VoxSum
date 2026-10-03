@@ -1529,9 +1529,21 @@ class TranscriptionService : LifecycleService() {
     }
 
     private suspend fun readLoop() {
+        val me = kotlinx.coroutines.currentCoroutineContext()[Job]
+        // The loop hands over under readLock: once it finds no task it stops counting as running
+        // (readJob = null) in the same critical section, so a task submitted while it winds down
+        // starts a new loop instead of waiting forever on this one (seen: the queue's second item
+        // stayed queued with nothing reading it). The model goes with the loop that owned it.
+        var model: ReaderModel? = null
         try {
             while (true) {
-                val task = synchronized(readLock) { readTasks.firstOrNull() } ?: break
+                val task = synchronized(readLock) {
+                    readTasks.firstOrNull() ?: run {
+                        if (readJob === me) readJob = null
+                        model = readModel; readModel = null
+                        null
+                    }
+                } ?: break
                 // Small devices never hold the reader beside a running speech engine: wait for the
                 // capture to end, and for a live task, for its transcript to be complete.
                 if (!liveReaderCapable() && (recordingActive || (task.text == null && !task.final.isCompleted))) {
@@ -1561,8 +1573,11 @@ class TranscriptionService : LifecycleService() {
                 synchronized(readLock) { readTasks.remove(task) }
             }
         } finally {
-            readModel?.close(); readModel = null
-            withContext(Dispatchers.Main) {
+            synchronized(readLock) {
+                if (readJob === me) { readJob = null; if (model == null) { model = readModel; readModel = null } }
+            }
+            model?.close()
+            withContext(NonCancellable + Dispatchers.Main) {
                 // The run that started this reading may be long over: the worker brings the service
                 // down when it is the last thing running.
                 if (!readerBusy() && pipelineJob?.isActive != true && activeExports == 0) {

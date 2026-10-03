@@ -38,6 +38,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
@@ -188,7 +189,14 @@ private fun androidx.compose.foundation.layout.ColumnScope.LivePanel(
 ) {
     val pal = LocalVoxSumPalette.current
     // The summarizing agent works alongside ASR + diarization: its status stays pinned on top.
-    agent?.let { AgentStrip(it) }
+    agent?.let {
+        // The live notes name speakers as the booth does (S2 → 語者 2 / 说话人 2 / Speaker 2).
+        val ctx = androidx.compose.ui.platform.LocalContext.current
+        val known = utterances.mapNotNull { u -> u.speaker }.toSet().ifEmpty { null }
+        CompositionLocalProvider(LocalSpeakerRefs provides { t ->
+            studio.voxsum.core.reader.SpeakerRefs.resolve(t, { id -> ctx.getString(R.string.speaker_n, id + 1) }, known)
+        }) { AgentStrip(it) }
+    }
     // A model still downloading (e.g. the 3 GB summary model on a first run, while the meeting is
     // already being transcribed): say so on the booth, not only in the notification shade.
     if (utterances.isNotEmpty()) notice?.takeIf { it.isNotBlank() }?.let {

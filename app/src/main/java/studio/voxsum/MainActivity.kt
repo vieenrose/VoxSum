@@ -1350,6 +1350,11 @@ private fun TranscribeScreen(
     // --- Transcript text exports (portable TXT / SRT / VTT / Markdown + copy & share). The .ogg is
     //     the archive; these get the words into other apps. Pure local serialisation, no network. ---
     val speakerLabel: (Int) -> String = { sid -> speakerNames[sid]?.name ?: context.getString(R.string.speaker_n, sid + 1) }
+    /** Model text (title, summary, actions, notes) as shown and exported: its S1, S2 become the
+     *  transcript's speaker names, in the app's language. The saved text keeps S1, S2. */
+    fun refs(text: String?): String? = text?.let { t ->
+        studio.voxsum.core.reader.SpeakerRefs.resolve(t, speakerLabel, utterances.mapNotNull { it.speaker }.toSet().ifEmpty { null })
+    }
     /**
      * Everything below the summary that an export should carry: action items plus the v2 NOTES
      * sections that have no other home (decisions, open questions, topics, and any unknown key a
@@ -1383,10 +1388,10 @@ private fun TranscribeScreen(
             section(context.getString(R.string.notes_topics), n.topics)
             n.extra.forEach { (k, v) -> section(k, v) }
         }
-        return out.toString().trim().ifEmpty { null }
+        return refs(out.toString().trim().ifEmpty { null })
     }
 
-    fun transcriptText(): String = TranscriptExport.plainText(utterances.toList(), speakerLabel, title, summary, exportExtras(markdown = false), null)
+    fun transcriptText(): String = TranscriptExport.plainText(utterances.toList(), speakerLabel, refs(title), refs(summary), exportExtras(markdown = false), null)
     fun exportBaseName(): String =
         title?.take(48)?.replace(Regex("[^\\p{L}\\p{N} _-]"), "_")?.trim()?.ifEmpty { null } ?: "transcript"
     fun writeDoc(uri: Uri?, content: String) {
@@ -1404,16 +1409,16 @@ private fun TranscribeScreen(
     val srtSaver = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/x-subrip")) { writeDoc(it, TranscriptExport.srt(utterances.toList(), speakerLabel)) }
     val vttSaver = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/vtt")) { writeDoc(it, TranscriptExport.vtt(utterances.toList(), speakerLabel)) }
     // .lrc has no registered MIME; octet-stream keeps the .lrc extension intact (players match by name).
-    val lrcSaver = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { writeDoc(it, TranscriptExport.lrc(utterances.toList(), speakerLabel, title)) }
+    val lrcSaver = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { writeDoc(it, TranscriptExport.lrc(utterances.toList(), speakerLabel, refs(title))) }
     val mdSaver = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/markdown")) {
-        writeDoc(it, TranscriptExport.markdown(utterances.toList(), speakerLabel, title, summary,
+        writeDoc(it, TranscriptExport.markdown(utterances.toList(), speakerLabel, refs(title), refs(summary),
             context.getString(R.string.export_heading_summary), context.getString(R.string.export_heading_transcript),
             exportExtras(markdown = true), null))
     }
     // PDF is binary, so it bypasses writeDoc() and streams from PdfExport directly to the SAF document.
     val pdfSaver = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
-        val utts = utterances.toList(); val t = title; val s = summary
+        val utts = utterances.toList(); val t = refs(title); val s = refs(summary)
         val sumH = context.getString(R.string.export_heading_summary); val txH = context.getString(R.string.export_heading_transcript)
         val extras = exportExtras(markdown = false)
         scope.launch {
@@ -1436,16 +1441,16 @@ private fun TranscribeScreen(
     fun exportText(f: ExportFormat): String {
         val utts = utterances.toList()
         return when (f) {
-            ExportFormat.TEXT -> TranscriptExport.plainText(utts, speakerLabel, title, summary, exportExtras(markdown = false), null)
+            ExportFormat.TEXT -> TranscriptExport.plainText(utts, speakerLabel, refs(title), refs(summary), exportExtras(markdown = false), null)
             ExportFormat.MARKDOWN -> TranscriptExport.markdown(
-                utts, speakerLabel, title, summary,
+                utts, speakerLabel, refs(title), refs(summary),
                 context.getString(R.string.export_heading_summary),
                 context.getString(R.string.export_heading_transcript),
                 exportExtras(markdown = true), null,
             )
             ExportFormat.SRT -> TranscriptExport.srt(utts, speakerLabel)
             ExportFormat.VTT -> TranscriptExport.vtt(utts, speakerLabel)
-            ExportFormat.LRC -> TranscriptExport.lrc(utts, speakerLabel, title)
+            ExportFormat.LRC -> TranscriptExport.lrc(utts, speakerLabel, refs(title))
             ExportFormat.PDF, ExportFormat.M4A -> ""   // binary — written by their own writers
         }
     }
@@ -1454,7 +1459,7 @@ private fun TranscribeScreen(
     // to another app we materialise it in a private cache dir and pass a FileProvider uri. Before
     // this, only .m4a and the plain transcript could be shared at all.
     fun shareExport(f: ExportFormat) {
-        val utts = utterances.toList(); val t = title; val sum = summary; val acts = actionItems
+        val utts = utterances.toList(); val t = refs(title); val sum = refs(summary); val acts = refs(actionItems)
         val sumH = context.getString(R.string.export_heading_summary)
         val txH = context.getString(R.string.export_heading_transcript)
         val actH = context.getString(R.string.export_heading_actions)
@@ -1991,6 +1996,10 @@ private fun TranscribeScreen(
     // prose SUMMARY/ACTIONS cards and the v2 NOTES sections all need the same callback.
     val anchorSeek: ((Int) -> Unit)? = if (audioUri != null) ({ ms -> seekAndPlay(ms) }) else null
     val summaryCards: @Composable () -> Unit = {
+        CompositionLocalProvider(
+            studio.voxsum.ui.LocalSpeakerRefs provides { t -> refs(t) ?: t },
+            studio.voxsum.ui.LocalSpeakerNames provides utterances.mapNotNull { it.speaker }.toSet().associateWith(speakerLabel),
+        ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             // The reading agent at work (live during recording/processing; stays after as a log).
             val shownAgent = if (watchingQueue) queueAgent else agent
@@ -2009,7 +2018,7 @@ private fun TranscribeScreen(
                     onCancel = { editingSummary = false },
                     onCopy = {
                         val cm = context.getSystemService(android.content.ClipboardManager::class.java)
-                        cm?.setPrimaryClip(android.content.ClipData.newPlainText("VoxSum summary", s))
+                        cm?.setPrimaryClip(android.content.ClipData.newPlainText("VoxSum summary", refs(s)))
                         scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.summary_copied)) }
                     },
                     onSeek = anchorSeek, showHeading = twoPane)
@@ -2025,7 +2034,7 @@ private fun TranscribeScreen(
                     onCancel = { editingActions = false },
                     onCopy = {
                         val cm = context.getSystemService(android.content.ClipboardManager::class.java)
-                        cm?.setPrimaryClip(android.content.ClipData.newPlainText("VoxSum action items", ai))
+                        cm?.setPrimaryClip(android.content.ClipData.newPlainText("VoxSum action items", refs(ai)))
                         scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.action_items_copied)) }
                     },
                     onSeek = anchorSeek)
@@ -2057,6 +2066,7 @@ private fun TranscribeScreen(
                     modifier = Modifier.padding(top = 24.dp),
                 )
             }
+        }
         }
     }
     val overviewCards: @Composable () -> Unit = {
@@ -2238,7 +2248,7 @@ private fun TranscribeScreen(
                 cover = null,   // no per-session art (the generated identicon was removed)
                 // The title lives in the top bar on every tab (tap it to edit); the two-pane overview
                 // carries its own title card, so the bar stays blank there.
-                title = if (twoPane && !title.isNullOrBlank()) "" else title ?: entryTitle,
+                title = if (twoPane && !title.isNullOrBlank()) "" else refs(title) ?: entryTitle,
                 onTitleClick = if (!twoPane && !title.isNullOrBlank() && !running) ({ sessTab = 0; editingTitle = true }) else null,
                 status = status,
                 running = running,
@@ -2668,7 +2678,7 @@ private fun TitleCard(
         } else {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    title,
+                    studio.voxsum.ui.LocalSpeakerRefs.current(title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = pal.Slate200,
@@ -2696,7 +2706,11 @@ private fun CollapsibleMarkdown(
     var expanded by remember(text) { mutableStateOf(false) }
     var overflowed by remember(text) { mutableStateOf(false) }
     Text(
-        renderMarkdown(text, anchorColor = if (onSeek != null) pal.Sky else null, onSeek = onSeek),
+        // Speaker names (already resolved from the model's S1, S2) in their transcript colour.
+        studio.voxsum.ui.colorSpeakerNames(
+            renderMarkdown(text, anchorColor = if (onSeek != null) pal.Sky else null, onSeek = onSeek),
+            studio.voxsum.ui.LocalSpeakerNames.current,
+        ) { id -> Color(speakerColorOn(id, pal.isDark)) },
         style = MaterialTheme.typography.bodyMedium,
         color = pal.Slate200,
         maxLines = if (expanded) Int.MAX_VALUE else collapsedMaxLines,
@@ -2746,7 +2760,7 @@ private fun SummaryCard(
         if (isEditing) {
             UtteranceTextEditor(initial = summary, onSave = onSave, onCancel = onCancel, minLines = 4)
         } else {
-            CollapsibleMarkdown(summary, collapsedMaxLines = 12, onBeginEdit = onBeginEdit, onSeek = onSeek)
+            CollapsibleMarkdown(studio.voxsum.ui.LocalSpeakerRefs.current(summary), collapsedMaxLines = 12, onBeginEdit = onBeginEdit, onSeek = onSeek)
         }
         // Faithfulness caution — UI chrome only, never part of the exported summary text.
         // The shipped summarizer is a PLACEHOLDER running un-fine-tuned base weights, which can
@@ -2791,7 +2805,7 @@ private fun ActionItemsCard(
         if (isEditing) {
             UtteranceTextEditor(initial = text, onSave = onSave, onCancel = onCancel, minLines = 3)
         } else {
-            CollapsibleMarkdown(text, collapsedMaxLines = 8, onBeginEdit = onBeginEdit, onSeek = onSeek)
+            CollapsibleMarkdown(studio.voxsum.ui.LocalSpeakerRefs.current(text), collapsedMaxLines = 8, onBeginEdit = onBeginEdit, onSeek = onSeek)
             // Verify affordance (integration note §7): about one action item in five is not
             // supported by the transcript — each time jumps to what was actually said.
             Spacer(Modifier.height(6.dp))

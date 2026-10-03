@@ -54,6 +54,35 @@ import studio.voxsum.core.reader.ReaderProtocol
 import studio.voxsum.ui.theme.LocalVoxSumPalette
 import studio.voxsum.ui.theme.VoxSumPalette
 
+/** Model-written text as shown: S1, S2 → the transcript's speaker names ([studio.voxsum.core.reader.SpeakerRefs]).
+ *  Provided by the session and capture screens; identity elsewhere (showcases, tests). */
+val LocalSpeakerRefs = androidx.compose.runtime.staticCompositionLocalOf<(String) -> String> { { it } }
+
+/** Speaker id → the name shown for it: the summary cards set those names in the speaker's colour. */
+val LocalSpeakerNames = androidx.compose.runtime.staticCompositionLocalOf<Map<Int, String>> { emptyMap() }
+
+/** [base] with every shown speaker name in bold and its transcript colour ("語者 1" not inside "語者 10"). */
+fun colorSpeakerNames(
+    base: androidx.compose.ui.text.AnnotatedString, names: Map<Int, String>, color: (Int) -> androidx.compose.ui.graphics.Color,
+): androidx.compose.ui.text.AnnotatedString {
+    if (names.isEmpty()) return base
+    val t = base.text
+    return androidx.compose.ui.text.AnnotatedString.Builder(base).apply {
+        names.forEach { (id, name) ->
+            if (name.isBlank()) return@forEach
+            var i = t.indexOf(name)
+            while (i >= 0) {
+                val end = i + name.length
+                if (end >= t.length || !(name.last().isDigit() && t[end].isDigit())) addStyle(
+                    androidx.compose.ui.text.SpanStyle(color = color(id), fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
+                    i, end,
+                )
+                i = t.indexOf(name, end)
+            }
+        }
+    }.toAnnotatedString()
+}
+
 /**
  * Live state of the meeting-reading agent, folded from [AgentEvent]s: what it is doing now, one
  * [Step] per window it read (and per restart), the reply it is streaming, the notes it kept, and a
@@ -452,7 +481,7 @@ private fun NoteCard(n: Note, onSeek: ((Int) -> Unit)?) {
         // The error-prone types (note §7: decisions, actions, figures) carry a "verify" link.
         val verify = fullTag(n.tag ?: "") in setOf("DECISION", "ACTION", "NUMBER") && onSeek != null
         Text(
-            n.text,
+            LocalSpeakerRefs.current(n.text),
             style = MaterialTheme.typography.bodySmall, color = pal.Slate200,
             maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
         )
@@ -677,7 +706,7 @@ fun AgentStrip(agent: AgentUiState, modifier: Modifier = Modifier) {
                 Spacer(Modifier.width(8.dp))
                 note.tag?.takeIf { it != "-" }?.let { TagChip(it); Spacer(Modifier.width(6.dp)) }
                 Text(
-                    note.text,
+                    LocalSpeakerRefs.current(note.text),
                     style = MaterialTheme.typography.bodySmall, color = pal.Slate200,
                     maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
                 )

@@ -51,13 +51,6 @@ class SettingsContentTest {
         }
     }
 
-    @Test fun selectingAsrBackendReportsIt() {
-        var changed: TranscriptionConfig? = null
-        host(onChange = { changed = it })
-        compose.onNodeWithText(AsrBackend.XASR.shortName).performScrollTo().performClick()
-        assertEquals(AsrBackend.XASR.id, changed?.asrBackend)
-    }
-
     @Test fun selectingChineseScriptReportsIt() {
         var changed: TranscriptionConfig? = null
         host(onChange = { changed = it })
@@ -65,9 +58,10 @@ class SettingsContentTest {
         assertEquals(SummaryScript.SIMPLIFIED.id, changed?.summaryScript)
     }
 
-    @Test fun disabledStateDisablesTheModelCards() {
+    // While a run is going the sheet is read-only (there is no engine picker any more).
+    @Test fun disabledStateDisablesTheSettings() {
         host(enabled = false)
-        compose.onNodeWithText(AsrBackend.XASR.shortName).assertIsNotEnabled()
+        compose.onNodeWithText(androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext.getString(studio.voxsum.R.string.settings_show_actions)).performScrollTo().assertIsNotEnabled()
     }
 
     @Test fun aboutSectionShowsTheAppVersion() {

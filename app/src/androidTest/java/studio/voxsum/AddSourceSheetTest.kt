@@ -36,19 +36,13 @@ class AddSourceSheetTest {
         }
     }
 
-    @Test fun rendersAllFiveSources() {
+    // Recording is the Studio's big button now; the sheet only adds existing audio.
+    @Test fun rendersAllFourSources() {
         host(Spies())
-        listOf(R.string.source_audio_file, R.string.source_record, R.string.source_podcast,
+        listOf(R.string.source_audio_file, R.string.source_podcast,
             R.string.source_youtube, R.string.source_session).forEach {
             compose.onNodeWithText(ctx.getString(it)).assertIsDisplayed()
         }
-    }
-
-    @Test fun tappingRecordFiresRecordAndDismiss() {
-        val s = Spies(); host(s)
-        compose.onNodeWithText(ctx.getString(R.string.source_record)).performClick()
-        assertTrue("onRecord", s.record)
-        assertTrue("onDismiss", s.dismiss)
     }
 
     @Test fun tappingPodcastFiresPodcast() {

@@ -127,6 +127,7 @@
     <string name="svc_downloading_models_pct">Downloading models… %d%%</string>
     <string name="svc_downloading_named">Downloading %1$s…</string>
     <string name="svc_summarization_model_pct">Summarization model… %d%%</string>
+    <string name="svc_preparing_named">Preparing %1$s (once, about a minute)…</string>
     <string name="svc_summarizing">Summarizing…</string>
     <string name="show_more">Show more</string>
     <string name="show_less">Show less</string>

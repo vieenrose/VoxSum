@@ -71,6 +71,8 @@ import java.io.File
 /** Total RAM from which ASR + diarization and the reader run concurrently (integration note §6
  *  gates live mode at "8 GB"). An 8 GB phone reports ~7.4 GiB of totalMem (the OPPO Reno7:
  *  7,728,400 kB), so the gate is 7 GiB: every 8 GB phone passes, 6 GB phones do not. */
+/** The mobile reader's XNNPACK weight cache, next to its weights. */
+private const val WEIGHT_CACHE = "weights.xnnpack_cache"
 private const val LIVE_READER_MIN_RAM = 7L * 1024 * 1024 * 1024
 /** How often a live reading task picks up the newest transcript snapshot. */
 private const val LIVE_FEED_MS = 400L
@@ -1574,7 +1576,7 @@ class TranscriptionService : LifecycleService() {
         val main = File(dir, spec.mainFile)
         val engine = studio.voxsum.core.llm.MfaEngine.load(
             main.parentFile!!.path, ctx = spec.maxCtx, threads = asrThreads(),
-            weightCache = File(dir, "weights.xnnpack_cache").path,
+            weightCache = File(dir, WEIGHT_CACHE).path,
         )
         val tok = studio.voxsum.core.llm.SpTokenizer.load(File(dir, spec.tokenizerFile).path)
         val session = studio.voxsum.core.llm.MfaSession(engine, tok, spec.sampler.topK, spec.sampler.topP)
@@ -1731,6 +1733,30 @@ class TranscriptionService : LifecycleService() {
                 models.ensureLlmModel(spec) { frac -> reportDownload(gen, "llm", R.string.svc_summarization_model_pct, frac) }
             } finally { dlEnd("llm"); downloadsDone(gen) }
         }
+        prepareWeights(spec, models)
+    }
+
+    /**
+     * Build the XNNPACK weight cache once, right after the download and on its own (integration
+     * note §13.2): the first load of a mobile graph repacks every weight — seconds for E2B, longer
+     * for E4B, with a memory peak — so it is not left to the load that starts the reading. A
+     * failed build leaves no partial cache behind.
+     */
+    private suspend fun prepareWeights(spec: LlmSpec, models: ModelManager) {
+        val dir = models.llmDir(spec)
+        val cache = File(dir, WEIGHT_CACHE)
+        if (cache.exists()) return
+        emitDownloadStatus(getString(R.string.svc_preparing_named, spec.displayName))
+        try {
+            withContext(Dispatchers.Default) {
+                studio.voxsum.core.llm.MfaEngine.load(
+                    File(dir, spec.mainFile).parentFile!!.path, ctx = spec.maxCtx, threads = asrThreads(),
+                    weightCache = cache.path,
+                ).close()
+            }
+        } catch (e: Throwable) {
+            cache.delete(); throw e
+        } finally { downloadsDone(currentGen()) }
     }
 
     /** Re-summarize an existing transcript (no re-decode / re-ASR). Keeps the existing title unless

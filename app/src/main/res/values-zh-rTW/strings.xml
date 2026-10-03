@@ -122,6 +122,7 @@
     <string name="svc_downloading_models_pct">正在下載模型… %d%%</string>
     <string name="svc_downloading_named">正在下載 %1$s…</string>
     <string name="svc_summarization_model_pct">摘要模型… %d%%</string>
+    <string name="svc_preparing_named">正在準備 %1$s（僅首次，約一分鐘）…</string>
     <string name="svc_summarizing">摘要中…</string>
     <string name="show_more">顯示更多</string>
     <string name="show_less">顯示較少</string>

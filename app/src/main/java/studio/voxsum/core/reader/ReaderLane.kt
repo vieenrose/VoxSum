@@ -18,11 +18,11 @@ import kotlin.math.floor
 class ReaderLane(
     private val llm: ReaderLlm,
     private val systemPrompt: String,
-    private val events: (AgentEvent) -> Unit,
     budget: ReaderBudget = ReaderBudget.STANDARD,
     /** Title and prose read the journal compacted to this many characters (0 = all of it): a whole
      *  meeting's journal does not fit a 4k context (integration note §12.3). */
     private val notesChars: Int = 0,
+    private val events: (AgentEvent) -> Unit,
 ) : AutoCloseable {
 
     private val executor = Executors.newSingleThreadExecutor { r ->

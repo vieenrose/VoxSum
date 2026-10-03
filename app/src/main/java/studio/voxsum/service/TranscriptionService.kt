@@ -1604,7 +1604,7 @@ class TranscriptionService : LifecycleService() {
         val emit: (AgentEvent) -> Unit = { ev ->
             events.tryEmit(gen to TranscriptEvent.Agent(if (conv == null) ev else ev.mapText(conv::convert)))
         }
-        val lane = ReaderLane(model.llm, model.system, emit, model.budget, model.notesChars)
+        val lane = ReaderLane(model.llm, model.system, model.budget, model.notesChars, emit)
         lane.start()
         try {
             if (task.text != null) {

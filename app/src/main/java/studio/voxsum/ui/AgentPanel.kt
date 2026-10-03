@@ -67,6 +67,9 @@ class AgentUiState {
         private set
     /** Tokens in the model's context now (moves with every prefill). */
     var ctxTokens by mutableIntStateOf(0)
+    /** Window size and context budget of the reader in use (they differ between engines). */
+    var windowMax by mutableIntStateOf(ReaderProtocol.WINDOW_TOKENS)
+    var ctxMax by mutableIntStateOf(ReaderProtocol.CTX_BUDGET)
         private set
     val notes = mutableStateListOf<Note>()
     val steps = mutableStateListOf<Step>()
@@ -123,6 +126,8 @@ class AgentUiState {
                 // notes were appended to the previous reading's and every note showed twice.
                 if (e.state == AgentState.STARTING) reset()
                 if (e.ctxTokens > 0) ctxTokens = e.ctxTokens
+                if (e.windowMax > 0) windowMax = e.windowMax
+                if (e.ctxMax > 0) ctxMax = e.ctxMax
                 if (e.window > 0 && steps.none { !it.restart && it.window == e.window }) steps += Step(e.window)
                 if (e.state == AgentState.READING) {
                     reply = ""
@@ -276,7 +281,7 @@ private fun SimpleBody(agent: AgentUiState, st: AgentEvent.State, onSeek: ((Int)
             AgentState.LISTENING -> {
                 Text(stringResource(R.string.agent_simple_listening), style = MaterialTheme.typography.bodyMedium, color = pal.Slate200)
                 LinearProgressIndicator(
-                    progress = { ((cur?.tokens ?: 0).toFloat() / ReaderProtocol.WINDOW_TOKENS).coerceIn(0f, 1f) },
+                    progress = { ((cur?.tokens ?: 0).toFloat() / agent.windowMax).coerceIn(0f, 1f) },
                     modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
                     color = pal.Sky, trackColor = pal.Slate700, strokeCap = StrokeCap.Round, drawStopIndicator = {},
                 )
@@ -289,7 +294,7 @@ private fun SimpleBody(agent: AgentUiState, st: AgentEvent.State, onSeek: ((Int)
     }
 }
 
-/** Window fill (the next reading turn fires at [ReaderProtocol.WINDOW_TOKENS]) and context budget. */
+/** Window fill (the next reading turn fires at [agent.windowMax]) and context budget. */
 @Composable
 private fun Gauges(agent: AgentUiState, st: AgentEvent.State) {
     val cur = agent.steps.lastOrNull { !it.restart }
@@ -297,12 +302,12 @@ private fun Gauges(agent: AgentUiState, st: AgentEvent.State) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Gauge(
             label = stringResource(R.string.agent_gauge_window),
-            value = cur?.tokens ?: 0, max = ReaderProtocol.WINDOW_TOKENS,
+            value = cur?.tokens ?: 0, max = agent.windowMax,
             active = st.state == AgentState.LISTENING, modifier = Modifier.fillMaxWidth(),
         )
         Gauge(
             label = stringResource(R.string.agent_gauge_context),
-            value = agent.ctxTokens, max = ReaderProtocol.CTX_BUDGET,
+            value = agent.ctxTokens, max = agent.ctxMax,
             active = false, modifier = Modifier.fillMaxWidth(),
         )
     }
@@ -657,7 +662,7 @@ fun AgentStrip(agent: AgentUiState, modifier: Modifier = Modifier) {
         }
         if (st.state == AgentState.LISTENING && cur != null) {
             LinearProgressIndicator(
-                progress = { (cur.tokens.toFloat() / ReaderProtocol.WINDOW_TOKENS).coerceIn(0f, 1f) },
+                progress = { (cur.tokens.toFloat() / agent.windowMax).coerceIn(0f, 1f) },
                 modifier = Modifier.fillMaxWidth().height(3.dp).clip(CircleShape),
                 color = pal.Sky, trackColor = pal.Slate700, strokeCap = StrokeCap.Round, drawStopIndicator = {},
             )

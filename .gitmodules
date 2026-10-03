@@ -12,3 +12,6 @@
 [submodule "native/crispasr-ggml"]
 	path = native/crispasr-ggml
 	url = https://github.com/vieenrose/ggml
+[submodule "native/sentencepiece"]
+	path = native/sentencepiece
+	url = https://github.com/google/sentencepiece.git

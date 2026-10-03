@@ -30,6 +30,8 @@ android {
                 arguments += listOf(
                     "-DANDROID_STL=c++_shared",
                     "-DCMAKE_BUILD_TYPE=Release",
+                    // libLiteRt.so for the mobile reader (mfa/), extracted from the LiteRT AAR.
+                    "-DLITERT_SO_DIR=${layout.buildDirectory.dir("litert/jni").get().asFile.absolutePath}",
                 )
             }
         }
@@ -95,6 +97,10 @@ android {
     kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
     buildFeatures { compose = true; buildConfig = true }
 
+    // Only libLiteRt.so is taken from the LiteRT AAR (no Java API, no GPU accelerator): the
+    // mobile reader's engine links it, so it is packaged as a jniLib next to libvoxsum-mfa.so.
+    sourceSets["main"].jniLibs.srcDir(layout.buildDirectory.dir("litert/jni"))
+
     packaging {
         // c++_shared is provided once; avoid duplicate libc++_shared.so clashes.
         jniLibs.pickFirsts += "**/libc++_shared.so"
@@ -145,3 +151,19 @@ dependencies {
         androidTestImplementation("androidx.compose.ui:ui-test-manifest")
     }
 }
+
+// The LiteRT runtime the mobile reader engine was built and measured against
+// (voxsumdroid-integration.md §13.1). Resolved as an artifact, never put on the classpath.
+val litertAar: Configuration by configurations.creating { isTransitive = false }
+dependencies { litertAar("com.google.ai.edge.litert:litert:2.1.6@aar") }
+
+val extractLiteRt by tasks.registering(Copy::class) {
+    from({ zipTree(litertAar.singleFile) }) {
+        include("jni/arm64-v8a/libLiteRt.so", "jni/x86_64/libLiteRt.so")
+        eachFile { path = path.removePrefix("jni/") }
+        includeEmptyDirs = false
+    }
+    into(layout.buildDirectory.dir("litert/jni"))
+}
+tasks.matching { it.name.startsWith("configureCMake") || it.name.startsWith("buildCMake") || it.name.startsWith("merge") && it.name.endsWith("JniLibFolders") }
+    .configureEach { dependsOn(extractLiteRt) }

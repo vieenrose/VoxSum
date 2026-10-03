@@ -24,6 +24,7 @@ class MeetingReader(
     private val count: (String) -> Int = { llm.tokenize(it, false).size },
     private val events: (AgentEvent) -> Unit = {},
     private val clock: () -> Long = System::nanoTime,
+    private val budget: ReaderBudget = ReaderBudget.STANDARD,
 ) {
     val journal = ArrayList<Note>()
     private val lines = ArrayList<Line>()          // every line fed so far (citation resolution)
@@ -43,17 +44,17 @@ class MeetingReader(
     fun start() {
         pieces = mapOf("p0" to P.P0, "p1" to P.P1, "p2" to P.P2, "p3" to P.P3)
             .mapValues { llm.tokenize(it.value, true) }
-        events(AgentEvent.State(AgentState.STARTING))
+        events(AgentEvent.State(AgentState.STARTING, windowMax = budget.windowTokens, ctxMax = budget.ctxBudget))
         prefillFresh(P.JOURNAL_EMPTY)
         started = true
-        events(AgentEvent.State(AgentState.LISTENING, ctxTokens = llm.seqLength()))
+        events(AgentEvent.State(AgentState.LISTENING, windowMax = budget.windowTokens, ctxMax = budget.ctxBudget, ctxTokens = llm.seqLength()))
     }
 
     /** Feed one stable transcript line (in order). May run a reading turn. */
     fun offer(line: Line) {
         check(started) { "start() first" }
         val t = count(line.render())
-        if (windowLines > 0 && windowTok + t > P.WINDOW_TOKENS) closeWindow()
+        if (windowLines > 0 && windowTok + t > budget.windowTokens) closeWindow()
         if (windowLines == 0) openWindow(line)
         // The previous segment was not the window's last: it takes its newline and is prefilled now.
         closedSeg?.let { append(it + "\n", special = false, what = "segment"); closedSeg = null }
@@ -72,17 +73,17 @@ class MeetingReader(
     fun finish(): String {
         if (windowLines > 0) closeWindow()
         // Reading is over; the summary and title calls follow (the caller reports DONE after them).
-        events(AgentEvent.State(AgentState.SUMMARIZING, ctxTokens = llm.seqLength(), notes = journal.size))
+        events(AgentEvent.State(AgentState.SUMMARIZING, windowMax = budget.windowTokens, ctxMax = budget.ctxBudget, ctxTokens = llm.seqLength(), notes = journal.size))
         return P.minutes(journal)
     }
 
     private fun openWindow(first: Line) {
-        if (llm.seqLength() + 2 * P.WINDOW_TOKENS + P.READ_MAX + 600 > P.CTX_BUDGET) restart()
+        if (llm.seqLength() + 2 * budget.windowTokens + P.READ_MAX + 600 > budget.ctxBudget) restart()
         k++
         windowTok = 0
         segEnd = first.startS + P.SEGMENT_S
         append(P.windowHeader(k), special = false, what = "window header")
-        events(AgentEvent.State(AgentState.LISTENING, window = k, ctxTokens = llm.seqLength(), notes = journal.size))
+        events(AgentEvent.State(AgentState.LISTENING, windowMax = budget.windowTokens, ctxMax = budget.ctxBudget, window = k, ctxTokens = llm.seqLength(), notes = journal.size))
     }
 
     private fun closeWindow() {
@@ -91,7 +92,7 @@ class MeetingReader(
         closedSeg = null
         segLines.clear()
         if (last.isNotEmpty()) append(last, special = false, what = "segment")
-        events(AgentEvent.State(AgentState.READING, window = k, ctxTokens = llm.seqLength(), notes = journal.size))
+        events(AgentEvent.State(AgentState.READING, windowMax = budget.windowTokens, ctxMax = budget.ctxBudget, window = k, ctxTokens = llm.seqLength(), notes = journal.size))
         val t0 = clock()
         llm.append(pieces.getValue("p2"))
         val reply = llm.generateContinue(P.READ_MAX, P.STOP, P.TEMP) { events(AgentEvent.TurnToken(k, it)) }
@@ -100,7 +101,7 @@ class MeetingReader(
         events(AgentEvent.TurnDone(k, reply, kept, (clock() - t0) / 1_000_000))
         windowLines = 0
         windowTok = 0
-        events(AgentEvent.State(AgentState.LISTENING, window = k, ctxTokens = llm.seqLength(), notes = journal.size))
+        events(AgentEvent.State(AgentState.LISTENING, windowMax = budget.windowTokens, ctxMax = budget.ctxBudget, window = k, ctxTokens = llm.seqLength(), notes = journal.size))
     }
 
     /**
@@ -159,9 +160,9 @@ class MeetingReader(
 
     private fun restart() {
         val before = llm.seqLength()
-        events(AgentEvent.State(AgentState.RESTARTING, window = k, ctxTokens = before, notes = journal.size))
+        events(AgentEvent.State(AgentState.RESTARTING, windowMax = budget.windowTokens, ctxMax = budget.ctxBudget, window = k, ctxTokens = before, notes = journal.size))
         llm.reset()
-        val compacted = P.compact(journal, count)
+        val compacted = P.compact(journal, count, budget.restartBudget)
         prefillFresh(compacted)
         restarts++
         events(AgentEvent.Restart(restarts, before, llm.seqLength()))
@@ -201,6 +202,8 @@ enum class DropReason { PARSE, CITATION, CAP, DUPLICATE }
 sealed interface AgentEvent {
     data class State(
         val state: AgentState, val window: Int = 0, val ctxTokens: Int = 0, val notes: Int = 0,
+        /** The reader's window size and context budget, for the panel's bars (0 = not given). */
+        val windowMax: Int = 0, val ctxMax: Int = 0,
     ) : AgentEvent
     /** A prefill: [what] = prefix / window header / segment. */
     data class Fed(val window: Int, val what: String, val tokens: Int, val ms: Long, val ctxTokens: Int) : AgentEvent

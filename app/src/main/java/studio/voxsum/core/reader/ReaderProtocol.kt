@@ -88,7 +88,7 @@ object ReaderProtocol {
 
     /** phone_live.compact: DECISION, then OPEN-ISSUE, then ACTION, newest first within each, then
      *  the rest newest first, within [RESTART_BUDGET] tokens; kept in chronological order. */
-    fun compact(journal: List<Note>, count: (String) -> Int): String {
+    fun compact(journal: List<Note>, count: (String) -> Int, budget: Int = RESTART_BUDGET): String {
         val key = mapOf("DECISION" to 0, "OPEN-ISSUE" to 1, "ACTION" to 2)
         val order = journal.indices.sortedWith(
             compareBy<Int>({ key[journal[it].tag?.uppercase()] ?: 3 }, { -it }),
@@ -97,7 +97,7 @@ object ReaderProtocol {
         var used = 0
         for (i in order) {
             val t = count(render(journal[i]))
-            if (used + t <= RESTART_BUDGET) { chosen += i; used += t }
+            if (used + t <= budget) { chosen += i; used += t }
         }
         val rest = journal.size - chosen.size
         val text = chosen.sorted().joinToString("\n") { render(journal[it]) } + (if (rest > 0) omitted(rest) else "")
@@ -143,3 +143,17 @@ data class Line(val startS: Int, val speaker: String?, val text: String) {
 
 /** A journal entry. [tag] is DECISION / ACTION / NUMBER / OPEN-ISSUE / "-" or null. */
 data class Note(val id: Int, val window: Int, val ts: String, val tag: String?, val text: String)
+
+/**
+ * Window size, context budget and the journal budget on restart. [STANDARD] is the llama.cpp
+ * reader's (§4: one 8k conversation kept across windows). [MOBILE] is the LiteRT mobile graphs'
+ * 4k protocol (§12.3): a 1,500-token window and a 1,200-token compacted journal — with 4k of
+ * context the restart check fires before every window, so each window is read from a fresh
+ * prompt (system, compacted journal, window), exactly the per-window protocol.
+ */
+data class ReaderBudget(val windowTokens: Int, val ctxBudget: Int, val restartBudget: Int) {
+    companion object {
+        val STANDARD = ReaderBudget(ReaderProtocol.WINDOW_TOKENS, ReaderProtocol.CTX_BUDGET, ReaderProtocol.RESTART_BUDGET)
+        val MOBILE = ReaderBudget(windowTokens = 1500, ctxBudget = 4096, restartBudget = 1200)
+    }
+}

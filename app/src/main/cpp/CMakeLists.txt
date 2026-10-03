@@ -138,3 +138,37 @@ add_subdirectory("${NATIVE_DIR}/llama.cpp" llama-build EXCLUDE_FROM_ALL)
 
 add_library(voxsum-llm SHARED llm_jni.cpp)
 target_link_libraries(voxsum-llm llama android log)
+
+
+# ---------------------------------------------------------------------------
+# Mobile meeting reader — the forked LiteRT-LM CPU engine (mfa/, vendored from
+# github.com/vieenrose/LiteRT-LM branch mobile-fused-attention, see mfa/PROVENANCE.md) running
+# Google's Gemma-4 mobile graphs (E2B, E4B) with the int8 attention fused into one custom op.
+# It links the stock libLiteRt.so of the com.google.ai.edge.litert:litert AAR, extracted by the
+# Gradle task extractLiteRt into LITERT_SO_DIR (the C headers are vendored in mfa/third_party).
+# The tokenizer is SentencePiece (native/sentencepiece submodule, static).
+# ---------------------------------------------------------------------------
+if(DEFINED LITERT_SO_DIR AND EXISTS "${LITERT_SO_DIR}/${ANDROID_ABI}/libLiteRt.so")
+    set(SPM_ENABLE_SHARED OFF CACHE BOOL "" FORCE)
+    set(SPM_ENABLE_TCMALLOC OFF CACHE BOOL "" FORCE)
+    set(SPM_BUILD_TEST OFF CACHE BOOL "" FORCE)
+    # Its CLI tools are built too (the Android Gradle plugin builds every target); its logging
+    # calls __android_log_write, so every target from here on links liblog.
+    link_libraries(log)
+    add_subdirectory("${NATIVE_DIR}/sentencepiece" sentencepiece-build EXCLUDE_FROM_ALL)
+
+    add_library(litert SHARED IMPORTED)
+    set_target_properties(litert PROPERTIES IMPORTED_LOCATION "${LITERT_SO_DIR}/${ANDROID_ABI}/libLiteRt.so")
+
+    add_library(voxsum-mfa SHARED mfa/mfa_jni.cpp mfa/mfa_engine.cc mfa/i8_attn.cc)
+    target_compile_features(voxsum-mfa PRIVATE cxx_std_17)
+    target_compile_options(voxsum-mfa PRIVATE -O3 -fexceptions -fopenmp)
+    if(ANDROID_ABI STREQUAL "arm64-v8a")
+        target_compile_options(voxsum-mfa PRIVATE -march=${VOXSUM_ARM_ARCH})
+    endif()
+    target_include_directories(voxsum-mfa PRIVATE mfa mfa/third_party "${NATIVE_DIR}/sentencepiece/src")
+    target_link_options(voxsum-mfa PRIVATE -fopenmp -static-openmp)
+    target_link_libraries(voxsum-mfa litert sentencepiece-static android log)
+else()
+    message(WARNING "libLiteRt.so not found under LITERT_SO_DIR — the mobile reader is not built")
+endif()

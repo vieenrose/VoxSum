@@ -100,7 +100,9 @@ flowchart TD
 | Podcast → 搜尋 → 節目 → 轉錄 | ＋ → Podcast | 列出單集，下載並轉錄所選單集 | ✅ 自動（SourceSheetsTest，搜尋）；⬜ 轉錄 |
 | YouTube → 搜尋或貼上連結 | ＋ → YouTube | 搜尋結果或直接前往影片，取得音訊並轉錄 | ✅ 自動（SourceSheetsTest，搜尋）；⬜ 轉錄 |
 | 開啟工作階段（.ogg / .m4a） | ＋ → 開啟工作階段 | 開啟先前匯出的 VoxSum 檔，含逐字稿與摘要 | ✅ 手動、✅ 自動（AddSourceSheetTest） |
-| 從其他 App 分享 | 其他 App → 分享 → VoxSum | 處理中時詢問「匯入這個檔案？」 | ⬜ |
+| 從其他 App 分享 | 其他 App → 分享 → VoxSum | 閒置時直接轉錄；處理中時詢問「匯入這個檔案？」（匯入會中斷處理） | ✅ 手動 |
+
+<img src="guide/26-import-confirm.png" width="270" alt="匯入確認">
 
 ## 5. 錄音室
 
@@ -209,7 +211,7 @@ flowchart TD
 
 ### 尚未驗證（⬜）的節點
 
-停止處理（處理中的列）、更新橫幅、Podcast 與 YouTube 的實際轉錄、從其他 App 分享時的匯入確認、語者標註延遲、模型刪除。
+停止處理（處理中的列）、更新橫幅、Podcast 與 YouTube 的實際轉錄、語者標註延遲、模型刪除。
 
 ### 如何重跑自動測試
 

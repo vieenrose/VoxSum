@@ -336,6 +336,7 @@
     <string name="err_no_decoder">This device has no decoder for %1$s audio</string>
     <string name="err_decode_failed">This device could not decode %1$s audio</string>
     <string name="err_youtube_no_stream">No audio stream available for this video (it may be region- or login-gated).</string>
+    <string name="err_youtube_live">Live streams can\'t be transcribed; pick a regular video.</string>
     <string name="network_error">Network error — check your connection and try again.</string>
     <plurals name="podcast_episodes">
         <item quantity="one">%d episode</item>

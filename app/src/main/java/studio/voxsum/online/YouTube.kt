@@ -117,6 +117,10 @@ object YouTube {
     suspend fun resolve(ctx: Context, url: String): YouTubeAudio = withContext(Dispatchers.IO) {
         ensureInit()
         val info = StreamInfo.getInfo(ServiceList.YouTube, url.trim())
+        // A live stream has no end: its audio URL yielded a few seconds and a junk session.
+        if (info.streamType == org.schabi.newpipe.extractor.stream.StreamType.LIVE_STREAM ||
+            info.streamType == org.schabi.newpipe.extractor.stream.StreamType.AUDIO_LIVE_STREAM
+        ) error(ctx.getString(studio.voxsum.R.string.err_youtube_live))
         val streams = info.audioStreams.filter { !it.content.isNullOrBlank() }
         if (streams.isEmpty()) {
             error(ctx.getString(studio.voxsum.R.string.err_youtube_no_stream))

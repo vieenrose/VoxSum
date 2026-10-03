@@ -331,6 +331,7 @@
     <string name="err_no_decoder">此裝置無法解碼 %1$s 音訊（沒有對應的解碼器）</string>
     <string name="err_decode_failed">此裝置無法解碼 %1$s 音訊</string>
     <string name="err_youtube_no_stream">此影片沒有可用的音訊串流（可能受地區或登入限制）。</string>
+    <string name="err_youtube_live">直播無法轉錄，請選擇一般影片。</string>
     <string name="network_error">網路錯誤——請檢查連線後再試一次。</string>
     <plurals name="podcast_episodes">
         <item quantity="other">%d 集</item>

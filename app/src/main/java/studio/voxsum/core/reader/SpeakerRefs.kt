@@ -25,9 +25,10 @@ object SpeakerRefs {
             // Chinese takes no space before a Chinese name: "而 S1 則" → "而語者 1 則".
             val glued = m.range.first >= 2 && text[m.range.first - 1] == ' ' &&
                 isHan(text[m.range.first - 2]) && name.isNotEmpty() && isHan(name[0])
-            // A Latin name ("Speaker 1", "Mary") runs into the Chinese after it: "Speaker 1將…" → "Speaker 1 將…".
+            // A name ending in a digit or a Latin letter ("語者 1", "Speaker 1", "Mary") runs into the
+            // Chinese after it: "語者 1將…" → "語者 1 將…", as the spacing of the name itself reads.
             val end = m.range.last + 1
-            val spaced = name.isNotEmpty() && name[0] in 'A'..'z' && !isHan(name.last()) && end < text.length && isHan(text[end])
+            val spaced = name.isNotEmpty() && name.last().isLetterOrDigit() && !isHan(name.last()) && end < text.length && isHan(text[end])
             (if (glued) "\u0000" else "") + wrap(name) + (if (spaced) " " else "")
         }.replace(" \u0000", "")
 

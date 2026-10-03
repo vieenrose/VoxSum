@@ -12,7 +12,7 @@ class SpeakerRefsTest {
             SpeakerRefs.resolve("S2 負責聯絡攝影師，S1 回覆樂團", zh, setOf(0, 1)))
 
     @Test fun replacesRefsGluedToHanAndPunctuation() =
-        assertEquals("由語者 2負責（語者 1）", SpeakerRefs.resolve("由S2負責（S1）", zh))
+        assertEquals("由語者 2 負責（語者 1）", SpeakerRefs.resolve("由S2負責（S1）", zh))
 
     @Test fun leavesCodesAndWordsAlone() =
         assertEquals("S20X AS2 S2B iOS2", SpeakerRefs.resolve("S20X AS2 S2B iOS2", zh))
@@ -30,7 +30,7 @@ class SpeakerRefsTest {
         assertEquals("而 Mary 則回覆", SpeakerRefs.resolve("而 S1 則回覆", { "Mary" }))
 
     @Test fun wrapsForMarkdown() =
-        assertEquals("而**語者 1**則", SpeakerRefs.resolve("而 S1則", zh, wrap = { "**$it**" }))
+        assertEquals("而**語者 1** 則", SpeakerRefs.resolve("而 S1則", zh, wrap = { "**$it**" }))
 
     @Test fun spaceAfterALatinNameBeforeChinese() =
         assertEquals("由 Speaker 1 負責，Mary 將回覆", SpeakerRefs.resolve("由 S1負責，S2將回覆", { if (it == 0) "Speaker 1" else "Mary" }))

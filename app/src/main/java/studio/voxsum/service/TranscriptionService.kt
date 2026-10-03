@@ -1347,9 +1347,14 @@ class TranscriptionService : LifecycleService() {
         listOf(cfg.asrBackend, cfg.asrModelId, cfg.summaryScript).joinToString("|")
 
     /** The streaming ASR + diarization engine (nemo-x-asr-diarizer). */
-    private fun createEngine(models: ModelManager) = NemoStreamEngine(
-        models.asrFiles(), asrThreads(), TranscriptionConfig.Holder.config.speakerDelaySec,
-    )
+    private fun createEngine(models: ModelManager): NemoStreamEngine {
+        // audio.cpp caches converted GGUF tensors under std::filesystem::temp_directory_path(),
+        // which is $TMPDIR or /data/local/tmp — writable on some phones (OPPO, the emulator) but
+        // not on others (Galaxy Note 10+, Android 12: "create_directories: Permission denied"),
+        // where the engine never loaded and nothing was transcribed. Point it at our own cache.
+        runCatching { android.system.Os.setenv("TMPDIR", cacheDir.absolutePath, true) }
+        return NemoStreamEngine(models.asrFiles(), asrThreads(), TranscriptionConfig.Holder.config.speakerDelaySec)
+    }
 
     /** Raw PCM16 of one of our own 16 kHz mono work WAVs, as float blocks. */
     private fun wavChunks(wav: File) = kotlinx.coroutines.flow.flow {

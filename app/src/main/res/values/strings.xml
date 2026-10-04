@@ -204,7 +204,10 @@
     <string name="cd_line_actions">Line actions</string>
     <string name="speaker_move_line">Move line to</string>
     <string name="speaker_merge_into">Merge speaker into</string>
-    <string name="status_session_loaded">Loaded session — %d lines</string>
+    <plurals name="status_session_loaded">
+        <item quantity="one">Loaded session — %d line</item>
+        <item quantity="other">Loaded session — %d lines</item>
+    </plurals>
 
     <!-- Background reliability (Settings section) -->
     <string name="settings_background">Background reliability</string>

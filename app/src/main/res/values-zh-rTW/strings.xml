@@ -186,7 +186,9 @@
     <string name="cd_line_actions">此句操作</string>
     <string name="speaker_move_line">將此句移至</string>
     <string name="speaker_merge_into">合併語者至</string>
-    <string name="status_session_loaded">已載入場次 — %d 行</string>
+    <plurals name="status_session_loaded">
+        <item quantity="other">已載入場次 — %d 行</item>
+    </plurals>
 
     <!-- 背景可靠性（設定區） -->
     <string name="settings_background">背景可靠性</string>

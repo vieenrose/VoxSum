@@ -1382,7 +1382,7 @@ private fun TranscribeScreen(
             watchingQueue = false
             screen = Screen.Session
             status = if (loaded.utterances.isEmpty()) ""   // the tabs say "no speech" themselves
-                     else context.getString(R.string.status_session_loaded, loaded.utterances.size)
+                     else context.resources.getQuantityString(R.plurals.status_session_loaded, loaded.utterances.size, loaded.utterances.size)
             RecentSessions.add(context, uri.toString(), loaded.title ?: "", System.currentTimeMillis()); recentsVersion++
           } finally {
             // Clear only if still the current open — a newer openSessionUri owns the flag otherwise.

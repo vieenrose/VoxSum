@@ -55,6 +55,9 @@ echo ">> device $SERIAL ($ABI)"
 
 APK="$ROOT/app/build/outputs/apk/debug/app-debug.apk"
 TEST_APK="$ROOT/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
+# The isolated app may already be in use for manual testing (its sessions and ~1.7 GB of models):
+# keep it afterwards if it was there before this run.
+had_app=$("$ADB" -s "$SERIAL" shell pm list packages studio.voxsum.androidtest | grep -cx 'package:studio.voxsum.androidtest' || true)
 echo ">> installing (alongside any release build)"
 "$ADB" -s "$SERIAL" install -r -t "$APK" >/dev/null
 "$ADB" -s "$SERIAL" install -r -t "$TEST_APK" >/dev/null
@@ -123,5 +126,9 @@ fi
 # Clean up so the isolated copy's models do not sit on the device forever.
 echo ">> uninstalling the isolated test build"
 "$ADB" -s "$SERIAL" uninstall studio.voxsum.androidtest.test >/dev/null 2>&1 || true
-"$ADB" -s "$SERIAL" uninstall studio.voxsum.androidtest >/dev/null 2>&1 || true
+if [ "$had_app" = 0 ]; then
+  "$ADB" -s "$SERIAL" uninstall studio.voxsum.androidtest >/dev/null 2>&1 || true
+else
+  echo ">> kept studio.voxsum.androidtest (installed before this run, with its data)"
+fi
 echo ">> done — the installed release build was never touched"

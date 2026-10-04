@@ -2019,7 +2019,7 @@ private fun TranscribeScreen(
     // Reads config, which the session-load path has already patched with the ids that ACTUALLY
     // produced this transcript — so reopening an old session does not mislabel it with today's
     // default backend.
-    val asrDisplay = AsrBackend.fromId(sessionModels?.third ?: config.asrBackend).displayName
+    val asrDisplay = AsrBackend.fromId(sessionModels?.third ?: config.asrBackend).shortName
     val diarizationDisplay = stringResource(R.string.pipeline_diar_nemotron)
 
     // The utterance list — shared by the portrait (single column) and landscape (right pane) layouts.

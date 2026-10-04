@@ -120,12 +120,7 @@ class ReaderLane(
             "只寫筆記裡有的內容；提到某件事時在句尾附上筆記的時間，例如 [1:23]。" }
         if (llm.append(toks) < 0) return@withContext null
         val raw = llm.generateContinue(PROSE_MAX, "<turn|>", ReaderProtocol.TEMP) {}
-        val known = journal.map { it.ts }.toSet()
-        val text = raw.substringBefore("<turn|>")
-            .replace(Regex("""\[(\d+:\d{2}(?::\d{2})?)\]""")) { m -> if (m.groupValues[1] in known) m.value else "" }
-            .lines().map { it.trim().removePrefix("#").trim() }.filter { it.isNotEmpty() && !it.startsWith("-") && !it.startsWith("*") }
-            .joinToString("\n\n")
-        text.takeIf { it.length >= 20 }
+        cleanProse(raw, journal.map { it.ts }.toSet())
     }
 
     private fun notesFor(journal: List<Note>, chars: Int = notesChars): List<Note> =
@@ -156,6 +151,24 @@ class ReaderLane(
 
     companion object {
         const val PROSE_MAX = 600
+
+        /** The prose reply made presentable: unknown `[ts]` stripped (with the space it leaves before
+         *  punctuation), no headings or bullets, and a reply cut off by [PROSE_MAX] (no end-of-turn)
+         *  ends at its last whole sentence — a long meeting's summary stopped mid-word on "[12:28". */
+        fun cleanProse(raw: String, known: Set<String>): String? {
+            val ended = raw.contains("<turn|>")
+            var text = raw.substringBefore("<turn|>")
+                .replace(Regex("""\[(\d+:\d{2}(?::\d{2})?)\]""")) { m -> if (m.groupValues[1] in known) m.value else "" }
+                .replace(Regex("""[ \t]+([。，、；：！？.,;:!?])"""), "$1")
+                .lines().map { it.trim().removePrefix("#").trim() }.filter { it.isNotEmpty() && !it.startsWith("-") && !it.startsWith("*") }
+                .joinToString("\n\n")
+            if (!ended) {
+                // The last sentence end, with the timestamp that may follow it ("…。 [1:23]" / "… [1:23]。").
+                val end = Regex("""[。！？!?](\s*\[\d+:\d{2}(?::\d{2})?\])?|[.](?=\s|$)""").findAll(text).lastOrNull()
+                if (end != null) text = text.substring(0, end.range.last + 1).trim()
+            }
+            return text.takeIf { it.length >= 20 }
+        }
 
         /** An utterance as the model reads it (ingest.segments_to_lines): cleaned text, `S{n}`
          *  speaker labels in first-appearance order (the engine's own numbering), whole seconds. */

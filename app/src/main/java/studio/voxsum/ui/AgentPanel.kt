@@ -230,6 +230,10 @@ fun AgentPanel(agent: AgentUiState, onSeek: ((Int) -> Unit)? = null, modifier: M
     // Simple view by default: state, one plain progress bar, the notes. The detailed view (token
     // gauges, per-window timeline, activity log) is one tap away for those who want the process.
     var detailed by remember { mutableStateOf(false) }
+    // A reopened meeting keeps its notes but not the windows or the log: the detailed view would
+    // show an empty timeline (the notes gone) and an "activity (0)" log, so it isn't offered.
+    val hasProcess = agent.windowsRead > 0 || agent.log.isNotEmpty()
+    if (!hasProcess) detailed = false
     Column(modifier.fillMaxWidth().animateContentSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(
             Modifier.fillMaxWidth().clickable { expanded = !expanded },
@@ -272,12 +276,12 @@ fun AgentPanel(agent: AgentUiState, onSeek: ((Int) -> Unit)? = null, modifier: M
                 style = MaterialTheme.typography.labelLarge, color = pal.Sky,
                 modifier = Modifier.clickable { expanded = false }.padding(vertical = 4.dp),
             )
-            Text(
+            if (hasProcess) Text(
                 stringResource(if (detailed) R.string.agent_view_simple else R.string.agent_view_detailed),
                 style = MaterialTheme.typography.labelLarge, color = pal.Slate400,
                 modifier = Modifier.clickable { detailed = !detailed; if (!detailed) showLog = false }.padding(vertical = 4.dp),
             )
-            if (detailed) Text(
+            if (detailed && agent.log.isNotEmpty()) Text(
                 stringResource(if (showLog) R.string.agent_hide_log else R.string.agent_show_log, agent.log.size),
                 style = MaterialTheme.typography.labelLarge, color = pal.Slate400,
                 modifier = Modifier.clickable { showLog = !showLog }.padding(vertical = 4.dp),

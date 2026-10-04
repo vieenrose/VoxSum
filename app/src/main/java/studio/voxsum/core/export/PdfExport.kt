@@ -47,7 +47,9 @@ object PdfExport {
         }
         // "-" is the extractor's own "nothing found" marker, not an action item.
         actionItems?.trim()?.takeIf { it.isNotEmpty() && it != "-" }?.let {
-            pager.block(actionsHeading ?: "Action items", headingPaint); pager.gap(4f)
+            // No heading given = the block carries its own (as in the text exports): an English
+            // "Action items" stood above the localized one in a Chinese PDF.
+            actionsHeading?.let { h -> pager.block(h, headingPaint); pager.gap(4f) }
             pager.block(it, bodyPaint); pager.gap(14f)
         }
         pager.block(transcriptHeading, headingPaint); pager.gap(4f)

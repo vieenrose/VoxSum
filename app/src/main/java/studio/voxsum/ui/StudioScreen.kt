@@ -78,7 +78,11 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.font.FontWeight
@@ -457,13 +461,21 @@ fun StudioScreen(
     }
 
     renameFor?.let { e ->
-        var name by remember(e.id) { mutableStateOf(e.title ?: SessionLibrary.defaultTitle(e.createdAt)) }
+        // The whole name starts selected: typing replaces it, and the cursor is not left at the start.
+        var field by remember(e.id) {
+            val t = e.title ?: SessionLibrary.defaultTitle(e.createdAt)
+            mutableStateOf(TextFieldValue(t, TextRange(0, t.length)))
+        }
+        val name = field.text
+        val focus = remember { FocusRequester() }
+        LaunchedEffect(e.id) { focus.requestFocus() }
         AlertDialog(
             onDismissRequest = { renameFor = null },
             title = { Text(stringResource(R.string.action_rename)) },
             text = {
                 OutlinedTextField(
-                    value = name, onValueChange = { name = it }, singleLine = true,
+                    value = field, onValueChange = { field = it }, singleLine = true,
+                    modifier = Modifier.focusRequester(focus),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = pal.Slate200, unfocusedTextColor = pal.Slate200,
                         focusedBorderColor = pal.Sky, unfocusedBorderColor = pal.Slate700,

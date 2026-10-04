@@ -266,11 +266,25 @@ class TranscriptionService : LifecycleService() {
     /** Emit a UI event stamped with the current coroutine's run generation ([UNTAGGED] outside a job). */
     private suspend fun emitEvent(e: TranscriptEvent) {
         if (e is TranscriptEvent.Status) phaseStatus = e.message
+        // The notification follows the work (it stayed on "Preparing…" through a whole import with the
+        // screen off), with the percentage; a download in flight keeps its own line.
+        if (!notifRecording && downloads.isIdle()) when (e) {
+            is TranscriptEvent.Status -> { lastNotifPct = -1; updateNotification(e.message) }
+            is TranscriptEvent.Progress -> {
+                val pct = (e.fraction * 100).toInt().coerceIn(0, 100)
+                val base = phaseStatus
+                if (pct != lastNotifPct && base != null && pct > 0) {
+                    lastNotifPct = pct; updateNotification("$base $pct%")
+                }
+            }
+            else -> {}
+        }
         events.emit((kotlin.coroutines.coroutineContext[RunGen]?.gen ?: UNTAGGED) to e)
     }
 
     /** The last status of the actual work (transcribing, summarizing…), never a download's. */
     @Volatile private var phaseStatus: String? = null
+    @Volatile private var lastNotifPct = -1
 
     /** A download's own status line; it must not become the one we return to afterwards. */
     private suspend fun emitDownloadStatus(text: String) {

@@ -51,6 +51,12 @@ class OpenCcConverterTest {
     }
 
     /** 地點選在… is 地點 + 選在, not 地 + 點選 ("click" → 点击): seen live as "地点击在信义区". */
+    /** 執行 is "carry out", not "run" (运行): seen live as the title "会议决议与运行细节". */
+    @Test fun carryingOutIsNotRunning() {
+        assertEquals("会议决议与执行细节", t2s.convert("會議決議與執行細節"))
+        assertEquals("多线程", t2s.convert("多執行緒"))   // the longer Taiwan term still converts
+    }
+
     @Test fun aPlaceIsNotAClick() {
         assertEquals("地点选在信义区饭店", t2s.convert("地點選在信義區飯店"))
         assertEquals("请点击这里", t2s.convert("請點選這裡"))   // the real Taiwan "click" still converts

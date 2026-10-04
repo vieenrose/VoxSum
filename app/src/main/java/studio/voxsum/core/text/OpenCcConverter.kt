@@ -151,6 +151,9 @@ class OpenCcConverter private constructor(
             // 地 + 點選 (seen live: "地点击在信义区"). Longest match from the left prefers these
             // longer keys, which stay as they are for t2s.
             NOUN_THEN_SELECT.forEach { twRev[it] = it }
+            // 執行 is "carry out" (a plan, a decision) far more often than "run" (a program) in a
+            // meeting, and mainland Chinese says 执行 too: "執行細節" became "运行细节".
+            twRev["執行"] = "執行"
             val t2s = HashMap<String, String>(8192)
             loadInto(context, "opencc/TSPhrases.txt", t2s)
             loadInto(context, "opencc/TSCharacters.txt", t2s)

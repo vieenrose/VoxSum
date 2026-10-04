@@ -149,13 +149,13 @@ val EinkColors = VoxSumColors(
     Slate600 = Color(0xFF000000),
     Slate400 = Color(0xFF333333),
     Slate200 = Color(0xFF000000),
-    // Brand band / filled CTAs stay a solid dark blue→indigo pill so white ink on them reads
+    // Brand band / filled CTAs stay a solid dark blue (flat: a gradient bands on e-paper) so white ink on them reads
     // (BrandGradient also fills the play button and the selected-card border). Content ink here is
     // Slate900 = white, so this MUST stay dark enough for white to contrast.
     OnBrand = Color(0xFFFFFFFF),
     OnBrandMuted = Color(0xFFFFFFFF).copy(alpha = 0.78f),
     OnBrandFaint = Color(0xFFFFFFFF).copy(alpha = 0.50f),
-    BrandGradient = Brush.linearGradient(listOf(Color(0xFF0B5CAD), Color(0xFF3730A3))),
+    BrandGradient = Brush.linearGradient(listOf(Color(0xFF0B5CAD), Color(0xFF0B5CAD))),
     Slate900Grad = Brush.verticalGradient(listOf(Color(0xFFFFFFFF), Color(0xFFFFFFFF))),
     PanelSurface = Color(0xFFFFFFFF),
     InsetSurface = Color(0xFFF2F2F2),

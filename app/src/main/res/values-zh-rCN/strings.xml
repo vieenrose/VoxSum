@@ -282,7 +282,7 @@
     <string name="agent_listening">阅读转写文本 · 已写 %1$d 则笔记</string>
     <string name="agent_reading">正在阅读第 %1$d 段并写笔记…</string>
     <string name="agent_restarting">以精简笔记开始读下一段…</string>
-    <string name="agent_done">完成 · %1$d 则笔记</string>
+    <string name="agent_done">完成 · %1$s</string>
     <string name="agent_notes_caution">这是工作笔记，不是正式记录——约五则中有一则可能有误。</string>
     <string name="agent_show_log">显示活动记录（%1$d）</string>
     <string name="agent_hide_log">隐藏活动记录（%1$d）</string>
@@ -305,15 +305,17 @@
     <string name="agent_step_reading">片段 %1$d · 撰写笔记</string>
     <string name="agent_step_done">片段 %1$d · 已读</string>
     <string name="agent_step_tokens">%1$,d 个 token</string>
-    <string name="agent_step_kept">+%1$d 则笔记</string>
+    <string name="agent_step_kept">+%1$s</string>
     <string name="agent_step_dropped">丢弃 %1$d 则</string>
     <string name="agent_step_restart">上下文已压缩 · %1$,d → %2$,d 个 token</string>
-    <string name="agent_notes_count">%1$d 则笔记</string>
+    <plurals name="agent_notes_count">
+        <item quantity="other">%d 则笔记</item>
+    </plurals>
     <string name="cpu_unsupported">不支持此设备的处理器：VoxSum 需要支持点积指令的 ARMv8.2 处理器（大多数 2019 年以后的手机）。</string>
     <string name="studio_empty_title">在手机上整理你的会议</string>
     <string name="studio_empty_import">添加音频文件</string>
     <plurals name="agent_outcome">
-        <item quantity="other">已读 %1$d 个片段 · %2$d 则笔记</item>
+        <item quantity="other">已读 %1$d 个片段 · %2$s</item>
     </plurals>
     <string name="export_menu_entry">导出与分享…</string>
     <string name="agent_tag_proposal">提议</string>

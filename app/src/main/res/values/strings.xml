@@ -300,7 +300,7 @@
     <string name="agent_listening">Reading the transcript · %1$d notes so far</string>
     <string name="agent_reading">Reading window %1$d and writing notes…</string>
     <string name="agent_restarting">Starting the next part from the compacted notes…</string>
-    <string name="agent_done">Done · %1$d notes</string>
+    <string name="agent_done">Done · %1$s</string>
     <string name="agent_notes_caution">Working notes, not minutes — about 1 in 5 may be wrong.</string>
     <string name="agent_show_log">Show activity (%1$d)</string>
     <string name="agent_hide_log">Hide activity (%1$d)</string>
@@ -323,16 +323,19 @@
     <string name="agent_step_reading">Window %1$d · writing notes</string>
     <string name="agent_step_done">Window %1$d · read</string>
     <string name="agent_step_tokens">%1$,d tokens</string>
-    <string name="agent_step_kept">+%1$d notes</string>
+    <string name="agent_step_kept">+%1$s</string>
     <string name="agent_step_dropped">%1$d dropped</string>
     <string name="agent_step_restart">Context compacted · %1$,d → %2$,d tokens</string>
-    <string name="agent_notes_count">%1$d notes</string>
+    <plurals name="agent_notes_count">
+        <item quantity="one">%d note</item>
+        <item quantity="other">%d notes</item>
+    </plurals>
     <string name="cpu_unsupported">This device\'s processor is not supported: VoxSum needs an ARMv8.2 CPU with dot-product instructions (most phones from 2019 on).</string>
     <string name="studio_empty_title">Your meetings, summarized on your phone</string>
     <string name="studio_empty_import">Add an audio file</string>
     <plurals name="agent_outcome">
-        <item quantity="one">%1$d window read · %2$d notes</item>
-        <item quantity="other">%1$d windows read · %2$d notes</item>
+        <item quantity="one">%1$d window read · %2$s</item>
+        <item quantity="other">%1$d windows read · %2$s</item>
     </plurals>
     <string name="agent_tag_proposal">Proposal</string>
     <string name="agent_verify">Verify</string>

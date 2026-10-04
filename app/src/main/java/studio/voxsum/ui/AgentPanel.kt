@@ -244,8 +244,8 @@ fun AgentPanel(agent: AgentUiState, onSeek: ((Int) -> Unit)? = null, modifier: M
                 )
                 Text(
                     // A reopened meeting has its notes but not how many windows produced them.
-                    if (agent.windowsRead == 0 && agent.notes.isNotEmpty()) stringResource(R.string.agent_notes_count, agent.notes.size)
-                    else pluralStringResource(R.plurals.agent_outcome, agent.windowsRead, agent.windowsRead, agent.notes.size),
+                    if (agent.windowsRead == 0 && agent.notes.isNotEmpty()) pluralStringResource(R.plurals.agent_notes_count, agent.notes.size, agent.notes.size)
+                    else pluralStringResource(R.plurals.agent_outcome, agent.windowsRead, agent.windowsRead, pluralStringResource(R.plurals.agent_notes_count, agent.notes.size, agent.notes.size)),
                     style = MaterialTheme.typography.labelMedium, color = pal.Slate400,
                 )
             }
@@ -431,7 +431,7 @@ private fun Timeline(agent: AgentUiState, st: AgentEvent.State, onSeek: ((Int) -
                     if (s.done) {
                         Text(" · ", style = MaterialTheme.typography.labelMedium, color = pal.Slate400)
                         Text(
-                            stringResource(R.string.agent_step_kept, s.kept),
+                            stringResource(R.string.agent_step_kept, pluralStringResource(R.plurals.agent_notes_count, s.kept, s.kept)),
                             style = MaterialTheme.typography.labelMedium,
                             color = if (notes.isNotEmpty() && s.window != latestWithNotes) pal.Sky else pal.Slate400,
                             modifier = Modifier.clickable(enabled = notes.isNotEmpty() && s.window != latestWithNotes) {
@@ -574,7 +574,7 @@ private fun statusLine(s: AgentEvent.State): String = when (s.state) {
     AgentState.READING -> stringResource(R.string.agent_reading, s.window)
     AgentState.RESTARTING -> stringResource(R.string.agent_restarting)
     AgentState.SUMMARIZING -> stringResource(R.string.agent_summarizing, s.notes)
-    AgentState.DONE -> stringResource(R.string.agent_done, s.notes)
+    AgentState.DONE -> stringResource(R.string.agent_done, pluralStringResource(R.plurals.agent_notes_count, s.notes, s.notes))
 }
 
 @Composable
@@ -686,7 +686,7 @@ fun AgentStrip(agent: AgentUiState, modifier: Modifier = Modifier) {
             )
             if (agent.notes.isNotEmpty()) {
                 Text(
-                    stringResource(R.string.agent_notes_count, agent.notes.size),
+                    pluralStringResource(R.plurals.agent_notes_count, agent.notes.size, agent.notes.size),
                     style = MaterialTheme.typography.labelMedium, color = pal.Slate400,
                 )
                 Spacer(Modifier.width(8.dp))

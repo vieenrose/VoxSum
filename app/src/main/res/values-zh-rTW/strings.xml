@@ -282,7 +282,7 @@
     <string name="agent_listening">閱讀逐字稿 · 已寫 %1$d 則筆記</string>
     <string name="agent_reading">正在閱讀第 %1$d 段並寫筆記…</string>
     <string name="agent_restarting">以精簡筆記開始讀下一段…</string>
-    <string name="agent_done">完成 · %1$d 則筆記</string>
+    <string name="agent_done">完成 · %1$s</string>
     <string name="agent_notes_caution">這是工作筆記，不是正式紀錄——約五則中有一則可能有誤。</string>
     <string name="agent_show_log">顯示活動紀錄（%1$d）</string>
     <string name="agent_hide_log">隱藏活動紀錄（%1$d）</string>
@@ -305,15 +305,17 @@
     <string name="agent_step_reading">片段 %1$d · 撰寫筆記</string>
     <string name="agent_step_done">片段 %1$d · 已讀</string>
     <string name="agent_step_tokens">%1$,d 個 token</string>
-    <string name="agent_step_kept">+%1$d 則筆記</string>
+    <string name="agent_step_kept">+%1$s</string>
     <string name="agent_step_dropped">捨棄 %1$d 則</string>
     <string name="agent_step_restart">上下文已壓縮 · %1$,d → %2$,d 個 token</string>
-    <string name="agent_notes_count">%1$d 則筆記</string>
+    <plurals name="agent_notes_count">
+        <item quantity="other">%d 則筆記</item>
+    </plurals>
     <string name="cpu_unsupported">不支援此裝置的處理器：VoxSum 需要支援點積指令的 ARMv8.2 處理器（大多數 2019 年以後的手機）。</string>
     <string name="studio_empty_title">在手機上整理你的會議</string>
     <string name="studio_empty_import">加入音訊檔</string>
     <plurals name="agent_outcome">
-        <item quantity="other">已讀 %1$d 個片段 · %2$d 則筆記</item>
+        <item quantity="other">已讀 %1$d 個片段 · %2$s</item>
     </plurals>
     <string name="export_menu_entry">匯出與分享…</string>
     <string name="agent_tag_proposal">提議</string>

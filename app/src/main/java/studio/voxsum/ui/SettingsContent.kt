@@ -28,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -90,6 +91,7 @@ fun SettingsContent(
         // (0) Appearance — theme selector (Auto follows the OS; E-ink is a manual e-paper theme).
         Section(stringResource(R.string.settings_appearance))
         AppearanceSelector(enabled)
+        FontScaleSlider(enabled)
 
         // One choice for the interface AND every Chinese text the app produces: the strings switch
         // live, and the Han script (Traditional / Simplified) follows the language.
@@ -206,6 +208,30 @@ private fun AppearanceSelector(enabled: Boolean) {
         color = pal.Slate400,
         modifier = Modifier.padding(top = 2.dp),
     )
+}
+
+/** App-wide text size, 85–150 % of the system font size, in 5 % steps; applies live. */
+@Composable
+private fun FontScaleSlider(enabled: Boolean) {
+    val pal = LocalVoxSumPalette.current
+    val font = studio.voxsum.ui.theme.LocalFontScaleController.current
+    val min = studio.voxsum.core.config.ThemeStore.FONT_MIN
+    val max = studio.voxsum.core.config.ThemeStore.FONT_MAX
+    // Apply on release, not per drag step: every change re-lays out the whole app under the thumb.
+    var draft by remember(font.scale) { mutableFloatStateOf(font.scale) }
+    Column(Modifier.padding(top = 8.dp)) {
+        SliderRow(
+            stringResource(R.string.settings_font_size), draft, min, max, enabled,
+            steps = ((max - min) / 0.05f).roundToInt() - 1,
+            format = { "${(it * 100).roundToInt()}%" },
+            onChangeFinished = { font.set((draft * 20).roundToInt() / 20f) },
+        ) { draft = it }
+        Text(
+            stringResource(R.string.settings_font_size_hint),
+            style = MaterialTheme.typography.labelSmall,
+            color = pal.Slate400,
+        )
+    }
 }
 
 /** The AI-notes model: E2B, or E4B on 8 GB phones. */
@@ -515,6 +541,7 @@ private fun SliderRow(
     label: String, value: Float, from: Float, to: Float, enabled: Boolean,
     steps: Int = 0,
     format: @Composable (Float) -> String = { "%.2f".format(it) },
+    onChangeFinished: (() -> Unit)? = null,
     onChange: (Float) -> Unit,
 ) {
     val pal = LocalVoxSumPalette.current
@@ -528,7 +555,7 @@ private fun SliderRow(
         val colors = voxSumSliderColors()
         val interaction = remember { MutableInteractionSource() }
         Slider(value = value, onValueChange = onChange, valueRange = from..to, enabled = enabled, steps = steps,
-            colors = colors, interactionSource = interaction,
+            onValueChangeFinished = onChangeFinished, colors = colors, interactionSource = interaction,
             // A 48 dp touch target needs a real handle, not the default 4 dp sliver.
             thumb = { SliderDefaults.Thumb(interaction, colors = colors, enabled = enabled, thumbSize = DpSize(20.dp, 32.dp)) })
     }

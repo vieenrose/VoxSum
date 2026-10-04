@@ -9,6 +9,7 @@ import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -178,6 +179,11 @@ val LocalLanguageController = staticCompositionLocalOf { LanguageController("aut
 
 val LocalThemeController = staticCompositionLocalOf { ThemeController(ThemeMode.AUTO) {} }
 
+/** The app-wide text scale (over the system font size) and how to change it live. */
+data class FontScaleController(val scale: Float, val set: (Float) -> Unit)
+
+val LocalFontScaleController = staticCompositionLocalOf { FontScaleController(1f) {} }
+
 /**
  * Semantic color for the pipeline status pill, from TYPED state — not by matching English keywords
  * in the localized status text (that left every pill Neutral in fr/zh-rTW). Red on error, Info while
@@ -227,7 +233,7 @@ private val VoxSumShapes = Shapes(
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-fun VoxSumTheme(themeMode: ThemeMode = ThemeMode.AUTO, content: @Composable () -> Unit) {
+fun VoxSumTheme(themeMode: ThemeMode = ThemeMode.AUTO, fontScale: Float = 1f, content: @Composable () -> Unit) {
     val pal = when (themeMode) {
         ThemeMode.AUTO -> if (isSystemInDarkTheme()) DarkColors else LightColors
         ThemeMode.LIGHT -> LightColors
@@ -247,7 +253,11 @@ fun VoxSumTheme(themeMode: ThemeMode = ThemeMode.AUTO, content: @Composable () -
         // One call site for every theme: branching here moved the whole app to another place in the
         // composition, so entering or leaving e-ink reset all screen state (the open settings sheet
         // closed, an open session went back to the library).
-        MaterialTheme(colorScheme = schemeFor(pal), shapes = VoxSumShapes) {
+        // The text-size setting scales the typography, not LocalDensity: dialogs and sheets open in their
+        // own windows, which re-provide the window's density but inherit the MaterialTheme.
+        val base = androidx.compose.material3.Typography()
+        val typography = remember(fontScale) { if (fontScale == 1f) base else base.scaled(fontScale) }
+        MaterialTheme(colorScheme = schemeFor(pal), shapes = VoxSumShapes, typography = typography) {
             val ripple = androidx.compose.material3.LocalRippleConfiguration.current
             CompositionLocalProvider(
                 androidx.compose.material3.LocalRippleConfiguration provides (if (themeMode == ThemeMode.EINK) null else ripple),
@@ -256,3 +266,16 @@ fun VoxSumTheme(themeMode: ThemeMode = ThemeMode.AUTO, content: @Composable () -
         }
     }
 }
+
+private fun androidx.compose.ui.text.TextStyle.scaled(f: Float) = copy(
+    fontSize = fontSize * f,
+    lineHeight = lineHeight * f,
+)
+
+private fun androidx.compose.material3.Typography.scaled(f: Float) = copy(
+    displayLarge = displayLarge.scaled(f), displayMedium = displayMedium.scaled(f), displaySmall = displaySmall.scaled(f),
+    headlineLarge = headlineLarge.scaled(f), headlineMedium = headlineMedium.scaled(f), headlineSmall = headlineSmall.scaled(f),
+    titleLarge = titleLarge.scaled(f), titleMedium = titleMedium.scaled(f), titleSmall = titleSmall.scaled(f),
+    bodyLarge = bodyLarge.scaled(f), bodyMedium = bodyMedium.scaled(f), bodySmall = bodySmall.scaled(f),
+    labelLarge = labelLarge.scaled(f), labelMedium = labelMedium.scaled(f), labelSmall = labelSmall.scaled(f),
+)

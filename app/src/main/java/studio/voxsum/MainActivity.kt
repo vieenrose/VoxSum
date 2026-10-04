@@ -339,6 +339,11 @@ class MainActivity : ComponentActivity() {
                 themeMode = mode
                 ThemeStore.save(this, mode)
             }
+            var fontScale by remember { mutableStateOf(ThemeStore.loadFontScale(this)) }
+            val fontController = studio.voxsum.ui.theme.FontScaleController(fontScale) { v ->
+                fontScale = v
+                ThemeStore.saveFontScale(this, v)
+            }
             // The interface language switches live, no recreation: re-provide the context whose
             // resources carry the chosen locale, and Compose's stringResource follows it.
             var langCode by remember { mutableStateOf(studio.voxsum.core.config.AppLanguage.load(this)) }
@@ -354,6 +359,7 @@ class MainActivity : ComponentActivity() {
             CompositionLocalProvider(
                 LocalThemeController provides controller,
                 LocalLanguageController provides langController,
+                studio.voxsum.ui.theme.LocalFontScaleController provides fontController,
                 androidx.compose.ui.platform.LocalContext provides localized,
                 androidx.compose.ui.platform.LocalConfiguration provides remember(localized, realConfig) {
                     // Sizes/orientation come from Compose's own (always current) configuration; only the
@@ -361,7 +367,7 @@ class MainActivity : ComponentActivity() {
                     android.content.res.Configuration(realConfig).also { it.setLocales(localized.resources.configuration.locales) }
                 },
             ) {
-                VoxSumTheme(themeMode) {
+                VoxSumTheme(themeMode, fontScale) {
                     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                         if (!studio.voxsum.core.power.CpuSupport.hasDotProd) {
                             Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {

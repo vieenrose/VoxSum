@@ -42,6 +42,8 @@
     <string name="theme_dark">Dark</string>
     <string name="theme_eink">E-ink</string>
     <string name="theme_eink_hint">E-ink is a flat high-contrast theme for e-paper devices; select it manually.</string>
+    <string name="settings_font_size">Text size</string>
+    <string name="settings_font_size_hint">Scales all text in the app, on top of the system font size.</string>
     <string name="settings_recording">Recording</string>
     <string name="settings_speaker_delay">Live speaker delay</string>
     <string name="settings_seconds">%1$d s</string>

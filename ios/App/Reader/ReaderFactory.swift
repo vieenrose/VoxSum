@@ -1,11 +1,12 @@
 import Foundation
 
-/// The reader backend: the real mobile engine on a device, the stub in the (Intel) simulator.
+/// The reader backend: the real mobile engine when built with VOX_REAL_READER (device, or the Intel simulator
+/// with the locally built libLiteRt.so), the stub otherwise.
 enum ReaderFactory {
     /// `dir` holds the reader model files (see ModelStore); nil/missing → stub.
     static func make(dir: String?) -> (llm: ReaderLlm, systemPrompt: String, real: Bool) {
         let fallback = "你是會議記錄助理。"
-        #if targetEnvironment(simulator)
+        #if !VOX_REAL_READER
         return (StubLlm(), fallback, false)
         #else
         guard let dir, let tok = try? SpTokenizer(path: dir + "/Section1_SP_Tokenizer.spiece"),

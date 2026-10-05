@@ -1,6 +1,6 @@
 import Foundation
 
-#if !targetEnvironment(simulator)   // the LiteRT framework is arm64-only: the Intel simulator runs StubLlm
+#if VOX_REAL_READER   // needs LiteRT: CLiteRTLM (device) or the x86_64 libLiteRt.so built by native/litert_x86_sim (Intel simulator)
 
 /// The Gemma-4 SentencePiece tokenizer (`Section1_SP_Tokenizer.spiece`). It parses the chat
 /// template's special tokens itself (`<|turn>` = 105, `<turn|>` = 106); `<bos>` is not added.

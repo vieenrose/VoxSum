@@ -42,3 +42,9 @@ differences in the diarizer — not verified. `engine.cpp` needs `apple_sched_sh
 - `native/mfa/` : moteur LiteRT (CPU) + SentencePiece compilés pour iOS arm64 (`native/build_mfa_lib.sh`). Lien/ABI avec `CLiteRTLM.xcframework` à valider sur un iPhone.
 - Simulateur Intel : x86_64 uniquement, donc `StubLlm` (notes simulées) ; `MfaSession` n'est compilé que pour l'appareil.
 - Prochain pas sur iPhone : signature (Apple ID), `build_app.sh iphoneos arm64` (lien mfa + sentencepiece + CLiteRTLM, à intégrer au bundle), téléchargement des modèles du lecteur, mesure de vitesse ASR (ggml sans OpenMP = mono-thread).
+
+## Vrai lecteur dans le simulateur Intel
+
+`native/litert_x86_sim/` compile `libLiteRt.so` v2.1.6 pour `ios_x86_64` (Bazel, ~25 min, patch de 3 lignes de lien).
+`build_app.sh` la lie dès qu'elle existe (`-DVOX_REAL_READER`) ; `VOX_READER_DIR=<dossier des modèles>` choisit le lecteur réel.
+Vérifié : E2B charge, notes/titre/résumé réels sur l'extrait de 123 s (ASR rtf 0,73 dans le simulateur).

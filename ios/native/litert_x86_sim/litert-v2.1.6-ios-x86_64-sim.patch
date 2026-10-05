@@ -1,0 +1,45 @@
+diff --git a/litert/c/BUILD b/litert/c/BUILD
+index 6ee32b5..bf9013f 100644
+--- a/litert/c/BUILD
++++ b/litert/c/BUILD
+@@ -845,10 +845,16 @@ cc_library(
+     name = "litert_runtime_c_api_so_shim",
+     linkopts = select({
+         "//litert:macos": [],
+-        "//litert:ios": [],
++        "//litert:ios": ["-framework", "Metal", "-framework", "Foundation"],
+         "//conditions:default": ["-Wl,--undefined-glob=LiteRt*"],
+     }),
+-    deps = LITERT_C_API_COMMON_DEPS,
++    deps = LITERT_C_API_COMMON_DEPS + [":signpost_stub"],
++)
++
++cc_library(
++    name = "signpost_stub",
++    srcs = ["signpost_stub.cc"],
++    alwayslink = 1,
+ )
+ 
+ # Build `litert/c:litert_runtime_c_api_so` for `libLiteRt.so`.
+@@ -859,6 +865,7 @@ cc_shared_library(
+     target_compatible_with = exclude_windows_target_compatible_with(),
+     user_link_flags = export_lrt_runtime_only_linkopt() + select({
+         "//litert:macos": ["-Wl,-install_name,@rpath/libLiteRt.so"],
++        "//litert:ios": ["-Wl,-install_name,@rpath/libLiteRt.so", "-framework", "Metal", "-framework", "Foundation"],
+         "//conditions:default": ["-Wl,-soname=libLiteRt.so"],
+     }) + litert_android_linkopts(),
+     deps = [":litert_runtime_c_api_so_shim"],
+diff --git a/litert/c/signpost_stub.cc b/litert/c/signpost_stub.cc
+new file mode 100644
+index 0000000..d5abb68
+--- /dev/null
++++ b/litert/c/signpost_stub.cc
+@@ -0,0 +1,8 @@
++// iOS-simulator x86_64 build: the TFLite signpost profiler (.mm) is not selected for this config; no profiling.
++#include <memory>
++namespace tflite {
++class Profiler { public: virtual ~Profiler() = default; };  // placeholder, never instantiated here
++namespace profiling {
++std::unique_ptr<tflite::Profiler> MaybeCreateSignpostProfiler() { return nullptr; }
++}  // namespace profiling
++}  // namespace tflite

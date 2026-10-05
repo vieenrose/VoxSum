@@ -48,3 +48,18 @@ differences in the diarizer — not verified. `engine.cpp` needs `apple_sched_sh
 `native/litert_x86_sim/` compile `libLiteRt.so` v2.1.6 pour `ios_x86_64` (Bazel, ~25 min, patch de 3 lignes de lien).
 `build_app.sh` la lie dès qu'elle existe (`-DVOX_REAL_READER`) ; `VOX_READER_DIR=<dossier des modèles>` choisit le lecteur réel.
 Vérifié : E2B charge, notes/titre/résumé réels sur l'extrait de 123 s (ASR rtf 0,73 dans le simulateur).
+
+## Projet Xcode (signature sur iPhone)
+
+`Xcode/VoxSum.xcodeproj` est une cible app minimale : sa phase « Build + embed native bundle »
+(`Xcode/embed_prebuilt.sh`) lance `native/build_app.sh`, copie le binaire et `Frameworks/` dans le
+produit, signe les frameworks, puis Xcode signe l'app (signature automatique).
+
+1. iPhone branché, « Faire confiance », Réglages > Confidentialité et sécurité > Mode développeur.
+2. Xcode > Settings > Accounts : ajouter l'identifiant Apple.
+3. Ouvrir `~/work/vox/ios/Xcode/VoxSum.xcodeproj`, cible VoxSum > Signing & Capabilities : choisir la Team
+   (changer le bundle id `studio.voxsum.ios` s'il est pris), choisir l'iPhone, Run.
+
+Sans Xcode GUI : `xcodebuild -project Xcode/VoxSum.xcodeproj -target VoxSum -sdk iphoneos -allowProvisioningUpdates DEVELOPMENT_TEAM=<ID> build`.
+`SKIP_NATIVE_BUILD=1` réutilise le bundle déjà compilé. Structure validée sans signature
+(`CODE_SIGNING_ALLOWED=NO`) ; la signature elle-même n'est pas testée.

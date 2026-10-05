@@ -462,7 +462,13 @@ class TranscriptionService : LifecycleService() {
                 // see inFlightWav — so the audio is banked here, synchronously, while the service
                 // is still alive. The decoded WAV is already on disk and its writer is flushed by
                 // AudioDecoder's `use`, so what is saved is every second transcribed so far.
-                saveInFlightImport("stop")
+                saveInFlightImport("stop")?.let { e ->
+                    inFlightCheckpoint?.let { c ->
+                        SessionLibrary.saveProgress(e, c.progress)
+                        c.notes()?.let { SessionLibrary.saveNotes(e, readerModelId(), it) }
+                    }
+                }
+                inFlightCheckpoint = null
                 lifecycleScope.launch {
                     val t0 = System.currentTimeMillis()
                     val drained = runCatching { withTimeout(STOP_DRAIN_MS) { job?.cancelAndJoin() } }
@@ -680,6 +686,14 @@ class TranscriptionService : LifecycleService() {
      */
     /** The entry the stop handler / pipeline just banked the in-flight import into (see [saveInFlightImport]). */
     @Volatile private var savedImportEntry: SessionLibrary.Entry? = null
+
+    /**
+     * The in-flight import's resume checkpoint (frozen prefix + reader notes), refreshed on every ASR
+     * snapshot. The pipeline's own `finally` never runs on Stop (native ASR does not observe
+     * cancellation, see [inFlightWav]), so the stop handler banks this next to the audio instead.
+     */
+    private class ImportCheckpoint(val progress: SessionLibrary.Progress, val notes: () -> studio.voxsum.core.reader.ReaderCheckpoint?)
+    @Volatile private var inFlightCheckpoint: ImportCheckpoint? = null
 
     private fun saveInFlightImport(reason: String): SessionLibrary.Entry? {
         val wav = inFlightWav ?: return null
@@ -1018,6 +1032,7 @@ class TranscriptionService : LifecycleService() {
         var frozenCount = 0
         var asrFinished = false
         savedImportEntry = null
+        inFlightCheckpoint = null
 
         /**
          * Save the decoded audio into the library as a RECORDED entry.
@@ -1087,6 +1102,12 @@ class TranscriptionService : LifecycleService() {
                                     .let { (all, stable) -> snap0.copy(utterances = all, stable = stable) }
                             utterances.clear(); utterances += snap.utterances
                             frozenCount = snap.stable
+                            if (summarizeAfter && foreground && frozenCount > 0) {
+                                val keep = utterances.take(frozenCount)
+                                inFlightCheckpoint = ImportCheckpoint(
+                                    SessionLibrary.Progress(transcriptFingerprint(cfg), keep, keep.last().endSec, false, ""),
+                                ) { live?.latestCp }
+                            }
                             emitEvent(snap)
                             feedLive(live, snap)
                             // Recognition progress: how far the transcript reaches through the audio.

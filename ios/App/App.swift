@@ -2,6 +2,13 @@ import SwiftUI
 
 @main struct VoxSumApp: App { var body: some Scene { WindowGroup { ContentView() } } }
 
+/// Mic chunks arrive on the audio thread, the engine loop drains them on another.
+final class ChunkBuffer: @unchecked Sendable {
+    private var data: [Float] = []; private let lock = NSLock()
+    func add(_ c: [Float]) { lock.lock(); data += c; lock.unlock() }
+    func take() -> [Float] { lock.lock(); defer { lock.unlock() }; let d = data; data = []; return d }
+}
+
 @MainActor final class Model: ObservableObject {
     @Published var lines: [Utterance] = []
     @Published var notes: [Note] = []
@@ -12,6 +19,36 @@ import SwiftUI
     let base = ProcessInfo.processInfo.environment["VOX_BASE"] ?? "/Users/Pesi/work"
 
     let store = ModelStore()
+    @Published var recording = false
+    private var recorder: Recorder?
+    private let buffer = ChunkBuffer()
+
+    func toggleRecord() {
+        if recording { recorder?.stop(); recorder = nil; recording = false; status = "Arrêt…"; return }
+        Task {
+            guard await Recorder.requestPermission() else { status = "Micro refusé"; return }
+            status = "Chargement des modèles…"; lines = []; notes = []; title = ""; summary = ""
+            let r = Recorder(); recorder = r; recording = true
+            let b = base
+            Task.detached { [weak self] in
+                guard let self, let eng = NemoEngine(xasr: self.modelPath("x-asr-zh-en-q8_0.gguf", b), diar: self.modelPath("nemotron-3-diarization-q8_0.gguf", b)) else {
+                    await MainActor.run { self?.status = "Modèles ASR absents"; self?.recording = false }; return }
+                do { try r.start { [buffer = self.buffer] c in buffer.add(c) } }
+                catch { await MainActor.run { self.status = "Micro : \(error)"; self.recording = false }; return }
+                var seen = 0
+                while await MainActor.run(body: { self.recording }) {
+                    try? await Task.sleep(nanoseconds: 500_000_000)
+                    let chunk = self.buffer.take()
+                    if !chunk.isEmpty { _ = eng.push(chunk) }
+                    let (frozen, tail) = eng.live(); seen = frozen.count
+                    await MainActor.run { self.lines = frozen + tail; self.status = String(format: "Enregistrement %.0f s", eng.fedSeconds) }
+                }
+                let final = eng.finish() ?? []
+                await MainActor.run { self.lines = final; self.status = "Terminé" }
+            }
+        }
+    }
+    nonisolated func modelPath(_ n: String, _ b: String) -> String { "\(b)/models/\(n)" }
     func downloadReader() {
         status = "Téléchargement du lecteur…"
         Task.detached { [store] in
@@ -75,6 +112,7 @@ struct ContentView: View {
             .toolbar {
                 ToolbarItem(placement: .bottomBar) { Button("Transcrire l'exemple") { m.run() } }
                 ToolbarItem(placement: .bottomBar) { Button("Lecteur") { m.downloadReader() } }
+                ToolbarItem(placement: .bottomBar) { Button(m.recording ? "Stop" : "Micro") { m.toggleRecord() } }
             }
             .safeAreaInset(edge: .bottom) { Text(m.status).font(.footnote).padding(4) }
         }

@@ -9,4 +9,6 @@
 <key>CFBundleShortVersionString</key><string>0.1</string>
 <key>MinimumOSVersion</key><string>17.0</string>
 <key>UILaunchScreen</key><dict/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>VoxSum transcrit vos réunions à partir du micro, sur l'appareil.</string>
 </dict></plist>

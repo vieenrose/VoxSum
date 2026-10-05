@@ -14,7 +14,7 @@
   <img alt="授權" src="https://img.shields.io/badge/license-GPL--3.0-blue">
 </p>
 
-<p align="center"><img src="docs/screenshots/demo.gif" width="300" alt="即時錄音、AI 筆記、摘要、逐字稿、匯出與設定"><br><sub>即時錄音（6 倍速）後瀏覽完成的場次：摘要、AI 筆記過程、逐字稿、點句播放、匯出、搜尋與設定。AI 筆記模型：行動版 E4B。</sub></p>
+<p align="center"><img src="docs/screenshots/demo.gif" width="300" alt="即時錄音、AI 筆記、摘要、逐字稿、匯出與設定"><br><sub>完整流程：8 分鐘會議的錄音與即時逐字稿、停止後的 AI 筆記與摘要（以上 4 倍速），再瀏覽完成的場次：摘要、AI 筆記過程、逐字稿、點句播放、匯出、搜尋與設定。於模擬器錄製，AI 筆記模型：行動版 E4B。</sub></p>
 
 ## 特色
 

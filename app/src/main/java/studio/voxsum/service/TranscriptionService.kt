@@ -695,6 +695,16 @@ class TranscriptionService : LifecycleService() {
     private class ImportCheckpoint(val progress: SessionLibrary.Progress, val notes: () -> studio.voxsum.core.reader.ReaderCheckpoint?)
     @Volatile private var inFlightCheckpoint: ImportCheckpoint? = null
 
+    /**
+     * Duration of what is actually on disk: a Stop mid-decode banks only the decoded part of the
+     * import, so the entry must not claim the source's full length (the player and the row would
+     * show minutes of audio that is not there).
+     */
+    private fun bankedSeconds(wav: java.io.File, probed: Int): Int {
+        val onDisk = ((wav.length() - WavIo.HEADER) / (WavIo.SAMPLE_RATE * 2L)).toInt()
+        return if (probed > 0) minOf(probed, onDisk) else onDisk
+    }
+
     private fun saveInFlightImport(reason: String): SessionLibrary.Entry? {
         val wav = inFlightWav ?: return null
         val min = WavIo.HEADER + WavIo.SAMPLE_RATE * 2L
@@ -703,7 +713,7 @@ class TranscriptionService : LifecycleService() {
             return null
         }
         if (!importSaved.compareAndSet(false, true)) return null   // the other side already saved it
-        val entry = runCatching { SessionLibrary.promoteRecording(this, wav, inFlightDurationSec) }
+        val entry = runCatching { SessionLibrary.promoteRecording(this, wav, bankedSeconds(wav, inFlightDurationSec)) }
             .onFailure { Log.w(STOP_TAG, "saveInFlightImport($reason) failed", it) }
             .getOrNull()
         Log.i(STOP_TAG, "saveInFlightImport($reason) -> ${entry?.id ?: "NULL"}")

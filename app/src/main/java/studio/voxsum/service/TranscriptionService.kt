@@ -2128,7 +2128,7 @@ class TranscriptionService : LifecycleService() {
             )
             b.addAction(android.R.drawable.ic_media_pause, getString(R.string.capture_stop), finishPi)
         } else {
-            b.addAction(android.R.drawable.ic_menu_close_clear_cancel, getString(R.string.stop), stopPi)
+            b.addAction(android.R.drawable.ic_menu_close_clear_cancel, getString(R.string.stop_resumable), stopPi)
         }
         return b.build()
     }

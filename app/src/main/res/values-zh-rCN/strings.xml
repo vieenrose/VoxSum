@@ -24,6 +24,7 @@
     <string name="re_transcribe">重新转录</string>
     <string name="re_summarize">重新摘要</string>
     <string name="stop">停止</string>
+    <string name="stop_resumable">停止（可继续处理）</string>
     <string name="source_audio_file">音频文件</string>
     <string name="source_audio_file_desc">从设备选择文件</string>
     <string name="source_record">录音</string>
@@ -209,6 +210,9 @@
     <string name="recover_message">一段 %s 的录音在完成前被中断。要立即完成转录吗？</string>
     <string name="recover_finish">完成转录</string>
     <string name="recover_discard">丢弃</string>
+    <string name="resume_prompt_title">继续中断的场次？</string>
+    <string name="resume_prompt_message">“%s”在完成前被中断。要从中断处继续吗？</string>
+    <string name="resume_prompt_later">稍后</string>
     <string name="recover_import_title">要完成中断的导入吗？</string>
     <string name="recover_import_message">“%s”在导入完成前被中断。要立即转录吗？</string>
 

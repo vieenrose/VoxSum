@@ -25,6 +25,7 @@
     <string name="re_summarize">Re-summarize</string>
     <!-- MOSS-TD transcribes + diarizes in one pass, so its two re-run actions collapse into one. -->
     <string name="stop">Stop</string>
+    <string name="stop_resumable">Stop (can be resumed)</string>
     <string name="source_audio_file">Audio file</string>
     <string name="source_audio_file_desc">Pick a file from your device</string>
     <string name="source_record">Record</string>
@@ -228,6 +229,9 @@
     <string name="recover_message">A %s recording was interrupted before it finished. Finish transcribing it now?</string>
     <string name="recover_finish">Finish transcribing</string>
     <string name="recover_discard">Discard</string>
+    <string name="resume_prompt_title">Resume the interrupted session?</string>
+    <string name="resume_prompt_message">“%s” was stopped before it finished. Resume where it left off?</string>
+    <string name="resume_prompt_later">Later</string>
     <string name="recover_import_title">Finish the interrupted import?</string>
     <string name="recover_import_message">Importing “%s” was interrupted before it finished. Transcribe it now?</string>
 

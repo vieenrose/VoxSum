@@ -608,6 +608,8 @@ private fun TranscribeScreen(
     // --- Crash recovery: a live recording the OS killed mid-capture (OEM freeze, OOM, swipe-away)
     // is repaired and offered on next launch, so a meeting is never silently lost. ---
     var recoveredRec by remember { mutableStateOf<File?>(null) }
+    // A stopped/killed session with a checkpoint that nothing is going to continue by itself.
+    var interruptedEntry by remember { mutableStateOf<SessionLibrary.Entry?>(null) }
     var recoveredImport by remember { mutableStateOf<Pair<File, String>?>(null) }
     // A share/open-with import that arrived while a recording or run is active — confirm before it
     // supersedes (a co-installed app firing ACTION_SEND/VIEW must not silently kill a live capture).
@@ -735,6 +737,14 @@ private fun TranscribeScreen(
         }
         if (interrupted != null) { recoveredRec = interrupted; recentsVersion++ }
         else if (!TranscriptionService.pipelineActive) recoveredImport = withContext(Dispatchers.IO) { ImportRecovery.pending(context) }
+        if (interrupted == null && recoveredImport == null && !TranscriptionService.pipelineActive) {
+            interruptedEntry = withContext(Dispatchers.IO) {
+                val queued = ProcessingQueue.ids(context).toSet()
+                SessionLibrary.list(context)
+                    .filter { it.status != SessionLibrary.Status.DONE && it.id !in queued && SessionLibrary.hasProgress(it) && it.wavFile.exists() }
+                    .maxByOrNull { it.createdAt }
+            }
+        }
         // SessionAutosave is legacy: the library now durably holds every session, so restoring a
         // snapshot into a stale Session view on cold launch only hijacked the home (the user
         // expects the Studio shelf — the same content is a library row). Discard any old snapshot.
@@ -2258,6 +2268,16 @@ private fun TranscribeScreen(
     }
 
 
+    interruptedEntry?.let { e ->
+        AlertDialog(
+            onDismissRequest = { interruptedEntry = null },
+            title = { Text(stringResource(R.string.resume_prompt_title)) },
+            text = { Text(stringResource(R.string.resume_prompt_message, e.title ?: SessionLibrary.defaultTitle(e.createdAt))) },
+            confirmButton = { TextButton(onClick = { interruptedEntry = null; resumeEntry(e) }) { Text(stringResource(R.string.action_resume)) } },
+            dismissButton = { TextButton(onClick = { interruptedEntry = null }) { Text(stringResource(R.string.resume_prompt_later)) } },
+        )
+    }
+
     // Back inside the stack: Capture/Session → Studio (sheets keep their own handler below).
     BackHandler(
         screen != Screen.Studio && !showConfigSheet && !showPodcastSheet &&
@@ -2359,6 +2379,10 @@ private fun TranscribeScreen(
             val entryTitle = remember(libraryDir, recentsVersion) {
                 libraryDir?.let { d -> SessionLibrary.byId(context, d.name) }?.let { it.title ?: SessionLibrary.defaultTitle(it.createdAt) }
             }
+            val resumableEntry = remember(libraryDir, recentsVersion, running) {
+                libraryDir?.let { d -> SessionLibrary.byId(context, d.name) }
+                    ?.takeIf { it.status != SessionLibrary.Status.DONE && SessionLibrary.hasProgress(it) }
+            }
             SessionTopBar(
                 cover = null,   // no per-session art (the generated identicon was removed)
                 // The title lives in the top bar on every tab (tap it to edit); the two-pane overview
@@ -2390,6 +2414,9 @@ private fun TranscribeScreen(
                     // (a duplicate row) — so give the entry back its recording.wav and run on that.
                     val dir = libraryDir; val src = audioUri; val keepTitle = title
                     if (src != null) scope.launch {
+                        // A manual re-run starts over: a stale checkpoint (frozen transcript, reader notes)
+                        // must not be picked up as "progress to resume".
+                        dir?.let { d -> withContext(Dispatchers.IO) { SessionLibrary.byId(context, d.name)?.let(SessionLibrary::clearProgress) } }
                         val target = dir?.let { d ->
                             withContext(Dispatchers.IO) {
                                 val wav = File(d, SessionLibrary.WAV_NAME)
@@ -2401,7 +2428,15 @@ private fun TranscribeScreen(
                     }
                 },
                 canReSummarize = transcriptReady && !running,
-                onReSummarize = { regenerateStaleChildren() },
+                onReSummarize = {
+                    val d = libraryDir
+                    scope.launch {
+                        d?.let { withContext(Dispatchers.IO) { SessionLibrary.byId(context, it.name)?.let(SessionLibrary::clearNotes) } }
+                        regenerateStaleChildren()
+                    }
+                },
+                canResume = !running && resumableEntry != null,
+                onResume = { resumableEntry?.let { resumeEntry(it) } },
                 onSearch = { sessTab = 1; searchActive = !searchActive; if (!searchActive) searchQuery = "" },
                 onSettings = { showConfigSheet = true },
                 // No pre-decode here; the picker callback hands the build+write to the service.

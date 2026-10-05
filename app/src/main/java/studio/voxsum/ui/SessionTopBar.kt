@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.IosShare
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SkipNext
@@ -76,6 +77,8 @@ fun SessionTopBar(
     onSearch: () -> Unit,
     canReTranscribe: Boolean, onReTranscribe: () -> Unit,
     canReSummarize: Boolean, onReSummarize: () -> Unit,
+    /** An interrupted run left a checkpoint: continue it instead of starting over. */
+    canResume: Boolean = false, onResume: () -> Unit = {},
     canExport: Boolean,
     onOpenExport: () -> Unit,
     onSettings: () -> Unit,
@@ -122,7 +125,7 @@ fun SessionTopBar(
             }
             if (running) {
                 IconButton(onClick = onStop) {
-                    Icon(Icons.Filled.Stop, contentDescription = stringResource(R.string.stop), tint = VoxSumPalette.Red)
+                    Icon(Icons.Filled.Stop, contentDescription = stringResource(R.string.stop_resumable), tint = VoxSumPalette.Red)
                 }
             }
             if (transcriptAvailable) {
@@ -132,7 +135,7 @@ fun SessionTopBar(
             }
             OverflowMenu(
                 canReTranscribe, onReTranscribe, canReSummarize, onReSummarize,
-                
+                canResume, onResume,
                 canExport, onOpenExport, onSettings,
             )
         }
@@ -173,6 +176,7 @@ fun SessionTopBar(
 private fun OverflowMenu(
     canReTranscribe: Boolean, onReTranscribe: () -> Unit,
     canReSummarize: Boolean, onReSummarize: () -> Unit,
+    canResume: Boolean, onResume: () -> Unit,
     canExport: Boolean,
     onOpenExport: () -> Unit,
     onSettings: () -> Unit,
@@ -186,11 +190,13 @@ private fun OverflowMenu(
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             // --- re-run ---
+            if (canResume) DropdownMenuItem(leadingIcon = { Icon(Icons.Filled.PlayArrow, null, Modifier.size(18.dp)) },
+                text = { Text(stringResource(R.string.action_resume)) }, onClick = pick(onResume))
             if (canReTranscribe) DropdownMenuItem(leadingIcon = { Icon(Icons.Filled.Refresh, null, Modifier.size(18.dp)) },
                 text = { Text(stringResource(R.string.re_transcribe)) }, onClick = pick(onReTranscribe))
             if (canReSummarize) DropdownMenuItem(leadingIcon = { Icon(Icons.Filled.Summarize, null, Modifier.size(18.dp)) },
                 text = { Text(stringResource(R.string.re_summarize)) }, onClick = pick(onReSummarize))
-            if (canReTranscribe || canReSummarize) HorizontalDivider()
+            if (canResume || canReTranscribe || canReSummarize) HorizontalDivider()
             // --- exports (disabled while running, like before) ---
             // One entry, not eight: the formats and the save/share choice live in ExportSheet, which
             // groups them by what you get. A dropdown this long also meant several slow full-page

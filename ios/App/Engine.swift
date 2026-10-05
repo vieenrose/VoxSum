@@ -1,7 +1,8 @@
 import Foundation
 
-struct Utterance: Identifiable, Hashable {
-    let id = UUID()
+struct Utterance: Identifiable, Hashable, Codable {
+    var id = UUID()
+    private enum CodingKeys: String, CodingKey { case speaker, start, end, text }
     var speaker: Int, start: Double, end: Double, text: String
 }
 

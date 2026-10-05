@@ -19,6 +19,17 @@ final class ChunkBuffer: @unchecked Sendable {
     let base = ProcessInfo.processInfo.environment["VOX_BASE"] ?? "/Users/Pesi/work"
 
     let store = ModelStore()
+    let library = LibraryStore()
+    @Published var sessions: [Session] = []
+    func reload() { Task { sessions = await library.all() } }
+    func remove(_ s: Session) { Task { await library.delete(s.id); sessions = await library.all() } }
+    func open(_ s: Session) { lines = s.lines; notes = s.notes; title = s.title; summary = s.summary; status = "Archive du \(s.date.formatted(date: .abbreviated, time: .shortened))" }
+    private func archive(lines: [Utterance], notes: [Note], title: String, summary: String, seconds: Double) async {
+        guard !lines.isEmpty else { return }
+        let fallback = lines.first.map { String($0.text.prefix(20)) } ?? "Réunion"
+        try? await library.save(Session(title: title.isEmpty ? fallback : title, summary: summary, seconds: seconds, lines: lines, notes: notes))
+        sessions = await library.all()
+    }
     @Published var recording = false
     private var recorder: Recorder?
     private let buffer = ChunkBuffer()
@@ -44,7 +55,9 @@ final class ChunkBuffer: @unchecked Sendable {
                     await MainActor.run { self.lines = frozen + tail; self.status = String(format: "Enregistrement %.0f s", eng.fedSeconds) }
                 }
                 let final = eng.finish() ?? []
+                let secs = eng.fedSeconds
                 await MainActor.run { self.lines = final; self.status = "Terminé" }
+                await self.archive(lines: final, notes: [], title: "", summary: "", seconds: secs)
             }
         }
     }
@@ -87,6 +100,7 @@ final class ChunkBuffer: @unchecked Sendable {
             let sum = ReaderSummarizer(llm: r.llm)
             let t = sum.title(journal), prose = sum.prose(journal) ?? ReaderProtocol.minutes(journal)
             await MainActor.run { self.lines = final; self.notes = journal; self.title = t ?? ""; self.summary = prose; self.status = "Terminé" }
+            await self.archive(lines: final, notes: journal, title: t ?? "", summary: prose, seconds: Double(pcm.count) / 16000)
         }
     }
 }
@@ -96,6 +110,19 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             List {
+                if !m.sessions.isEmpty {
+                    Section("Bibliothèque") {
+                        ForEach(m.sessions) { x in
+                            Button { m.open(x) } label: {
+                                VStack(alignment: .leading) {
+                                    Text(x.title).font(.headline)
+                                    Text("\(x.date.formatted(date: .abbreviated, time: .shortened)) · \(Int(x.seconds)) s").font(.caption).foregroundStyle(.secondary)
+                                }
+                            }
+                            .swipeActions { Button("Supprimer", role: .destructive) { m.remove(x) } }
+                        }
+                    }
+                }
                 if !m.summary.isEmpty { Section(m.title.isEmpty ? "Résumé" : m.title) { Text(m.summary) } }
                 if !m.notes.isEmpty { Section("Agent") { ForEach(m.notes) { Text(ReaderProtocol.render($0)).font(.caption) } } }
                 Section("Transcription") {
@@ -108,7 +135,7 @@ struct ContentView: View {
                 }
             }
             .navigationTitle("VoxSum")
-            .onAppear { if ProcessInfo.processInfo.environment["VOX_AUTORUN"] != nil { m.run() } }
+            .onAppear { m.reload(); if ProcessInfo.processInfo.environment["VOX_AUTORUN"] != nil { m.run() } }
             .toolbar {
                 ToolbarItem(placement: .bottomBar) { Button("Transcrire l'exemple") { m.run() } }
                 ToolbarItem(placement: .bottomBar) { Button("Lecteur") { m.downloadReader() } }

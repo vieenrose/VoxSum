@@ -150,7 +150,7 @@ struct Line: Equatable {
 }
 
 /// A journal entry. `tag` is DECISION / ACTION / NUMBER / OPEN-ISSUE / "-" or nil.
-struct Note: Equatable, Identifiable {
+struct Note: Equatable, Identifiable, Codable {
     var id: Int
     var window: Int
     var ts: String

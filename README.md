@@ -16,6 +16,8 @@
 
 <p align="center"><img src="docs/screenshots/demo.gif" width="300" alt="即時錄音、AI 筆記、摘要、逐字稿、匯出與設定"><br><sub>完整流程，全程即時、未加速：8 分鐘會議的錄音與即時逐字稿（上方細條為 CPU／GPU／記憶體／電池狀態），AI 筆記於讀滿第一段後開始；停止後完成筆記與摘要，再瀏覽完成的場次：摘要、AI 筆記過程、逐字稿、點句播放、匯出、搜尋與設定。於 Samsung Galaxy Note10+（Snapdragon 855）錄製，AI 筆記模型：行動版 E4B。</sub></p>
 
+<p align="center"><img src="docs/screenshots/demo-studio.gif" width="300" alt="錄音室：連續錄兩場會議"><br><sub>錄音室：連續錄兩場會議。從空的資料庫開始，錄完公司尾牙籌備會議後按「下一場」，立即接著錄辦公室搬遷會議；第一場的 AI 筆記在背景接續整理，停止後兩場都自動完成筆記、摘要與標題。錄音段落以 4 倍速播放，最後的資料庫瀏覽為即時。於 Galaxy Note10+ 錄製，AI 筆記模型：行動版 E4B。</sub></p>
+
 ## 特色
 
 - **完全離線、無帳號**：音訊不離開手機，模型只在第一次使用時下載。

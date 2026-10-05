@@ -383,4 +383,5 @@
     <string name="agent_simple_reading_all">Reading the transcript, part by part</string>
     <string name="import_busy">A download is already running</string>
     <string name="import_download_title">Importing audio</string>
+    <string name="action_resume">Resume</string>
 </resources>

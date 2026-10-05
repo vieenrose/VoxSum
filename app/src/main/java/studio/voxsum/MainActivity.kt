@@ -2238,6 +2238,26 @@ private fun TranscribeScreen(
         }
     }
 
+    /**
+     * Continue a stopped run from its checkpoint (SessionLibrary.Progress). ASR already finished →
+     * hand the saved transcript to the queue as a pending sidecar so only reading + summary run;
+     * otherwise re-run the capture with [TranscriptionService.resumeRequested] so ASR continues
+     * after the last frozen utterance and the saved prefix is kept.
+     */
+    fun resumeEntry(e: SessionLibrary.Entry) {
+        val p = SessionLibrary.loadProgress(e)
+        if (p == null) { launchAudio(Uri.fromFile(e.wavFile)); return }
+        if (p.asrComplete) {
+            SessionLibrary.savePendingTranscript(e, p.utterances, p.fingerprint)
+            SessionLibrary.clearProgress(e)
+            enqueueAndStart(listOf(e.id))
+        } else {
+            TranscriptionService.resumeRequested = true
+            launchAudio(Uri.fromFile(e.wavFile))
+        }
+    }
+
+
     // Back inside the stack: Capture/Session → Studio (sheets keep their own handler below).
     BackHandler(
         screen != Screen.Studio && !showConfigSheet && !showPodcastSheet &&
@@ -2292,6 +2312,7 @@ private fun TranscribeScreen(
                 onOpen = { e -> openSessionUri(Uri.fromFile(e.audioFile)) },
                 onWatchLive = { e -> watchQueueItem(e) },
                 onProcessNow = { e -> enqueueAndStart(listOf(e.id)) },
+                onResume = { e -> resumeEntry(e) },
                 onRemoveFromQueue = { e ->
                     scope.launch { withContext(Dispatchers.IO) { ProcessingQueue.remove(context, e.id) }; recentsVersion++ }
                 },

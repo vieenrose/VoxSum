@@ -145,6 +145,7 @@ object SessionLibrary {
             summary, actionItems, title, notes, asrModelId, asrBackend, llmModelId,
             coverEnabled = true, fileName = SESSION_NAME, format = VoxsumSession.Format.M4A,
         ) ?: return null
+        clearProgress(entry)   // the run is complete: nothing left to resume
         // A user-given name (set at capture time or via rename) outranks the LLM title — batch
         // processing must never rename "Talk 3 — Dr. Smith" to whatever the model invents. Re-read
         // the meta rather than trusting [entry]: a rename made WHILE this item processed would
@@ -218,6 +219,58 @@ object SessionLibrary {
             val arr = JSONObject(f.readText()).getJSONArray("utterances")
             List(arr.length()) { i -> VoxsumSession.utteranceFromJson(arr.getJSONObject(i), fallbackIndex = i) }
         }.getOrNull()
+    }
+
+    // --- interrupted-run checkpoint (Stop / kill mid-processing → "Resume") ---
+    //
+    // Separate from PENDING_TRANSCRIPT on purpose: that sidecar means "ASR finished" and lets the
+    // queue skip straight to summarizing, so a partial transcript must never be written there. This
+    // one holds the FROZEN prefix only (utterances that can no longer change) plus how far the audio
+    // got, and the reading agent's notes written so far. Present = the entry is resumable.
+    private const val PROGRESS = "pending_progress.json"
+
+    /** [asrDoneSec] = end of the last frozen utterance (where ASR resumes); [asrComplete] = ASR had
+     *  finished, so only the reading/summary is left. [notes] = the agent journal, rendered. */
+    data class Progress(
+        val fingerprint: String,
+        val utterances: List<TranscriptEvent.Utterance>,
+        val asrDoneSec: Double,
+        val asrComplete: Boolean,
+        val notes: String,
+    )
+
+    fun saveProgress(entry: Entry, p: Progress) {
+        runCatching {
+            val arr = org.json.JSONArray()
+            p.utterances.forEach { arr.put(VoxsumSession.utteranceToJson(it)) }
+            val o = JSONObject().put("fingerprint", p.fingerprint).put("utterances", arr)
+                .put("asrDoneSec", p.asrDoneSec).put("asrComplete", p.asrComplete).put("notes", p.notes)
+            val tmp = File(entry.dir, "$PROGRESS.tmp")
+            tmp.writeText(o.toString())
+            if (!tmp.renameTo(File(entry.dir, PROGRESS))) { File(entry.dir, PROGRESS).delete(); tmp.renameTo(File(entry.dir, PROGRESS)) }
+        }.onFailure { Log.w(TAG, "could not persist progress for ${entry.id}", it) }
+    }
+
+    /** The checkpoint whatever settings wrote it (callers compare [Progress.fingerprint]); null when
+     *  absent or unreadable. */
+    fun loadProgress(entry: Entry): Progress? {
+        val f = File(entry.dir, PROGRESS)
+        if (!f.exists()) return null
+        return runCatching {
+            val o = JSONObject(f.readText())
+            val arr = o.getJSONArray("utterances")
+            Progress(
+                o.optString("fingerprint"),
+                List(arr.length()) { i -> VoxsumSession.utteranceFromJson(arr.getJSONObject(i), fallbackIndex = i) },
+                o.optDouble("asrDoneSec", 0.0), o.optBoolean("asrComplete", false), o.optString("notes"),
+            )
+        }.onFailure { Log.w(TAG, "corrupt progress in ${entry.id}", it) }.getOrNull()
+    }
+
+    fun hasProgress(entry: Entry): Boolean = File(entry.dir, PROGRESS).exists()
+
+    fun clearProgress(entry: Entry) {
+        runCatching { File(entry.dir, PROGRESS).delete() }
     }
 
     fun clearPendingTranscript(entry: Entry) {

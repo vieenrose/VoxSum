@@ -375,4 +375,5 @@
     <string name="agent_simple_reading_all">逐段阅读转写文本中</string>
     <string name="import_busy">已有下载正在进行</string>
     <string name="import_download_title">导入音频</string>
+    <string name="action_resume">继续处理</string>
 </resources>

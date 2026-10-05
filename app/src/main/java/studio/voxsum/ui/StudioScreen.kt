@@ -139,6 +139,8 @@ fun StudioScreen(
     onOpen: (SessionLibrary.Entry) -> Unit,
     onWatchLive: (SessionLibrary.Entry) -> Unit,
     onProcessNow: (SessionLibrary.Entry) -> Unit,
+    /** Continue a stopped run from its saved checkpoint (shown only for entries that have one). */
+    onResume: (SessionLibrary.Entry) -> Unit = {},
     onRemoveFromQueue: (SessionLibrary.Entry) -> Unit,
     onStopProcessing: () -> Unit,
     onProcessAll: () -> Unit,
@@ -446,6 +448,9 @@ fun StudioScreen(
                         ActionRow(Icons.Filled.PlaylistPlay, stringResource(R.string.action_process_now)) { actionsFor = null; onProcessNow(e) }
                     }
                     ActionRow(Icons.Filled.RemoveCircleOutline, stringResource(R.string.action_remove_from_queue)) { actionsFor = null; onRemoveFromQueue(e) }
+                }
+                if (e.status != SessionLibrary.Status.DONE && e.id != processingId && SessionLibrary.hasProgress(e)) {
+                    ActionRow(Icons.Filled.PlayArrow, stringResource(R.string.action_resume)) { actionsFor = null; onResume(e) }
                 }
                 if (e.status != SessionLibrary.Status.DONE && e.id != processingId && e.id !in queuedIds) {
                     ActionRow(Icons.Filled.PlaylistPlay, stringResource(R.string.action_process_now)) { actionsFor = null; onProcessNow(e) }

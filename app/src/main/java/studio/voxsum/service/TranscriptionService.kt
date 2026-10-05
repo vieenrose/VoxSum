@@ -155,6 +155,10 @@ class TranscriptionService : LifecycleService() {
         // [studio.voxsum.online.ImportDownloads.pending]; state is published through its StateFlow.
         const val ACTION_IMPORT_DOWNLOAD = "studio.voxsum.IMPORT_DOWNLOAD"
 
+        /** Set by the UI's "Resume" just before it re-runs a library capture: the next [runPipeline]
+         *  continues from the entry's saved progress instead of transcribing from zero. One-shot. */
+        @Volatile var resumeRequested = false
+
         // True while a live capture is in flight *in this process*. The Activity can be destroyed and
         // recreated (low memory) while the foreground service keeps recording; the crash-recovery
         // check reads this so it doesn't mistake a still-active recording's marker for an interrupted
@@ -672,6 +676,9 @@ class TranscriptionService : LifecycleService() {
      * Non-suspending on purpose — [SessionLibrary.promoteRecording] is a file rename — so the stop
      * handler can call it inline and be sure it completed before the service dies.
      */
+    /** The entry the stop handler / pipeline just banked the in-flight import into (see [saveInFlightImport]). */
+    @Volatile private var savedImportEntry: SessionLibrary.Entry? = null
+
     private fun saveInFlightImport(reason: String): SessionLibrary.Entry? {
         val wav = inFlightWav ?: return null
         val min = WavIo.HEADER + WavIo.SAMPLE_RATE * 2L
@@ -684,7 +691,7 @@ class TranscriptionService : LifecycleService() {
             .onFailure { Log.w(STOP_TAG, "saveInFlightImport($reason) failed", it) }
             .getOrNull()
         Log.i(STOP_TAG, "saveInFlightImport($reason) -> ${entry?.id ?: "NULL"}")
-        if (entry != null) inFlightWav = null
+        if (entry != null) { inFlightWav = null; savedImportEntry = entry }
         return entry
     }
 
@@ -954,13 +961,33 @@ class TranscriptionService : LifecycleService() {
         val ownWav = srcFile != null && srcFile.exists() && srcFile.extension == "wav" &&
             (srcFile.parentFile?.name == "audio" || srcFile.name == SessionLibrary.WAV_NAME)
 
+        // --- ASR phase: collect utterances while streaming them to the UI. ---
+        // Whether this run owns a library entry, decided BEFORE any long phase so the finally below
+        // can save the audio no matter where the run stops. A re-run of a library capture already
+        // has one (its audio never left) and the queue drain owns its own — both skip the promote.
+        val foreground = (kotlin.coroutines.coroutineContext[RunGen]?.gen ?: UNTAGGED) != QUEUE_GEN
+        val existing = if (ownWav && srcFile!!.name == SessionLibrary.WAV_NAME)
+            srcFile.parentFile?.let { SessionLibrary.byId(this, it.name) } else null
+        var entry: SessionLibrary.Entry? = existing
+
+        // Resume (UI "Resume" on a stopped library capture): keep the saved frozen transcript and
+        // transcribe only the audio after it. Anything else that re-runs the entry supersedes the
+        // checkpoint (a fresh run starts from zero, as before).
+        val wantResume = resumeRequested; resumeRequested = false
+        val resume = if (wantResume && existing != null && ownWav)
+            SessionLibrary.loadProgress(existing)?.takeIf { it.fingerprint == transcriptFingerprint(cfg) && !it.asrComplete && it.utterances.isNotEmpty() }
+        else null
+        if (existing != null && resume == null) SessionLibrary.clearProgress(existing)
+        val prior = resume?.utterances ?: emptyList()
+        val offsetSec = resume?.asrDoneSec ?: 0.0
+
         // Stream-decode the source to a 16 kHz mono work WAV while feeding the live VAD/ASR — never
         // the whole waveform in RAM. The WAV is the player + diarization source (16 kHz mono).
         val wav = if (ownWav) srcFile!!
         else File(File(filesDir, "audio").apply { mkdirs() }, "decoded_${System.currentTimeMillis()}.wav")
         val chunks = if (ownWav) {
             // Raw PCM16 read in recorder-sized blocks (the capture was already AGC'd/normalized).
-            wavChunks(wav)
+            wavChunks(wav, offsetSec)
         } else channelFlow {
             // normalize: quiet far-field imports get an automatic constant gain before the live
             // VAD/ASR sees them — and the work WAV (player + diarization source) carries the same
@@ -970,14 +997,6 @@ class TranscriptionService : LifecycleService() {
             }
         }.flowOn(Dispatchers.IO)
 
-        // --- ASR phase: collect utterances while streaming them to the UI. ---
-        // Whether this run owns a library entry, decided BEFORE any long phase so the finally below
-        // can save the audio no matter where the run stops. A re-run of a library capture already
-        // has one (its audio never left) and the queue drain owns its own — both skip the promote.
-        val foreground = (kotlin.coroutines.coroutineContext[RunGen]?.gen ?: UNTAGGED) != QUEUE_GEN
-        val existing = if (ownWav && srcFile!!.name == SessionLibrary.WAV_NAME)
-            srcFile.parentFile?.let { SessionLibrary.byId(this, it.name) } else null
-        var entry: SessionLibrary.Entry? = existing
 
         // Publish the work WAV so ACTION_STOP can bank it even when this coroutine never unwinds.
         // Only for a foreground import that does not already own a library entry — a re-run of a
@@ -990,6 +1009,10 @@ class TranscriptionService : LifecycleService() {
 
         val utterances = ArrayList<TranscriptEvent.Utterance>()
         var diarized: Pair<List<TranscriptEvent.Utterance>, Int>? = null
+        // Resume checkpoint inputs: how many leading utterances are frozen, and whether ASR ran to the end.
+        var frozenCount = 0
+        var asrFinished = false
+        savedImportEntry = null
 
         /**
          * Save the decoded audio into the library as a RECORDED entry.
@@ -1046,10 +1069,16 @@ class TranscriptionService : LifecycleService() {
                 .collect { e ->
                     when (e) {
                         is TranscriptEvent.UtteranceSnapshot -> {
-                            val snap = snapConv.apply(e.copy(utterances = e.utterances.map {
-                                it.copy(startSec = skipper.toOriginal(it.startSec), endSec = skipper.toOriginal(it.endSec))
+                            val snap0 = snapConv.apply(e.copy(utterances = e.utterances.map {
+                                it.copy(startSec = skipper.toOriginal(it.startSec) + offsetSec,
+                                    endSec = skipper.toOriginal(it.endSec) + offsetSec,
+                                    index = it.index + prior.size)
                             }))
+                            // Resumed run: the saved frozen prefix stays in front of the new audio's utterances.
+                            val snap = if (prior.isEmpty()) snap0
+                                else snap0.copy(utterances = prior + snap0.utterances, stable = prior.size + snap0.stable)
                             utterances.clear(); utterances += snap.utterances
+                            frozenCount = snap.stable
                             emitEvent(snap)
                             feedLive(live, snap)
                             // Recognition progress: how far the transcript reaches through the audio.
@@ -1062,6 +1091,7 @@ class TranscriptionService : LifecycleService() {
                     }
                 }
             engine.speakerCount?.let { diarized = utterances.toList() to it }
+            asrFinished = true
         } // ASR native resources freed here, before the LLM is loaded.
         } finally {
             // Whatever happened — finished, failed, or aborted — the audio is on disk and belongs
@@ -1070,6 +1100,18 @@ class TranscriptionService : LifecycleService() {
             // which three failed fixes could not tell apart.
             Log.i(STOP_TAG, "runPipeline finally ENTERED")
             promoteImport()
+            // Stop (or a failure) before the end: keep what was transcribed so far so the user can
+            // resume instead of redoing it. Only the frozen prefix is safe — the tail is re-attributed.
+            // The queue's pass 1 (summarizeAfter=false) has its own sidecar and is left alone.
+            if (summarizeAfter && foreground) {
+                (entry ?: existing ?: savedImportEntry)?.let { e ->
+                    val keep = if (asrFinished) utterances.toList() else utterances.take(frozenCount)
+                    if (keep.isNotEmpty()) {
+                        SessionLibrary.saveProgress(e, SessionLibrary.Progress(
+                            transcriptFingerprint(cfg), keep, keep.last().endSec, asrFinished, ""))
+                    }
+                }
+            }
             // The audio is in the library now (or there was none to save): the shared copy is no
             // longer the only one, so a later launch has nothing to recover.
             if (foreground) ImportRecovery.clear(this@TranscriptionService)
@@ -1262,6 +1304,9 @@ class TranscriptionService : LifecycleService() {
         // a new ACTION_RECORD (which resets the service-global flag) while THIS run is still
         // finishing — the run must keep the defer decision it stopped under.
         var deferred = false
+        // Resume checkpoint inputs (see runPipeline): frozen prefix length, and whether live ASR ended cleanly.
+        var frozenCount = 0
+        var asrEnded = false
 
         // Track this capture so a process kill mid-meeting is recoverable on next launch. The finally
         // below clears it on a clean stop AND on user cancellation (both run finally) — only a hard
@@ -1334,6 +1379,7 @@ class TranscriptionService : LifecycleService() {
                         is TranscriptEvent.UtteranceSnapshot -> {
                             val snap = snapConv.apply(e)
                             utterances.clear(); utterances += snap.utterances
+                            frozenCount = snap.stable
                             emitEvent(snap)
                             feedLive(live, snap)
                         }
@@ -1347,6 +1393,7 @@ class TranscriptionService : LifecycleService() {
             withContext(Dispatchers.IO) { WavNormalizer.normalizeInPlace(wav) }
             // Speakers were tagged live, in the same pass — nothing left to run over the WAV.
             if (!deferred) engine.speakerCount?.let { diarized = utterances.toList() to it }
+            asrEnded = true
         } // ASR + mic released here, before the LLM loads.
         } finally {
             // Capture finished (clean stop or user cancel) — the WAV header was finalized in
@@ -1368,6 +1415,15 @@ class TranscriptionService : LifecycleService() {
                 libEntry = SessionLibrary.promoteRecording(
                     this, wav, (recorder.totalSamples / AsrEngine.SAMPLE_RATE).toInt(),
                 )
+                // Cancelled (ACTION_STOP) before the live ASR finished: the capture is saved, so also keep
+                // the frozen transcript so far — Resume continues ASR from its end instead of from zero.
+                // The normal path below hands the transcript over as the pending sidecar instead.
+                val saved = libEntry
+                if (!asrEnded && saved != null && frozenCount > 0) {
+                    val keep = utterances.take(frozenCount)
+                    if (keep.isNotEmpty()) SessionLibrary.saveProgress(saved, SessionLibrary.Progress(
+                        transcriptFingerprint(cfg), keep, keep.last().endSec, false, ""))
+                }
             }
         }
 
@@ -1436,9 +1492,12 @@ class TranscriptionService : LifecycleService() {
     }
 
     /** Raw PCM16 of one of our own 16 kHz mono work WAVs, as float blocks. */
-    private fun wavChunks(wav: File) = kotlinx.coroutines.flow.flow {
+    private fun wavChunks(wav: File, startSec: Double = 0.0) = kotlinx.coroutines.flow.flow {
         java.io.DataInputStream(wav.inputStream().buffered(1 shl 16)).use { ins ->
             ins.skipBytes(WavIo.HEADER)
+            // Resume: skip the already-transcribed audio (16 kHz mono PCM16 → 2 bytes/sample).
+            var skip = (startSec * WavIo.SAMPLE_RATE).toLong() * 2
+            while (skip > 0) { val k = ins.skip(skip); if (k <= 0) break; skip -= k }
             val bytes = ByteArray(2048 * 2)
             while (true) {
                 var n = 0

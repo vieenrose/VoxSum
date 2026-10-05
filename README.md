@@ -14,7 +14,7 @@
   <img alt="授權" src="https://img.shields.io/badge/license-GPL--3.0-blue">
 </p>
 
-<p align="center"><img src="docs/screenshots/demo.gif" width="300" alt="即時錄音、AI 筆記、摘要、逐字稿、匯出與設定"><br><sub>完整流程：8 分鐘會議的錄音與即時逐字稿、停止後的 AI 筆記與摘要（以上 4 倍速），再瀏覽完成的場次：摘要、AI 筆記過程、逐字稿、點句播放、匯出、搜尋與設定。於模擬器錄製，AI 筆記模型：行動版 E4B。</sub></p>
+<p align="center"><img src="docs/screenshots/demo.gif" width="300" alt="即時錄音、AI 筆記、摘要、逐字稿、匯出與設定"><br><sub>完整流程，全程即時、未加速：8 分鐘會議的錄音與即時逐字稿（上方細條為 CPU／GPU／記憶體／電池狀態），AI 筆記於讀滿第一段後開始；停止後完成筆記與摘要，再瀏覽完成的場次：摘要、AI 筆記過程、逐字稿、點句播放、匯出、搜尋與設定。於 Samsung Galaxy Note10+（Snapdragon 855）錄製，AI 筆記模型：行動版 E4B。</sub></p>
 
 ## 特色
 
@@ -53,7 +53,7 @@
 
 **匯入**：首頁 **＋** 可加入手機上的音訊檔、Podcast、YouTube，或從其他 App 分享音訊過來。
 
-**設定**：外觀（自動、淺色、深色、電子紙）、文字大小（85–150%，整個 App）、語言（English、繁體中文、简体中文，介面與產生的文字一起切換）、語者標註延遲、AI 筆記模型（E2B，或 8 GB 手機可選 E4B）、模型管理。
+**設定**：外觀（自動、淺色、深色、電子紙）、文字大小（85–150%，整個 App）、硬體狀態列、語言（English、繁體中文、简体中文，介面與產生的文字一起切換）、語者標註延遲、AI 筆記模型（E2B，或 8 GB 手機可選 E4B）、模型管理。
 
 <details>
 <summary>更多畫面：匯出、重新處理、設定、匯入</summary>

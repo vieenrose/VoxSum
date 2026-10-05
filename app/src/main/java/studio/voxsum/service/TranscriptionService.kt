@@ -38,6 +38,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
+import studio.voxsum.core.asr.SeamStitcher
 import studio.voxsum.core.asr.AsrEngine
 import studio.voxsum.core.asr.NemoStreamEngine
 import studio.voxsum.core.asr.SnapshotConverter
@@ -980,7 +981,10 @@ class TranscriptionService : LifecycleService() {
         else null
         if (existing != null && resume == null) SessionLibrary.clearProgress(existing)
         val prior = resume?.utterances ?: emptyList()
-        val offsetSec = resume?.asrDoneSec ?: 0.0
+        val seamSec = resume?.asrDoneSec ?: 0.0
+        // Resume a little BEFORE the seam: the overlap lets SeamStitcher match the restarted diarizer's
+        // speaker ids to the saved ones.
+        val offsetSec = if (resume != null) (seamSec - SeamStitcher.PREROLL_SEC).coerceAtLeast(0.0) else 0.0
 
         // Stream-decode the source to a 16 kHz mono work WAV while feeding the live VAD/ASR — never
         // the whole waveform in RAM. The WAV is the player + diarization source (16 kHz mono).
@@ -1075,12 +1079,12 @@ class TranscriptionService : LifecycleService() {
                         is TranscriptEvent.UtteranceSnapshot -> {
                             val snap0 = snapConv.apply(e.copy(utterances = e.utterances.map {
                                 it.copy(startSec = skipper.toOriginal(it.startSec) + offsetSec,
-                                    endSec = skipper.toOriginal(it.endSec) + offsetSec,
-                                    index = it.index + prior.size)
+                                    endSec = skipper.toOriginal(it.endSec) + offsetSec)
                             }))
                             // Resumed run: the saved frozen prefix stays in front of the new audio's utterances.
                             val snap = if (prior.isEmpty()) snap0
-                                else snap0.copy(utterances = prior + snap0.utterances, stable = prior.size + snap0.stable)
+                                else SeamStitcher.stitch(prior, seamSec, snap0.utterances, snap0.stable)
+                                    .let { (all, stable) -> snap0.copy(utterances = all, stable = stable) }
                             utterances.clear(); utterances += snap.utterances
                             frozenCount = snap.stable
                             emitEvent(snap)

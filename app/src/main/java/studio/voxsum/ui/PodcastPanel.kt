@@ -61,7 +61,6 @@ fun PodcastPanel(onStarted: () -> Unit) {
     var selected by remember { mutableStateOf<PodcastSeries?>(null) }
     var busy by remember { mutableStateOf(false) }
     var statusRes by remember { mutableIntStateOf(R.string.dl_searching) }
-    var progress by remember { mutableStateOf<Float?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
 
     Column(
@@ -73,7 +72,7 @@ fun PodcastPanel(onStarted: () -> Unit) {
         val search: () -> Unit = {
             if (query.isNotBlank() && !busy) scope.launch {
                 busy = true; error = null; selected = null; episodes = emptyList()
-                progress = null; statusRes = R.string.dl_searching
+                statusRes = R.string.dl_searching
                 series = runCatching { Podcast.searchSeries(query) }
                     .getOrElse { error = it.userMessage(context); emptyList() }
                 busy = false
@@ -99,7 +98,7 @@ fun PodcastPanel(onStarted: () -> Unit) {
             )
         }
         if (busy) {
-            DownloadStatusBar(statusRes, progress)
+            DownloadStatusBar(statusRes, null)
         }
         error?.let { Text(stringResource(R.string.status_error, it), color = VoxSumPalette.Red) }
 
@@ -109,7 +108,7 @@ fun PodcastPanel(onStarted: () -> Unit) {
                 RowCard(onClick = {
                     scope.launch {
                         busy = true; error = null; selected = s
-                        progress = null; statusRes = R.string.dl_loading_episodes
+                        statusRes = R.string.dl_loading_episodes
                         episodes = runCatching { Podcast.fetchEpisodes(s.feedUrl) }
                             .getOrElse { error = it.userMessage(context); emptyList() }
                         busy = false

@@ -1878,7 +1878,11 @@ class TranscriptionService : LifecycleService() {
                 File("/sys/devices/system/cpu/cpu$c/cpufreq/cpuinfo_max_freq")
                     .takeIf { it.exists() }?.readText()?.trim()?.toLongOrNull()
             }
-            if (freqs.isEmpty()) null else freqs.max().let { top -> freqs.count { it == top } }
+            // Every core above the efficiency cluster: counting only the top frequency found 1 core on
+            // prime+big+little SoCs (Snapdragon 855: 1×2.84 + 3×2.42 + 4×1.79 GHz) and left the big ones idle.
+            if (freqs.isEmpty()) null else freqs.min().let { low ->
+                freqs.count { it > low }.takeIf { it > 0 } ?: freqs.size
+            }
         }.getOrNull() ?: cores
         n.coerceIn(2, 4)
     }

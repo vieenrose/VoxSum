@@ -11,6 +11,17 @@ import SwiftUI
     // Dev paths on the Mac (the simulator shares its filesystem).
     let base = ProcessInfo.processInfo.environment["VOX_BASE"] ?? "/Users/Pesi/work"
 
+    let store = ModelStore()
+    func downloadReader() {
+        status = "Téléchargement du lecteur…"
+        Task.detached { [store] in
+            do {
+                try await store.download(.e2b) { d, t in Task { @MainActor in self.status = String(format: "Lecteur %.0f / %.0f Mo", Double(d) / 1e6, Double(t) / 1e6) } }
+                await MainActor.run { self.status = "Lecteur prêt" }
+            } catch { await MainActor.run { self.status = "Téléchargement : \(error)" } }
+        }
+    }
+
     func run() {
         status = "Chargement des modèles…"; lines = []; notes = []; title = ""; summary = ""
         let b = base
@@ -18,7 +29,8 @@ import SwiftUI
             guard let eng = NemoEngine(xasr: "\(b)/models/x-asr-zh-en-q8_0.gguf", diar: "\(b)/models/nemotron-3-diarization-q8_0.gguf"),
                   let pcm = loadWav("\(b)/clips/diar_ref_2spk_123s.wav") else {
                 await MainActor.run { self.status = "Échec chargement" }; return }
-            let r = ReaderFactory.make(dir: ProcessInfo.processInfo.environment["VOX_READER_DIR"])
+            let stored = await self.store.isComplete(.e2b) ? await self.store.dir(.e2b).path : nil
+            let r = ReaderFactory.make(dir: ProcessInfo.processInfo.environment["VOX_READER_DIR"] ?? stored)
             let reader = MeetingReader(llm: r.llm, systemPrompt: r.systemPrompt, budget: .mobile)
             do { try reader.start() } catch { await MainActor.run { self.status = "Lecteur : \(error)" }; return }
             var seenFrozen = 0
@@ -60,7 +72,10 @@ struct ContentView: View {
             }
             .navigationTitle("VoxSum")
             .onAppear { if ProcessInfo.processInfo.environment["VOX_AUTORUN"] != nil { m.run() } }
-            .toolbar { ToolbarItem(placement: .bottomBar) { Button("Transcrire l'exemple") { m.run() } } }
+            .toolbar {
+                ToolbarItem(placement: .bottomBar) { Button("Transcrire l'exemple") { m.run() } }
+                ToolbarItem(placement: .bottomBar) { Button("Lecteur") { m.downloadReader() } }
+            }
             .safeAreaInset(edge: .bottom) { Text(m.status).font(.footnote).padding(4) }
         }
     }

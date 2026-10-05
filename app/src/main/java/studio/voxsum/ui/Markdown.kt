@@ -10,6 +10,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
@@ -67,7 +68,9 @@ private fun AnnotatedString.Builder.appendWithAnchors(
     if (anchorColor == null || onSeek == null) { appendInline(text); return }
     var last = 0
     for (m in ANCHOR_RE.findAll(text)) {
-        appendInline(text.substring(last, m.range.first))
+        // Raised like a footnote mark, so the space the model puts before it would only open a gap.
+        appendInline(text.substring(last, m.range.first).trimEnd(' '))
+        append('\u2060') // word joiner: the mark never wraps to the next line alone
         val g = m.groupValues
         // Two groups is m:ss; three is h:mm:ss — the format the transcript switches to past an hour.
         val secs = if (g[3].isNotEmpty()) g[1].toInt() * 3600 + g[2].toInt() * 60 + g[3].toInt()
@@ -77,13 +80,15 @@ private fun AnnotatedString.Builder.appendWithAnchors(
             LinkAnnotation.Clickable(
                 tag = "anchor-$secs",
                 styles = TextLinkStyles(
-                    // A small grey chip: the colours belong to the speaker names (语者 2's blue sat
-                    // next to blue timestamps and read as one thing).
+                    // A superscript, like a footnote mark: the prose keeps its line rhythm, and the grey
+                    // stays clear of the speaker colours (语者 2's blue next to blue timestamps read as
+                    // one thing).
                     style = SpanStyle(
                         color = anchorColor, fontWeight = FontWeight.Medium,
-                        fontSize = 0.85.em, background = anchorColor.copy(alpha = 0.14f),
+                        fontSize = 0.7.em, baselineShift = BaselineShift.Superscript,
                     ),
-                    pressedStyle = SpanStyle(color = anchorColor, textDecoration = TextDecoration.Underline),
+                    pressedStyle = SpanStyle(color = anchorColor, textDecoration = TextDecoration.Underline,
+                        fontSize = 0.7.em, baselineShift = BaselineShift.Superscript),
                 ),
             ) { onSeek(secs * 1000) },
         ) { append(label) }

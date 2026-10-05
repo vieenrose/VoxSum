@@ -64,8 +64,8 @@ object SessionLibrary {
     /** Display title for an untitled entry — capture date + time + a short hash (so two same-minute
      *  captures stay distinguishable). Replaced by the LLM title or a user rename when one arrives. */
     fun defaultTitle(createdAt: Long): String {
-        val ts = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(createdAt))
-        return "$ts · %04x".format((createdAt xor (createdAt ushr 17)).toInt() and 0xffff)
+        val pattern = android.text.format.DateFormat.getBestDateTimePattern(Locale.getDefault(), "MMMd HHmm")
+        return SimpleDateFormat(pattern, Locale.getDefault()).format(Date(createdAt))
     }
 
     /** The library entry directory owning [uri] (a `file://` inside an entry), or null. */

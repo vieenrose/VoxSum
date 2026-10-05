@@ -23,6 +23,10 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -221,25 +225,25 @@ fun StudioScreen(
             // Flat identity row — the gradient band is retired. Content over chrome.
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = Gutter, vertical = 10.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = Gutter, vertical = 4.dp),
             ) {
                 Box(
-                    Modifier.size(32.dp).clip(RoundedCornerShape(9.dp)).background(pal.Sky),
+                    Modifier.size(32.dp).clip(RoundedCornerShape(8.dp)).background(pal.Sky),
                     contentAlignment = Alignment.Center,
                 ) { Icon(Icons.Filled.GraphicEq, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp)) }
                 Spacer(Modifier.width(10.dp))
                 Text(
                     stringResource(R.string.app_name),
-                    style = MaterialTheme.typography.headlineSmall, color = pal.Slate200, fontWeight = FontWeight.ExtraBold,
+                    style = MaterialTheme.typography.titleLarge, color = pal.Slate200, fontWeight = FontWeight.Bold,
                 )
                 Spacer(Modifier.weight(1f))
                 Box(
-                    Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(pal.ActiveTint).clickable(onClick = onImport),
+                    Modifier.size(48.dp).clip(RoundedCornerShape(12.dp)).clickable(onClick = onImport),
                     contentAlignment = Alignment.Center,
                 ) { Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.add_audio), tint = pal.Sky) }
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(4.dp))
                 Box(
-                    Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).clickable(onClick = onSettings),
+                    Modifier.size(48.dp).clip(RoundedCornerShape(12.dp)).clickable(onClick = onSettings),
                     contentAlignment = Alignment.Center,
                 ) { Icon(Icons.Filled.Tune, contentDescription = stringResource(R.string.cd_settings), tint = pal.Slate400) }
             }
@@ -251,9 +255,9 @@ fun StudioScreen(
                     .fillMaxWidth().padding(horizontal = Gutter)
                     .clip(RoundedCornerShape(12.dp)).background(pal.PanelSurface)
                     .border(1.dp, pal.Hairline, RoundedCornerShape(12.dp))
-                    .padding(horizontal = 12.dp, vertical = 9.dp),
+                    .heightIn(min = 44.dp).padding(horizontal = 12.dp, vertical = 8.dp),
             ) {
-                Icon(Icons.Filled.Search, contentDescription = null, tint = pal.Slate400, modifier = Modifier.size(17.dp))
+                Icon(Icons.Filled.Search, contentDescription = null, tint = pal.Slate400, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
                 BasicTextField(
                     value = query, onValueChange = { query = it }, singleLine = true,
@@ -348,8 +352,8 @@ fun StudioScreen(
                         Text(
                             dayLabel(day, today, yesterday),
                             style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold,
-                            color = pal.Slate400, letterSpacing = TextUnit(1.5f, TextUnitType.Sp),
-                            modifier = Modifier.fillMaxWidth().background(pal.Slate900Grad).padding(start = Gutter, top = 8.dp, bottom = 4.dp),
+                            color = pal.Slate200, letterSpacing = TextUnit(1f, TextUnitType.Sp),
+                            modifier = Modifier.fillMaxWidth().background(pal.Slate900Grad).padding(start = Gutter, top = 12.dp, bottom = 4.dp),
                         )
                     }
                     items(list, key = { it.id }, contentType = { "row" }) { e ->
@@ -394,20 +398,20 @@ fun StudioScreen(
                 if (pendingCount > 0) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(pal.ActiveTint)
-                            .clickable(onClick = onProcessAll).padding(horizontal = 14.dp, vertical = 11.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).clip(RoundedCornerShape(12.dp))
+                            .clickable(onClick = onProcessAll).padding(horizontal = 12.dp, vertical = 8.dp),
                     ) {
                         Icon(Icons.Filled.PlaylistPlay, contentDescription = null, tint = pal.Sky, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(10.dp))
-                        Text(stringResource(R.string.source_process_all, pendingCount), color = pal.Sky, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.source_process_all, pendingCount), color = pal.Sky, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
                     }
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(4.dp))
                 }
                 Button(
                     onClick = { if (isRecording) onResumeCapture() else onRecord() },
-                    shape = RoundedCornerShape(18.dp),
+                    shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = if (isRecording) VoxSumPalette.Red else pal.Sky),
-                    modifier = Modifier.fillMaxWidth().height(58.dp),
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
                 ) {
                     Icon(Icons.Filled.Mic, contentDescription = null, modifier = Modifier.size(24.dp))
                     Spacer(Modifier.width(8.dp))
@@ -582,7 +586,7 @@ private fun SessionRow(
                 contentDescription = rowDesc
                 if (selectionMode) this.selected = isSelected
             }
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = 12.dp, vertical = 12.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             // Leading glyph doubles as the selection checkbox in selection mode (same 36dp footprint,
@@ -606,7 +610,7 @@ private fun SessionRow(
             Column(Modifier.weight(1f)) {
                 Text(
                     entry.title ?: SessionLibrary.defaultTitle(entry.createdAt),
-                    color = pal.Slate200, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyLarge, maxLines = 2,
+                    color = pal.Slate200, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis,
                 )
                 val meta = buildString {
                     append(TIME_FMT.format(Date(entry.createdAt)))
@@ -614,14 +618,14 @@ private fun SessionRow(
                     append("%d:%02d".format(entry.durationSec / 60, entry.durationSec % 60))
                     if (processing && processingLabel.isNotBlank()) { append(" · "); append(processingLabel) }
                 }
-                Text(meta, color = pal.Slate400, style = MaterialTheme.typography.labelMedium, maxLines = 2)
+                Text(meta, color = pal.Slate400, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             // In selection mode the leading glyph IS the checkbox, so no trailing control.
             if (!selectionMode) {
                 // Summarizing reports no fraction (the reader works in windows): no "0 %" chip then.
                 if (processing) { if (processingFraction > 0f) Chip("%d%%".format((processingFraction * 100).toInt()), VoxSumPalette.Warning) }
                 // Visible manage affordance for EVERY non-processing row (no hidden long-press-only menu).
-                else IconButton(onClick = onManage, modifier = Modifier.size(36.dp)) {
+                else IconButton(onClick = onManage, modifier = Modifier.size(48.dp).offset(x = 8.dp)) {
                     Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.cd_manage), tint = pal.Slate400)
                 }
             }
@@ -642,9 +646,9 @@ private fun SessionRow(
 @Composable
 private fun GlyphTile(color: Color, filled: Boolean = false, outlined: Boolean = false, content: @Composable () -> Unit) {
     Box(
-        Modifier.size(36.dp).clip(RoundedCornerShape(11.dp))
+        Modifier.size(36.dp).clip(RoundedCornerShape(12.dp))
             .background(if (filled) color else color.copy(alpha = 0.14f))
-            .then(if (outlined) Modifier.border(1.5.dp, color.copy(alpha = 0.5f), RoundedCornerShape(11.dp)) else Modifier),
+            .then(if (outlined) Modifier.border(1.5.dp, color.copy(alpha = 0.5f), RoundedCornerShape(12.dp)) else Modifier),
         contentAlignment = Alignment.Center,
     ) { content() }
 }
@@ -672,7 +676,7 @@ private fun FilterChip(label: String, on: Boolean, onClick: () -> Unit) {
             .border(1.dp, if (on) pal.Sky else pal.Hairline, RoundedCornerShape(50))
             .clickable(onClick = onClick)
             .semantics { selected = on; role = Role.Tab }   // announce the chip's selected state
-            .padding(horizontal = 12.dp, vertical = 5.dp),
+            .heightIn(min = 32.dp).wrapContentHeight(Alignment.CenterVertically).padding(horizontal = 12.dp),
     )
 }
 
@@ -690,8 +694,8 @@ private fun Banner(icon: ImageVector, tint: Color, text: String, onClick: () -> 
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth().padding(horizontal = Gutter, vertical = 8.dp)
-            .clip(RoundedCornerShape(14.dp)).background(tint.copy(alpha = 0.13f)).clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .clip(RoundedCornerShape(12.dp)).background(tint.copy(alpha = 0.13f)).clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 12.dp),
     ) {
         Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(16.dp))
         Spacer(Modifier.width(8.dp))

@@ -741,7 +741,7 @@ private fun TranscribeScreen(
             interruptedEntry = withContext(Dispatchers.IO) {
                 val queued = ProcessingQueue.ids(context).toSet()
                 SessionLibrary.list(context)
-                    .filter { it.status != SessionLibrary.Status.DONE && it.id !in queued && SessionLibrary.hasProgress(it) && it.wavFile.exists() }
+                    .filter { it.id !in queued && SessionLibrary.hasProgress(it) && it.wavFile.exists() }
                     .maxByOrNull { it.createdAt }
             }
         }
@@ -2381,7 +2381,7 @@ private fun TranscribeScreen(
             }
             val resumableEntry = remember(libraryDir, recentsVersion, running) {
                 libraryDir?.let { d -> SessionLibrary.byId(context, d.name) }
-                    ?.takeIf { it.status != SessionLibrary.Status.DONE && SessionLibrary.hasProgress(it) }
+                    ?.takeIf { SessionLibrary.hasProgress(it) }
             }
             SessionTopBar(
                 cover = null,   // no per-session art (the generated identicon was removed)

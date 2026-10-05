@@ -453,7 +453,7 @@ fun StudioScreen(
                     }
                     ActionRow(Icons.Filled.RemoveCircleOutline, stringResource(R.string.action_remove_from_queue)) { actionsFor = null; onRemoveFromQueue(e) }
                 }
-                if (e.status != SessionLibrary.Status.DONE && e.id != processingId && SessionLibrary.hasProgress(e)) {
+                if (e.id != processingId && SessionLibrary.hasProgress(e)) {
                     ActionRow(Icons.Filled.PlayArrow, stringResource(R.string.action_resume)) { actionsFor = null; onResume(e) }
                 }
                 if (e.status != SessionLibrary.Status.DONE && e.id != processingId && e.id !in queuedIds) {

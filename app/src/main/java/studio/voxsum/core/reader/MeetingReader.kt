@@ -40,6 +40,7 @@ class MeetingReader(
     private var started = false
     private var pieces: Map<String, IntArray> = emptyMap()
     private var offered = 0                        // offer() calls completed (the resume cursor)
+    private var digest = 0L                        // running hash of the offered lines (see ReaderCheckpoint.digestOf)
 
     /** Called after every window's notes are in the journal: what a resume needs, to persist. */
     var onCheckpoint: ((ReaderCheckpoint) -> Unit)? = null
@@ -62,6 +63,7 @@ class MeetingReader(
         lines.clear(); lines += seen
         k = cp.window
         offered = cp.offered
+        digest = cp.digest
         journal.forEach { events(AgentEvent.NoteKept(it)) }
         prefillFresh(if (journal.isEmpty()) P.JOURNAL_EMPTY else P.compact(journal, count, budget.restartBudget))
         started = true
@@ -83,6 +85,7 @@ class MeetingReader(
         // A line longer than a whole window (a long unbroken monologue) would overflow a small
         // context: it is read as several lines with the same time. Never seen in upstream's data.
         if (count(line.render()) > budget.windowTokens) splitLong(line).forEach(::offerLine) else offerLine(line)
+        digest = ReaderCheckpoint.step(digest, line)
         offered++
     }
 
@@ -153,7 +156,7 @@ class MeetingReader(
         windowLines = 0
         windowTok = 0
         // `offered` has not counted the line that closed this window: a resume replays from it.
-        onCheckpoint?.invoke(ReaderCheckpoint(journal.toList(), k, offered))
+        onCheckpoint?.invoke(ReaderCheckpoint(journal.toList(), k, offered, digest))
         events(AgentEvent.State(AgentState.LISTENING, windowMax = budget.windowTokens, ctxMax = budget.ctxBudget, window = k, ctxTokens = llm.seqLength(), notes = journal.size))
     }
 
@@ -239,7 +242,13 @@ class MeetingReader(
 }
 
 /** The reader's state after a whole window: [offered] transcript lines are read into [journal]. */
-data class ReaderCheckpoint(val journal: List<Note>, val window: Int, val offered: Int)
+data class ReaderCheckpoint(val journal: List<Note>, val window: Int, val offered: Int, val digest: Long = 0L) {
+    companion object {
+        /** Running hash of the lines offered (time + text; speaker labels are re-attributed, so left out). */
+        fun step(h: Long, line: Line): Long = (h * 1_000_003L + line.startS) * 1_000_003L + line.text.hashCode()
+        fun digestOf(lines: List<Line>): Long = lines.fold(0L, ::step)
+    }
+}
 
 /** The same event with every piece of model-written text passed through [f] (script conversion). */
 fun AgentEvent.mapText(f: (String) -> String): AgentEvent = when (this) {

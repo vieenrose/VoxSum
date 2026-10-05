@@ -1623,6 +1623,7 @@ class TranscriptionService : LifecycleService() {
         /** Live resume: the entry whose saved notes seed the reader, over [seedUtts] (the transcript so far). */
         @Volatile var notesEntry: SessionLibrary.Entry? = null
         @Volatile var seedUtts: List<TranscriptEvent.Utterance>? = null
+        @Volatile var resumedNotes = false
         val final = CompletableDeferred<List<TranscriptEvent.Utterance>>()
         val result = CompletableDeferred<SummaryResult>()
         @Volatile var aborted = false
@@ -1759,7 +1760,24 @@ class TranscriptionService : LifecycleService() {
     /** Read one meeting to the end (runs under the task's RunGen, so its events reach its session). */
     private fun readerModelId() = LlmRegistry.byId(TranscriptionConfig.Holder.config.llmModelId).id
 
+    /** A reading that continued from saved notes and failed is redone from the start: a bad
+     *  checkpoint must never cost the summary. */
     private suspend fun readOne(task: ReadTask): SummaryResult {
+        try {
+            return readOnce(task)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (!task.resumedNotes) throw e
+            Log.w("voxsum-reader", "resumed reading failed, reading from the start", e)
+            task.resumedNotes = false
+            (task.notesEntry ?: task.entry)?.let(SessionLibrary::clearNotes)
+            task.seedUtts = null
+            return readOnce(task)
+        }
+    }
+
+    private suspend fun readOnce(task: ReadTask): SummaryResult {
         val gen = task.gen
         events.tryEmit(gen to TranscriptEvent.Agent(AgentEvent.State(AgentState.STARTING)))
         // The model setting changed since this one was loaded (E2B ↔ E4B): load the chosen one.
@@ -1784,10 +1802,14 @@ class TranscriptionService : LifecycleService() {
         }
         val saved = if (task.text == null) (task.notesEntry ?: task.entry)?.let { SessionLibrary.loadNotes(it, wanted) } else null
         val base = task.seedUtts ?: task.latest?.utterances
+        var resumed = false
         if (saved != null && base != null) {
             Log.i("voxsum-reader", "resume reader: window=${saved.window} notes=${saved.journal.size} lines=${saved.offered}")
-            lane.resume(saved, base)
-        } else lane.start()
+            resumed = lane.resume(saved, base)
+            if (!resumed) Log.w("voxsum-reader", "saved notes do not match the transcript: reading from the start")
+        }
+        task.resumedNotes = resumed
+        if (!resumed) lane.start()
         try {
             if (task.text != null) {
                 lane.feedText(task.text)

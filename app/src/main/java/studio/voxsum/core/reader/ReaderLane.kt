@@ -58,9 +58,12 @@ class ReaderLane(
      * read again, the rest are queued like a live feed. [fed]/[fedUntilSec] then continue from the
      * end of [utterances], for both the live snapshots and [finish].
      */
-    fun resume(cp: ReaderCheckpoint, utterances: List<TranscriptEvent.Utterance>) {
+    fun resume(cp: ReaderCheckpoint, utterances: List<TranscriptEvent.Utterance>): Boolean {
         val lines = utterances.mapNotNull { toLine(it) }
-        val n = cp.offered.coerceAtMost(lines.size)
+        val n = cp.offered
+        // The notes only stand for the transcript they were read from: a different one (re-run ASR,
+        // edits) means a full reading, never a resume on mismatched notes.
+        if (n > lines.size || ReaderCheckpoint.digestOf(lines.subList(0, n)) != cp.digest) return false
         fed = utterances.size
         utterances.lastOrNull()?.let { fedUntilSec = it.endSec }
         post {
@@ -68,6 +71,7 @@ class ReaderLane(
             reader.seed(cp.copy(offered = n), lines.subList(0, n))
             lines.drop(n).forEach(reader::offer)
         }
+        return true
     }
 
     /** A live snapshot: hand over the utterances that became stable since the last call. */

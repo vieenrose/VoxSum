@@ -274,7 +274,7 @@ object SessionLibrary {
         runCatching {
             val arr = org.json.JSONArray()
             cp.journal.forEach { arr.put(JSONObject().put("id", it.id).put("window", it.window).put("ts", it.ts).put("tag", it.tag ?: JSONObject.NULL).put("text", it.text)) }
-            val o = JSONObject().put("llm", llmModelId).put("window", cp.window).put("offered", cp.offered).put("journal", arr)
+            val o = JSONObject().put("llm", llmModelId).put("window", cp.window).put("offered", cp.offered).put("digest", cp.digest).put("journal", arr)
             val tmp = File(entry.dir, "$NOTES.tmp")
             tmp.writeText(o.toString())
             if (!tmp.renameTo(File(entry.dir, NOTES))) { File(entry.dir, NOTES).delete(); tmp.renameTo(File(entry.dir, NOTES)) }
@@ -293,7 +293,7 @@ object SessionLibrary {
                 val n = a.getJSONObject(i)
                 studio.voxsum.core.reader.Note(n.getInt("id"), n.getInt("window"), n.getString("ts"), if (n.isNull("tag")) null else n.getString("tag"), n.getString("text"))
             }
-            studio.voxsum.core.reader.ReaderCheckpoint(journal, o.getInt("window"), o.getInt("offered"))
+            studio.voxsum.core.reader.ReaderCheckpoint(journal, o.getInt("window"), o.getInt("offered"), o.optLong("digest", 0L))
         }.onFailure { Log.w(TAG, "corrupt notes in ${entry.id}", it) }.getOrNull()
     }
 

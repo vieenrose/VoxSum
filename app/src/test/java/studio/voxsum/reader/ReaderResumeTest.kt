@@ -42,6 +42,28 @@ class ReaderResumeTest {
         b.finish()
         assertTrue("notes only grow", b.journal.size > cp.journal.size)
         assertEquals("ids continue", (1..b.journal.size).toList(), b.journal.map { it.id })
+        assertEquals(cp.digest, ReaderCheckpoint.digestOf(lines.take(cp.offered)))
         assertTrue("second run fed less than a whole transcript", second.appended < first.appended + 2000)
+    }
+
+    /** Same windows as an uninterrupted run: the resumed reader opens the next window at the same line. */
+    @Test fun resumedWindowsMatchAnUninterruptedRun() {
+        val full = Llm(); val a = reader(full); a.start(); lines.forEach(a::offer); a.finish()
+
+        val cut = Llm(); val b = reader(cut); val cps = ArrayList<ReaderCheckpoint>()
+        b.onCheckpoint = { cps += it }
+        b.start(); lines.take(30).forEach(b::offer)
+        val cp = cps[cps.size / 2]                      // interrupted after an earlier window
+        val res = Llm(cp.window); val c = reader(res)
+        c.seed(cp, lines.take(cp.offered)); lines.drop(cp.offered).forEach(c::offer); c.finish()
+        assertEquals(full.turns, res.turns)             // the same number of windows read overall
+        assertEquals(a.journal.map { it.window }, c.journal.map { it.window })
+        assertEquals(a.journal.map { it.ts }, c.journal.map { it.ts })
+    }
+
+    @Test fun aDifferentTranscriptDoesNotMatchTheDigest() {
+        val cp = ReaderCheckpoint(emptyList(), 1, 3, ReaderCheckpoint.digestOf(lines.take(3)))
+        val other = lines.take(3).toMutableList().also { it[1] = it[1].copy(text = "不同") }
+        assertTrue(ReaderCheckpoint.digestOf(other) != cp.digest)
     }
 }

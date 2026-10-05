@@ -35,3 +35,10 @@ Linux host build of the same sources:
 The label differences start where speech overlaps (~48 s) and are ±10–20 ms on most turn edges. Likely cause: the
 iOS build uses baseline x86 SIMD kernels (`GGML_NATIVE=OFF`) where the host build uses AVX2, i.e. float-rounding
 differences in the diarizer — not verified. `engine.cpp` needs `apple_sched_shim.h` (Linux CPU affinity).
+
+## État (reader + app)
+
+- Le lecteur de réunion (protocole, `MeetingReader`, `ReaderSummarizer`) est porté en Swift, identique octet par octet aux goldens Android (`tests/run.sh`).
+- `native/mfa/` : moteur LiteRT (CPU) + SentencePiece compilés pour iOS arm64 (`native/build_mfa_lib.sh`). Lien/ABI avec `CLiteRTLM.xcframework` à valider sur un iPhone.
+- Simulateur Intel : x86_64 uniquement, donc `StubLlm` (notes simulées) ; `MfaSession` n'est compilé que pour l'appareil.
+- Prochain pas sur iPhone : signature (Apple ID), `build_app.sh iphoneos arm64` (lien mfa + sentencepiece + CLiteRTLM, à intégrer au bundle), téléchargement des modèles du lecteur, mesure de vitesse ASR (ggml sans OpenMP = mono-thread).

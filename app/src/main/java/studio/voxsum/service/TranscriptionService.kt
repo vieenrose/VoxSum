@@ -46,6 +46,7 @@ import studio.voxsum.core.audio.AudioDecoder
 import studio.voxsum.core.audio.AudioRecorder
 import studio.voxsum.core.audio.SilenceSkipper
 import studio.voxsum.core.audio.RecordingRecovery
+import studio.voxsum.core.audio.patchWavHeader
 import studio.voxsum.core.audio.ImportRecovery
 import studio.voxsum.core.audio.WavIo
 import studio.voxsum.core.audio.WavNormalizer
@@ -713,6 +714,9 @@ class TranscriptionService : LifecycleService() {
             return null
         }
         if (!importSaved.compareAndSet(false, true)) return null   // the other side already saved it
+        // The decoder was still streaming into this file, so its header is the placeholder: finalize it
+        // for what is on disk, or the entry is not a canonical WAV and the session .m4a cannot be built.
+        runCatching { patchWavHeader(wav, (wav.length() - WavIo.HEADER) / 2) }
         val entry = runCatching { SessionLibrary.promoteRecording(this, wav, bankedSeconds(wav, inFlightDurationSec)) }
             .onFailure { Log.w(STOP_TAG, "saveInFlightImport($reason) failed", it) }
             .getOrNull()

@@ -86,6 +86,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -329,6 +330,7 @@ class MainActivity : ComponentActivity() {
         if (!TranscriptionService.pipelineActive) {
             Thread {
                 ModelManager(applicationContext).sweepStalePartFiles()
+                studio.voxsum.online.sweepStaleParts(java.io.File(filesDir, "audio"))
                 reclaimAudioTemps(applicationContext)
             }.start()
         }
@@ -2602,11 +2604,27 @@ private fun TranscribeScreen(
             onUpdateFound = { info -> updateInfo = info; updateDismissed = false; showConfigSheet = false },
         )
     }
+    // Podcast/YouTube downloads run in the service, so they outlive the importer sheet: show a
+    // compact card while one is active and hand the file to the pipeline when it lands.
+    val importDl by studio.voxsum.online.ImportDownloads.state.collectAsState()
+    LaunchedEffect(importDl) {
+        when (val st = importDl) {
+            is studio.voxsum.online.ImportDownloads.State.Ready -> {
+                studio.voxsum.online.ImportDownloads.consume()
+                launchAudio(st.uri, st.title)
+            }
+            is studio.voxsum.online.ImportDownloads.State.Failed -> {
+                studio.voxsum.online.ImportDownloads.consume()
+                snackbarHostState.showSnackbar(st.message, duration = SnackbarDuration.Long)
+            }
+            else -> {}
+        }
+    }
+    (importDl as? studio.voxsum.online.ImportDownloads.State.Running)?.let {
+        studio.voxsum.ui.ImportDownloadBanner(it, onCancel = { studio.voxsum.online.ImportDownloads.cancel() })
+    }
     if (showPodcastSheet) {
-        PodcastSheet(
-            onEpisodeReady = { uri, epTitle -> launchAudio(uri, epTitle) },
-            onDismiss = { showPodcastSheet = false },
-        )
+        PodcastSheet(onDismiss = { showPodcastSheet = false })
     }
     if (showExportSheet) {
         ExportSheet(
@@ -2626,10 +2644,7 @@ private fun TranscribeScreen(
         )
     }
     if (showYouTubeSheet) {
-        YouTubeSheet(
-            onAudioReady = { uri, vidTitle -> launchAudio(uri, vidTitle) },
-            onDismiss = { showYouTubeSheet = false },
-        )
+        YouTubeSheet(onDismiss = { showYouTubeSheet = false })
     }
     // The overlay waits for TranscriptEvent.ExportDone, which never arrives if the service is
     // killed mid-export (the Boox kills background work aggressively on sleep) — the modal then

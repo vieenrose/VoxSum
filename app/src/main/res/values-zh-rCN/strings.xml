@@ -373,4 +373,6 @@
     <string name="reader_model_e4b_ram">E4B 需要 8 GB 内存的手机。</string>
     <string name="summary_no_notes">这段录音没有需要记下的决议、待办或数字。</string>
     <string name="agent_simple_reading_all">逐段阅读转写文本中</string>
+    <string name="import_busy">已有下载正在进行</string>
+    <string name="import_download_title">导入音频</string>
 </resources>

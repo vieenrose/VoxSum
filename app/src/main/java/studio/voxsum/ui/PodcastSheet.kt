@@ -1,6 +1,5 @@
 package studio.voxsum.ui
 
-import android.net.Uri
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -15,7 +14,7 @@ import studio.voxsum.ui.theme.LocalVoxSumPalette
 /** Podcast search/browse/download in a bottom sheet (hosts the existing [PodcastPanel]). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PodcastSheet(onEpisodeReady: (Uri, String?) -> Unit, onDismiss: () -> Unit) {
+fun PodcastSheet(onDismiss: () -> Unit) {
     val pal = LocalVoxSumPalette.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
@@ -32,7 +31,7 @@ fun PodcastSheet(onEpisodeReady: (Uri, String?) -> Unit, onDismiss: () -> Unit) 
                 color = pal.Slate200, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 10.dp),
             )
-            PodcastPanel(onEpisodeReady = onEpisodeReady)
+            PodcastPanel(onStarted = onDismiss)
         }
     }
 }

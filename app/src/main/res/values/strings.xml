@@ -381,4 +381,6 @@
     <string name="reader_model_e4b_ram">E4B needs a phone with 8 GB of RAM.</string>
     <string name="summary_no_notes">Nothing to note in this recording: no decisions, actions or figures.</string>
     <string name="agent_simple_reading_all">Reading the transcript, part by part</string>
+    <string name="import_busy">A download is already running</string>
+    <string name="import_download_title">Importing audio</string>
 </resources>

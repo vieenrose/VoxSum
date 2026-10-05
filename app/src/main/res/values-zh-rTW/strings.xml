@@ -373,4 +373,6 @@
     <string name="reader_model_e4b_ram">E4B 需要 8 GB 記憶體的手機。</string>
     <string name="summary_no_notes">這段錄音沒有需要記下的決議、待辦或數字。</string>
     <string name="agent_simple_reading_all">逐段閱讀逐字稿中</string>
+    <string name="import_busy">已有下載進行中</string>
+    <string name="import_download_title">匯入音訊</string>
 </resources>

@@ -102,31 +102,7 @@ object Podcast {
             val ext = ep.audioUrl.substringAfterLast('.', "mp3").substringBefore('?').filter { it.isLetterOrDigit() }.take(4).ifBlank { "mp3" }
                 .ifBlank { "mp3" }
             val out = File(dir, "podcast_${ep.audioUrl.hashCode().toUInt()}.$ext")
-            val conn = (URL(ep.audioUrl).openConnection() as HttpURLConnection).apply {
-                connectTimeout = 30_000; readTimeout = 30_000; instanceFollowRedirects = true
-                setRequestProperty("User-Agent", "VoxSum/1.0")
-            }
-            // Fail on a non-2xx response instead of saving the error page's HTML body as "audio"
-            // (which then fails to transcribe with a baffling message).
-            check(conn.responseCode in 200..299) { "Download failed (HTTP ${conn.responseCode})" }
-            conn.inputStream.use { input ->
-                val total = conn.contentLengthLong.takeIf { it > 0 }
-                val tmp = File(dir, "${out.name}.part")
-                tmp.outputStream().use { o ->
-                    val buf = ByteArray(1 shl 16); var read = 0L
-                    while (true) {
-                        ensureActive()                    // stop promptly when the user backs out
-                        val n = input.read(buf); if (n < 0) break
-                        o.write(buf, 0, n); read += n
-                        // Bound the download so a runaway/mislabeled URL can't fill storage.
-                        check(read <= MAX_DOWNLOAD_BYTES) { "Download too large (over ${MAX_DOWNLOAD_BYTES / (1024 * 1024)} MB)" }
-                        if (total != null) onProgress((read.toFloat() / total).coerceIn(0f, 1f))
-                    }
-                }
-                // Replace any stale prior download of the same episode; surface a real move failure
-                // instead of returning a Uri to a missing/stale file.
-                if (!tmp.renameTo(out)) { out.delete(); check(tmp.renameTo(out)) { "Could not save the downloaded episode" } }
-            }
+            resumableDownload(ep.audioUrl, out, "VoxSum/1.0", MAX_DOWNLOAD_BYTES, onProgress)
             enforceRetentionCap(dir, max = 20)
             Uri.fromFile(out)
         }

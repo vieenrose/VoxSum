@@ -145,25 +145,7 @@ object YouTube {
             }
             val dir = File(ctx.filesDir, "audio").apply { mkdirs() }
             val out = File(dir, "youtube_${audio.streamUrl.hashCode().toUInt()}.${audio.ext}")
-            val conn = (URL(audio.streamUrl).openConnection() as HttpURLConnection).apply {
-                connectTimeout = 30_000; readTimeout = 30_000; instanceFollowRedirects = true
-                setRequestProperty("User-Agent", USER_AGENT)
-            }
-            conn.inputStream.use { input ->
-                val total = conn.contentLengthLong.takeIf { it > 0 }
-                val tmp = File(dir, "${out.name}.part")
-                tmp.outputStream().use { o ->
-                    val buf = ByteArray(1 shl 16); var read = 0L
-                    while (true) {
-                        val n = input.read(buf); if (n < 0) break
-                        o.write(buf, 0, n); read += n
-                        if (total != null) onProgress((read.toFloat() / total).coerceIn(0f, 1f))
-                    }
-                }
-                // Replace any stale prior download of the same video; surface a real move failure
-                // instead of returning a Uri to a missing/stale file.
-                if (!tmp.renameTo(out)) { out.delete(); check(tmp.renameTo(out)) { "Could not save the downloaded audio" } }
-            }
+            resumableDownload(audio.streamUrl, out, USER_AGENT, onProgress = onProgress)
             enforceRetentionCap(dir, max = 20)
             Uri.fromFile(out)
         }

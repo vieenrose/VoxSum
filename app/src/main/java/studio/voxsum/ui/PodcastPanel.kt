@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import studio.voxsum.R
 import studio.voxsum.online.Episode
+import studio.voxsum.online.ImportDownloads
 import studio.voxsum.online.Podcast
 import studio.voxsum.online.PodcastSeries
 import studio.voxsum.ui.components.DownloadStatusBar
@@ -50,7 +51,7 @@ import studio.voxsum.ui.theme.voxSumTextFieldColors
  * and hands its file:// Uri to [onEpisodeReady], reusing the existing pipeline.
  */
 @Composable
-fun PodcastPanel(onEpisodeReady: (Uri, String?) -> Unit) {
+fun PodcastPanel(onStarted: () -> Unit) {
     val pal = LocalVoxSumPalette.current
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -140,15 +141,15 @@ fun PodcastPanel(onEpisodeReady: (Uri, String?) -> Unit) {
                         }
                         Spacer(Modifier.width(8.dp))
                         GradientButton(stringResource(R.string.podcast_transcribe), enabled = !busy, onClick = {
-                            scope.launch {
-                                busy = true; error = null
-                                progress = null; statusRes = R.string.dl_downloading
-                                val uri = runCatching {
-                                    Podcast.downloadEpisode(context, e, onProgress = { progress = it })
-                                }.getOrElse { error = it.userMessage(context); null }
-                                busy = false
-                                uri?.let { onEpisodeReady(it, e.title) }
-                            }
+                            error = null
+                            val started = ImportDownloads.start(
+                                context,
+                                ImportDownloads.Request(e.title) { _, progress ->
+                                    Podcast.downloadEpisode(context, e, onProgress = progress) to e.title
+                                },
+                                R.string.dl_downloading,
+                            )
+                            if (started) onStarted() else error = context.getString(R.string.import_busy)
                         })
                     }
                 }

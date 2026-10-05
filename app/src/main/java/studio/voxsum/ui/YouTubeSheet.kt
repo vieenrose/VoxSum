@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardOptions
 import kotlinx.coroutines.launch
 import studio.voxsum.R
+import studio.voxsum.online.ImportDownloads
 import studio.voxsum.online.YouTube
 import studio.voxsum.ui.components.DownloadStatusBar
 import studio.voxsum.ui.components.GradientButton
@@ -52,7 +53,7 @@ import studio.voxsum.ui.theme.voxSumTextFieldColors
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun YouTubeSheet(onAudioReady: (Uri, String?) -> Unit, onDismiss: () -> Unit) {
+fun YouTubeSheet(onDismiss: () -> Unit) {
     val pal = LocalVoxSumPalette.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -64,17 +65,20 @@ fun YouTubeSheet(onAudioReady: (Uri, String?) -> Unit, onDismiss: () -> Unit) {
     var progress by remember { mutableStateOf<Float?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
 
+    // The download runs in the foreground service (ImportDownloads), not in this sheet's scope:
+    // dismissing the sheet no longer cancels it, and MainActivity picks the file up when it is ready.
     fun transcribe(url: String) {
-        busy = true; error = null; progress = null; statusRes = R.string.dl_resolving
-        scope.launch {
-            runCatching {
+        error = null
+        val started = ImportDownloads.start(
+            context,
+            ImportDownloads.Request(null) { stage, progress ->
                 val audio = YouTube.resolve(context, url)
-                statusRes = R.string.dl_downloading        // resolved → now streaming the audio
-                YouTube.download(context, audio) { p -> progress = p } to audio.title
-            }
-                .onSuccess { (uri, vidTitle) -> busy = false; onAudioReady(uri, vidTitle) }
-                .onFailure { busy = false; error = it.userMessage(context) ?: context.getString(R.string.youtube_fetch_failed) }
-        }
+                stage(R.string.dl_downloading)
+                YouTube.download(context, audio, progress) to audio.title
+            },
+            R.string.dl_resolving,
+        )
+        if (started) onDismiss() else error = context.getString(R.string.import_busy)
     }
     fun go() {
         val q = query.trim()
@@ -89,7 +93,7 @@ fun YouTubeSheet(onAudioReady: (Uri, String?) -> Unit, onDismiss: () -> Unit) {
     }
 
     ModalBottomSheet(
-        onDismissRequest = { if (!busy) onDismiss() },
+        onDismissRequest = { if (!busy) onDismiss() },  // busy = searching only; a download outlives the sheet,
         sheetState = sheetState,
         containerColor = pal.Slate800,
     ) {

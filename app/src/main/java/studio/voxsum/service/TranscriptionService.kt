@@ -150,6 +150,11 @@ class TranscriptionService : LifecycleService() {
         // truncate the file mid-write.
         const val ACTION_PERSIST_LIBRARY = "studio.voxsum.PERSIST_LIBRARY"
 
+        // Podcast/YouTube import download. Runs here (foreground, notification) rather than in the
+        // importer sheet's coroutine scope, so dismissing the sheet can't cancel it. Request rides
+        // [studio.voxsum.online.ImportDownloads.pending]; state is published through its StateFlow.
+        const val ACTION_IMPORT_DOWNLOAD = "studio.voxsum.IMPORT_DOWNLOAD"
+
         // True while a live capture is in flight *in this process*. The Activity can be destroyed and
         // recreated (low memory) while the foreground service keeps recording; the crash-recovery
         // check reads this so it doesn't mistake a still-active recording's marker for an interrupted
@@ -487,6 +492,10 @@ class TranscriptionService : LifecycleService() {
                 runExport(pendingExport.also { pendingExport = null })
                 return START_NOT_STICKY
             }
+            ACTION_IMPORT_DOWNLOAD -> {
+                runImportDownload()
+                return START_NOT_STICKY
+            }
             ACTION_PERSIST_LIBRARY -> {
                 runPersist(pendingPersist.also { pendingPersist = null })
                 return START_NOT_STICKY
@@ -677,6 +686,53 @@ class TranscriptionService : LifecycleService() {
         Log.i(STOP_TAG, "saveInFlightImport($reason) -> ${entry?.id ?: "NULL"}")
         if (entry != null) inFlightWav = null
         return entry
+    }
+
+    private fun runImportDownload() {
+        val req = studio.voxsum.online.ImportDownloads.pending.also { studio.voxsum.online.ImportDownloads.pending = null }
+        if (req == null) {
+            satisfyForegroundContract()
+            if (pipelineJob?.isActive != true && activeExports == 0) {
+                stopForeground(STOP_FOREGROUND_REMOVE); stopSelf(lastStartId)
+            }
+            return
+        }
+        val dl = studio.voxsum.online.ImportDownloads
+        startForegroundTyped(recording = notifRecording, getString(R.string.dl_downloading))
+        activeExports++
+        dl.job = lifecycleScope.launch(Dispatchers.IO) {
+            var stageRes = R.string.dl_resolving
+            var lastPct = -1
+            val result = runCatching {
+                req.work(
+                    { res -> stageRes = res; dl.set(studio.voxsum.online.ImportDownloads.State.Running(req.title, res, null)) },
+                    { p ->
+                        val pct = (p * 100).toInt()
+                        if (pct != lastPct) {   // whole-percent throttle, like reportDownload
+                            lastPct = pct
+                            dl.set(studio.voxsum.online.ImportDownloads.State.Running(req.title, stageRes, p))
+                            updateNotification("${getString(stageRes)} $pct %")
+                        }
+                    },
+                )
+            }
+            val e = result.exceptionOrNull()
+            dl.set(
+                when {
+                    e is kotlinx.coroutines.CancellationException -> studio.voxsum.online.ImportDownloads.State.Idle
+                    e != null -> studio.voxsum.online.ImportDownloads.State.Failed(
+                        e.message?.takeIf { it.isNotBlank() } ?: getString(R.string.youtube_fetch_failed))
+                    else -> result.getOrThrow().let { (uri, t) -> studio.voxsum.online.ImportDownloads.State.Ready(uri, t) }
+                },
+            )
+            withContext(NonCancellable + Dispatchers.Main) {
+                activeExports--
+                if (pipelineJob?.isActive != true && activeExports == 0) {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf(lastStartId)
+                }
+            }
+        }
     }
 
     private fun runPersist(req: PersistRequest?) {

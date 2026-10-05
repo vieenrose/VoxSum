@@ -39,11 +39,38 @@ class MeetingReader(
     private var restarts = 0
     private var started = false
     private var pieces: Map<String, IntArray> = emptyMap()
+    private var offered = 0                        // offer() calls completed (the resume cursor)
+
+    /** Called after every window's notes are in the journal: what a resume needs, to persist. */
+    var onCheckpoint: ((ReaderCheckpoint) -> Unit)? = null
+
+    private fun initPieces() {
+        pieces = mapOf("p0" to P.P0, "p1" to P.P1, "p2" to P.P2, "p3" to P.P3)
+            .mapValues { llm.tokenize(it.value, true) }
+    }
+
+    /**
+     * Resume from a [ReaderCheckpoint]: the journal and the lines it was written from are put back
+     * without reading them again; only the compact journal prefix is prefilled (the same cheap
+     * prefill as a context restart — the KV cache itself cannot outlive the process). The next
+     * [offer] must be line number [ReaderCheckpoint.offered] of the transcript.
+     */
+    fun seed(cp: ReaderCheckpoint, seen: List<Line>) {
+        initPieces()
+        events(AgentEvent.State(AgentState.STARTING, windowMax = budget.windowTokens, ctxMax = budget.ctxBudget))
+        journal.clear(); journal += cp.journal
+        lines.clear(); lines += seen
+        k = cp.window
+        offered = cp.offered
+        journal.forEach { events(AgentEvent.NoteKept(it)) }
+        prefillFresh(if (journal.isEmpty()) P.JOURNAL_EMPTY else P.compact(journal, count, budget.restartBudget))
+        started = true
+        events(AgentEvent.State(AgentState.LISTENING, windowMax = budget.windowTokens, ctxMax = budget.ctxBudget, window = k, ctxTokens = llm.seqLength(), notes = journal.size))
+    }
 
     /** Prefill the fresh prefix (system + empty journal). */
     fun start() {
-        pieces = mapOf("p0" to P.P0, "p1" to P.P1, "p2" to P.P2, "p3" to P.P3)
-            .mapValues { llm.tokenize(it.value, true) }
+        initPieces()
         events(AgentEvent.State(AgentState.STARTING, windowMax = budget.windowTokens, ctxMax = budget.ctxBudget))
         prefillFresh(P.JOURNAL_EMPTY)
         started = true
@@ -55,8 +82,8 @@ class MeetingReader(
         check(started) { "start() first" }
         // A line longer than a whole window (a long unbroken monologue) would overflow a small
         // context: it is read as several lines with the same time. Never seen in upstream's data.
-        if (count(line.render()) > budget.windowTokens) { splitLong(line).forEach(::offerLine); return }
-        offerLine(line)
+        if (count(line.render()) > budget.windowTokens) splitLong(line).forEach(::offerLine) else offerLine(line)
+        offered++
     }
 
     private fun splitLong(line: Line): List<Line> {
@@ -125,6 +152,8 @@ class MeetingReader(
         events(AgentEvent.TurnDone(k, reply, kept, (clock() - t0) / 1_000_000))
         windowLines = 0
         windowTok = 0
+        // `offered` has not counted the line that closed this window: a resume replays from it.
+        onCheckpoint?.invoke(ReaderCheckpoint(journal.toList(), k, offered))
         events(AgentEvent.State(AgentState.LISTENING, windowMax = budget.windowTokens, ctxMax = budget.ctxBudget, window = k, ctxTokens = llm.seqLength(), notes = journal.size))
     }
 
@@ -208,6 +237,9 @@ class MeetingReader(
         events(AgentEvent.Fed(k, what, toks.size, (clock() - t0) / 1_000_000, llm.seqLength()))
     }
 }
+
+/** The reader's state after a whole window: [offered] transcript lines are read into [journal]. */
+data class ReaderCheckpoint(val journal: List<Note>, val window: Int, val offered: Int)
 
 /** The same event with every piece of model-written text passed through [f] (script conversion). */
 fun AgentEvent.mapText(f: (String) -> String): AgentEvent = when (this) {

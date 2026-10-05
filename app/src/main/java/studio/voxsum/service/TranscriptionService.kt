@@ -58,6 +58,7 @@ import studio.voxsum.core.reader.mapText
 import studio.voxsum.core.reader.AgentState
 import studio.voxsum.core.reader.ReaderProtocol
 import studio.voxsum.core.reader.ReaderLane
+import studio.voxsum.core.reader.ReaderCheckpoint
 import studio.voxsum.core.models.LlmRegistry
 import studio.voxsum.core.models.LlmSpec
 import studio.voxsum.core.models.ModelManager
@@ -1047,7 +1048,10 @@ class TranscriptionService : LifecycleService() {
         }
 
         // Live mode: the reader loads now and reads the transcript while it is being recognized.
-        val live = if (summarizeAfter) startLiveReader() else null
+        val live = if (summarizeAfter) startLiveReader().also { t ->
+            // Resumed capture: the reader continues from its saved notes over the transcript so far.
+            if (resume != null) { t.notesEntry = existing; t.seedUtts = prior }
+        } else null
         try {
         val engine = try {
             createEngine(models)
@@ -1109,6 +1113,7 @@ class TranscriptionService : LifecycleService() {
                     if (keep.isNotEmpty()) {
                         SessionLibrary.saveProgress(e, SessionLibrary.Progress(
                             transcriptFingerprint(cfg), keep, keep.last().endSec, asrFinished, ""))
+                        live?.latestCp?.let { SessionLibrary.saveNotes(e, readerModelId(), it) }
                     }
                 }
             }
@@ -1423,6 +1428,7 @@ class TranscriptionService : LifecycleService() {
                     val keep = utterances.take(frozenCount)
                     if (keep.isNotEmpty()) SessionLibrary.saveProgress(saved, SessionLibrary.Progress(
                         transcriptFingerprint(cfg), keep, keep.last().endSec, false, ""))
+                    live.latestCp?.let { SessionLibrary.saveNotes(saved, readerModelId(), it) }
                 }
             }
         }
@@ -1612,6 +1618,11 @@ class TranscriptionService : LifecycleService() {
         val text: String? = null,
     ) {
         @Volatile var latest: TranscriptEvent.UtteranceSnapshot? = null
+        /** The reader's last whole-window state; persisted as it moves once an entry is known. */
+        @Volatile var latestCp: ReaderCheckpoint? = null
+        /** Live resume: the entry whose saved notes seed the reader, over [seedUtts] (the transcript so far). */
+        @Volatile var notesEntry: SessionLibrary.Entry? = null
+        @Volatile var seedUtts: List<TranscriptEvent.Utterance>? = null
         val final = CompletableDeferred<List<TranscriptEvent.Utterance>>()
         val result = CompletableDeferred<SummaryResult>()
         @Volatile var aborted = false
@@ -1746,6 +1757,8 @@ class TranscriptionService : LifecycleService() {
     }
 
     /** Read one meeting to the end (runs under the task's RunGen, so its events reach its session). */
+    private fun readerModelId() = LlmRegistry.byId(TranscriptionConfig.Holder.config.llmModelId).id
+
     private suspend fun readOne(task: ReadTask): SummaryResult {
         val gen = task.gen
         events.tryEmit(gen to TranscriptEvent.Agent(AgentEvent.State(AgentState.STARTING)))
@@ -1761,7 +1774,20 @@ class TranscriptionService : LifecycleService() {
             events.tryEmit(gen to TranscriptEvent.Agent(if (conv == null) ev else ev.mapText(conv::convert)))
         }
         val lane = ReaderLane(model.llm, model.system, model.budget, model.notesChars, emit)
-        lane.start()
+        if (task.text == null) {
+            // Checkpoint the notes after every window; a saved one lets an interrupted reading (Stop,
+            // crash, kill) continue instead of reading the whole transcript again.
+            lane.onCheckpoint { cp ->
+                task.latestCp = cp
+                (task.notesEntry ?: task.entry)?.let { SessionLibrary.saveNotes(it, wanted, cp) }
+            }
+        }
+        val saved = if (task.text == null) (task.notesEntry ?: task.entry)?.let { SessionLibrary.loadNotes(it, wanted) } else null
+        val base = task.seedUtts ?: task.latest?.utterances
+        if (saved != null && base != null) {
+            Log.i("voxsum-reader", "resume reader: window=${saved.window} notes=${saved.journal.size} lines=${saved.offered}")
+            lane.resume(saved, base)
+        } else lane.start()
         try {
             if (task.text != null) {
                 lane.feedText(task.text)

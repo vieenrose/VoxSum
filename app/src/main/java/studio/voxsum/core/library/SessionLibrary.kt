@@ -267,10 +267,45 @@ object SessionLibrary {
         }.onFailure { Log.w(TAG, "corrupt progress in ${entry.id}", it) }.getOrNull()
     }
 
+    private const val NOTES = "pending_notes.json"
+
+    /** The reader's checkpoint (journal + how many transcript lines it covers), atomic. */
+    fun saveNotes(entry: Entry, llmModelId: String, cp: studio.voxsum.core.reader.ReaderCheckpoint) {
+        runCatching {
+            val arr = org.json.JSONArray()
+            cp.journal.forEach { arr.put(JSONObject().put("id", it.id).put("window", it.window).put("ts", it.ts).put("tag", it.tag ?: JSONObject.NULL).put("text", it.text)) }
+            val o = JSONObject().put("llm", llmModelId).put("window", cp.window).put("offered", cp.offered).put("journal", arr)
+            val tmp = File(entry.dir, "$NOTES.tmp")
+            tmp.writeText(o.toString())
+            if (!tmp.renameTo(File(entry.dir, NOTES))) { File(entry.dir, NOTES).delete(); tmp.renameTo(File(entry.dir, NOTES)) }
+        }.onFailure { Log.w(TAG, "could not persist notes for ${entry.id}", it) }
+    }
+
+    /** The reader checkpoint written with [llmModelId] (another model's notes are not reused). */
+    fun loadNotes(entry: Entry, llmModelId: String): studio.voxsum.core.reader.ReaderCheckpoint? {
+        val f = File(entry.dir, NOTES)
+        if (!f.exists()) return null
+        return runCatching {
+            val o = JSONObject(f.readText())
+            if (o.optString("llm") != llmModelId) return@runCatching null
+            val a = o.getJSONArray("journal")
+            val journal = List(a.length()) { i ->
+                val n = a.getJSONObject(i)
+                studio.voxsum.core.reader.Note(n.getInt("id"), n.getInt("window"), n.getString("ts"), if (n.isNull("tag")) null else n.getString("tag"), n.getString("text"))
+            }
+            studio.voxsum.core.reader.ReaderCheckpoint(journal, o.getInt("window"), o.getInt("offered"))
+        }.onFailure { Log.w(TAG, "corrupt notes in ${entry.id}", it) }.getOrNull()
+    }
+
+    fun clearNotes(entry: Entry) {
+        runCatching { File(entry.dir, NOTES).delete() }
+    }
+
     fun hasProgress(entry: Entry): Boolean = File(entry.dir, PROGRESS).exists()
 
     fun clearProgress(entry: Entry) {
         runCatching { File(entry.dir, PROGRESS).delete() }
+        clearNotes(entry)
     }
 
     fun clearPendingTranscript(entry: Entry) {

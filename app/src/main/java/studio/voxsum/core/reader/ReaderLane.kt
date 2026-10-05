@@ -50,6 +50,26 @@ class ReaderLane(
 
     fun start() = post { llm.reset(); reader.start() }
 
+    /** Persist the reader's state after each window (called on the reader thread). */
+    fun onCheckpoint(f: (ReaderCheckpoint) -> Unit) { reader.onCheckpoint = f }
+
+    /**
+     * Start from a saved [cp] over [utterances] (the transcript so far): the lines it covers are not
+     * read again, the rest are queued like a live feed. [fed]/[fedUntilSec] then continue from the
+     * end of [utterances], for both the live snapshots and [finish].
+     */
+    fun resume(cp: ReaderCheckpoint, utterances: List<TranscriptEvent.Utterance>) {
+        val lines = utterances.mapNotNull { toLine(it) }
+        val n = cp.offered.coerceAtMost(lines.size)
+        fed = utterances.size
+        utterances.lastOrNull()?.let { fedUntilSec = it.endSec }
+        post {
+            llm.reset()
+            reader.seed(cp.copy(offered = n), lines.subList(0, n))
+            lines.drop(n).forEach(reader::offer)
+        }
+    }
+
     /** A live snapshot: hand over the utterances that became stable since the last call. */
     fun feed(snapshot: TranscriptEvent.UtteranceSnapshot) {
         val stable = snapshot.stable.coerceAtMost(snapshot.utterances.size)

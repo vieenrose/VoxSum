@@ -1463,7 +1463,7 @@ class TranscriptionService : LifecycleService() {
         if (live != null) {
             if (captureFailed.get()) closeLive(live)
             else {
-                live.entry = libEntry
+                libEntry?.let(live::attachEntry) ?: run { live.entry = libEntry }
                 live.complete(tagged.toList())
                 if (liveReader === live) liveReader = null
             }
@@ -1624,6 +1624,20 @@ class TranscriptionService : LifecycleService() {
         @Volatile var notesEntry: SessionLibrary.Entry? = null
         @Volatile var seedUtts: List<TranscriptEvent.Utterance>? = null
         @Volatile var resumedNotes = false
+        private val cpLock = Any()
+
+        /** Record a window's checkpoint; written to the entry's sidecar once there is one. */
+        fun checkpoint(cp: ReaderCheckpoint, llmModelId: String) = synchronized(cpLock) {
+            latestCp = cp
+            (notesEntry ?: entry)?.let { SessionLibrary.saveNotes(it, llmModelId, cp) }
+        }
+
+        /** The live capture just got its library entry: windows already read are persisted now,
+         *  not only at the next one (a kill right after Stop must not lose them). */
+        fun attachEntry(e: SessionLibrary.Entry) = synchronized(cpLock) {
+            entry = e
+            latestCp?.let { SessionLibrary.saveNotes(e, readerModelId(), it) }
+        }
         val final = CompletableDeferred<List<TranscriptEvent.Utterance>>()
         val result = CompletableDeferred<SummaryResult>()
         @Volatile var aborted = false
@@ -1796,8 +1810,7 @@ class TranscriptionService : LifecycleService() {
             // Checkpoint the notes after every window; a saved one lets an interrupted reading (Stop,
             // crash, kill) continue instead of reading the whole transcript again.
             lane.onCheckpoint { cp ->
-                task.latestCp = cp
-                (task.notesEntry ?: task.entry)?.let { SessionLibrary.saveNotes(it, wanted, cp) }
+                task.checkpoint(cp, wanted)
             }
         }
         val saved = if (task.text == null) (task.notesEntry ?: task.entry)?.let { SessionLibrary.loadNotes(it, wanted) } else null

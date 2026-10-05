@@ -46,7 +46,7 @@ actor ModelStore {
     }
 
     /// Downloads what is missing; `progress` gets (bytes done, bytes total) over the whole model.
-    func download(_ m: ReaderModel, progress: @Sendable (Int64, Int64) -> Void) async throws {
+    func download(_ m: ReaderModel, progress: @escaping @Sendable (Int64, Int64) -> Void) async throws {
         try FileManager.default.createDirectory(at: dir(m), withIntermediateDirectories: true)
         let total = m.files.reduce(0) { $0 + $1.size }; var done: Int64 = 0
         for f in m.files {
@@ -55,18 +55,8 @@ actor ModelStore {
             let have = (try? FileManager.default.attributesOfItem(atPath: part.path)[.size] as? Int64) ?? 0
             var req = URLRequest(url: m.url(f))
             if have > 0 { req.setValue("bytes=\(have)-", forHTTPHeaderField: "Range") }
-            let (bytes, resp) = try await URLSession.shared.bytes(for: req)
-            let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
-            guard code == 200 || code == 206 else { throw ModelStoreError.badStatus(code) }
-            if code == 200 || !FileManager.default.fileExists(atPath: part.path) { FileManager.default.createFile(atPath: part.path, contents: nil) }
-            let h = try FileHandle(forWritingTo: part)
-            if code == 206 { try h.seekToEnd() }
-            var buf = Data(); var got = code == 206 ? have : 0
-            for try await b in bytes {
-                buf.append(b)
-                if buf.count >= 1 << 20 { try h.write(contentsOf: buf); got += Int64(buf.count); buf.removeAll(keepingCapacity: true); progress(done + got, total) }
-            }
-            try h.write(contentsOf: buf); try h.close()
+            let base = done
+            try await Chunked.fetch(req, to: part, resumeFrom: have) { got in progress(base + got, total) }
             guard (try FileManager.default.attributesOfItem(atPath: part.path)[.size] as? Int64) == f.size else { throw ModelStoreError.size(f.name) }
             if let want = f.sha256, try Self.sha256(part) != want { try? FileManager.default.removeItem(at: part); throw ModelStoreError.hash(f.name) }
             try? FileManager.default.removeItem(at: dest)
@@ -80,5 +70,49 @@ actor ModelStore {
         var hasher = SHA256()
         while let d = try h.read(upToCount: 1 << 20), !d.isEmpty { hasher.update(data: d) }
         return hasher.finalize().map { String(format: "%02x", $0) }.joined()
+    }
+}
+
+/// Streams a response to `file` in network-sized chunks (iterating `URLSession.bytes` is per-byte and slow).
+/// Resumes with `Range` when `resumeFrom > 0` and the server answers 206; a 200 restarts the file.
+final class Chunked: NSObject, URLSessionDataDelegate, @unchecked Sendable {
+    private var handle: FileHandle?, got: Int64 = 0, cont: CheckedContinuation<Void, Error>?
+    private let file: URL, resumeFrom: Int64, onProgress: (Int64) -> Void
+    private var lastReport = Date.distantPast
+    private init(file: URL, resumeFrom: Int64, onProgress: @escaping (Int64) -> Void) { self.file = file; self.resumeFrom = resumeFrom; self.onProgress = onProgress }
+
+    static func fetch(_ req: URLRequest, to file: URL, resumeFrom: Int64, onProgress: @escaping (Int64) -> Void) async throws {
+        let d = Chunked(file: file, resumeFrom: resumeFrom, onProgress: onProgress)
+        let session = URLSession(configuration: .default, delegate: d, delegateQueue: nil)
+        defer { session.finishTasksAndInvalidate() }
+        try await withCheckedThrowingContinuation { (c: CheckedContinuation<Void, Error>) in
+            d.cont = c
+            var r = req
+            if resumeFrom > 0 { r.setValue("bytes=\(resumeFrom)-", forHTTPHeaderField: "Range") }
+            session.dataTask(with: r).resume()
+        }
+    }
+
+    func urlSession(_ s: URLSession, dataTask: URLSessionDataTask, didReceive resp: URLResponse, completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
+        let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
+        guard code == 200 || code == 206 else { finish(ModelStoreError.badStatus(code)); completionHandler(.cancel); return }
+        do {
+            if code == 200 || !FileManager.default.fileExists(atPath: file.path) { FileManager.default.createFile(atPath: file.path, contents: nil); got = 0 }
+            else { got = resumeFrom }
+            handle = try FileHandle(forWritingTo: file)
+            if code == 206 { try handle?.seekToEnd() }
+            completionHandler(.allow)
+        } catch { finish(error); completionHandler(.cancel) }
+    }
+    func urlSession(_ s: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+        do { try handle?.write(contentsOf: data) } catch { finish(error); dataTask.cancel(); return }
+        got += Int64(data.count)
+        if Date().timeIntervalSince(lastReport) > 0.5 { lastReport = Date(); onProgress(got) }
+    }
+    func urlSession(_ s: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) { onProgress(got); finish(error) }
+    private func finish(_ error: Error?) {
+        try? handle?.close(); handle = nil
+        guard let c = cont else { return }; cont = nil
+        if let error { c.resume(throwing: error) } else { c.resume() }
     }
 }

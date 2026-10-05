@@ -135,7 +135,7 @@ struct ContentView: View {
                 }
             }
             .navigationTitle("VoxSum")
-            .onAppear { m.reload(); if ProcessInfo.processInfo.environment["VOX_AUTORUN"] != nil { m.run() } }
+            .onAppear { m.reload(); if ProcessInfo.processInfo.environment["VOX_DOWNLOAD"] != nil { m.downloadReader() }; if ProcessInfo.processInfo.environment["VOX_AUTORUN"] != nil { m.run() } }
             .toolbar {
                 ToolbarItem(placement: .bottomBar) { Button("Transcrire l'exemple") { m.run() } }
                 ToolbarItem(placement: .bottomBar) { Button("Lecteur") { m.downloadReader() } }

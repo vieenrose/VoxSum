@@ -124,6 +124,7 @@ fun CaptureScreen(
             Row(Modifier.weight(1f)) {
                 Column(Modifier.weight(1f).fillMaxHeight()) {
                     TimerRow(recSeconds, micLevel, Modifier.align(Alignment.CenterHorizontally))
+                    HwStatusLine(Modifier.align(Alignment.CenterHorizontally))
                     Spacer(Modifier.height(12.dp))
                     Spacer(Modifier.weight(1f))
                     CaptureButtons(isRecording, onNextTalk, onStop, buttonHeight = 72.dp)
@@ -136,7 +137,8 @@ fun CaptureScreen(
             Spacer(Modifier.height(12.dp))
         } else {
             TimerRow(recSeconds, micLevel, Modifier.align(Alignment.CenterHorizontally))
-            Spacer(Modifier.height(16.dp))
+            HwStatusLine(Modifier.align(Alignment.CenterHorizontally))
+            Spacer(Modifier.height(12.dp))
             // Live transcript: a first-class panel filling everything between the timer and
             // the buttons — the full running transcript, auto-following the newest line.
             LivePanel(utterances, stable, agent, notice)

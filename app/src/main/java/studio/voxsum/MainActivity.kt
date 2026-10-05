@@ -2088,7 +2088,11 @@ private fun TranscribeScreen(
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             // The reading agent at work (live during recording/processing; stays after as a log).
             val shownAgent = if (watchingQueue) queueAgent else agent
-            if (shownAgent.active) SectionCard { studio.voxsum.ui.AgentPanel(shownAgent, anchorSeek) }
+            if (shownAgent.active) SectionCard {
+                studio.voxsum.ui.AgentPanel(shownAgent, anchorSeek)
+                // Hardware status while the reader works; gone once it is done.
+                if (shownAgent.working) studio.voxsum.ui.HwStatusLine(Modifier.padding(top = 8.dp))
+            }
             // Portrait: the title is in the top bar; the card only appears to edit it.
             title?.takeIf { twoPane || editingTitle }?.let { t ->
                 TitleCard(t, llmDisplay, editingTitle,

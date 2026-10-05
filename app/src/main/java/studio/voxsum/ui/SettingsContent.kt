@@ -92,6 +92,16 @@ fun SettingsContent(
         Section(stringResource(R.string.settings_appearance))
         AppearanceSelector(enabled)
         FontScaleSlider(enabled)
+        val ctx = androidx.compose.ui.platform.LocalContext.current
+        var hwOn by remember { mutableStateOf(studio.voxsum.core.config.ThemeStore.loadHwMonitor(ctx)) }
+        SwitchRow(stringResource(R.string.settings_hw_monitor), hwOn, enabled) {
+            hwOn = it; studio.voxsum.core.config.ThemeStore.saveHwMonitor(ctx, it)
+        }
+        Text(
+            stringResource(R.string.settings_hw_monitor_hint),
+            style = MaterialTheme.typography.labelSmall,
+            color = pal.Slate400,
+        )
 
         // One choice for the interface AND every Chinese text the app produces: the strings switch
         // live, and the Han script (Traditional / Simplified) follows the language.

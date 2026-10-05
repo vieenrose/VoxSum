@@ -41,8 +41,11 @@
     <string name="theme_dark">深色</string>
     <string name="theme_eink">電子紙</string>
     <string name="theme_eink_hint">電子紙為專為電子閱讀器設計的高對比扁平主題，請手動選用。</string>
+    <string name="hw_status_cd">硬體狀態：CPU %1$d%%，記憶體 %2$d%%，電池 %3$d%%</string>
     <string name="settings_font_size">文字大小</string>
     <string name="settings_font_size_hint">調整整個 App 的文字大小，疊加於系統字型大小之上。</string>
+    <string name="settings_hw_monitor">硬體狀態列</string>
+    <string name="settings_hw_monitor_hint">錄音時與 AI 閱讀時，顯示 CPU、記憶體與電池的狀態條。</string>
     <string name="settings_recording">錄音</string>
     <string name="settings_speaker_delay">即時語者標註延遲</string>
     <string name="settings_seconds">%1$d 秒</string>

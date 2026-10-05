@@ -34,4 +34,15 @@ object ThemeStore {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit().putFloat(KEY_FONT, scale).apply()
     }
+
+    private const val KEY_HW = "hwMonitor"
+
+    /** The CPU / RAM / battery gauges shown while recording and while the agent reads. On by default. */
+    fun loadHwMonitor(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_HW, true)
+
+    fun saveHwMonitor(context: Context, on: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit().putBoolean(KEY_HW, on).apply()
+    }
 }

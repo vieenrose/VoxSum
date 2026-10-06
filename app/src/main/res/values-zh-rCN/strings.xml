@@ -381,14 +381,12 @@
     <string name="import_download_title">导入音频</string>
     <string name="action_resume">继续处理</string>
     <string name="settings_inference">推理</string>
-    <string name="settings_threads_auto">自动</string>
     <string name="settings_threads">线程</string>
-    <string name="settings_inference_summary">%1$s · %2$d 核心（%3$d 颗高性能）· %4$.1f GB 内存\nAI 引擎使用 %5$d 个线程。</string>
     <string name="settings_inference_capped">曾有一次阅读在较多线程下失败，因此在下次测试前改用 2 个。</string>
     <string name="settings_inference_bench_title">测试结果：各线程数的相对速度（%）</string>
     <string name="settings_inference_run">运行测试</string>
     <string name="settings_inference_running">测试中…</string>
-    <string name="settings_inference_hint">自动模式会一次测完从 2 到全部核心的线程数（约数秒），并采用提升不再明显的最少线程数。只有在录音卡顿时才需要手动指定。</string>
+    <string name="settings_inference_hint">拖动滑块选择线程数。“运行测试”会测完从 2 到全部核心的线程数，并自动选用提升不再明显的最少线程数。</string>
     <string name="settings_backend_title">阅读器运行于</string>
     <string name="backend_cpu">CPU</string>
     <string name="backend_gpu">GPU</string>

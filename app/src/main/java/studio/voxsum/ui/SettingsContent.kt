@@ -586,37 +586,20 @@ private fun InferencePanel(enabled: Boolean) {
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     var profile by remember { mutableStateOf(studio.voxsum.core.hw.HwInfo.profile(ctx)) }
     var running by remember { mutableStateOf(false) }
-    // Auto (chip) = the benchmark picks; off = a slider from 2 to all the cores. Applied on release.
-    val auto = profile.mode == studio.voxsum.core.hw.ThreadMode.AUTO
-    var draft by remember(profile.threads, auto) { mutableFloatStateOf(profile.threads.toFloat()) }
-    fun setThreads(n: Int) {
-        studio.voxsum.core.hw.HwInfo.setMode(ctx, studio.voxsum.core.hw.ThreadMode.entries.first { it.fixed == n })
-        profile = studio.voxsum.core.hw.HwInfo.profile(ctx)
-    }
-    FilterChip(
-        selected = auto,
-        enabled = enabled,
-        onClick = {
-            if (auto) setThreads(profile.threads.coerceIn(2, maxOf(2, profile.cores)))
-            else { studio.voxsum.core.hw.HwInfo.setMode(ctx, studio.voxsum.core.hw.ThreadMode.AUTO); profile = studio.voxsum.core.hw.HwInfo.profile(ctx) }
-        },
-        label = { Text(stringResource(R.string.settings_threads_auto)) },
-        colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = pal.Sky.copy(alpha = 0.15f), selectedLabelColor = pal.Sky, labelColor = pal.Slate400),
-    )
+    // A slider from 2 to all the cores; moving it is a manual choice. "Run benchmark" goes back to Auto: it
+    // measures every count, picks the best one and moves the slider there.
+    var draft by remember(profile.threads) { mutableFloatStateOf(profile.threads.toFloat()) }
     if (profile.cores > 2) SliderRow(
-        stringResource(R.string.settings_threads), draft, 2f, profile.cores.toFloat(), enabled && !auto,
+        stringResource(R.string.settings_threads), draft, 2f, profile.cores.toFloat(), enabled,
         steps = profile.cores - 3,
         format = { "${it.roundToInt()}" },
-        onChangeFinished = { setThreads(draft.roundToInt()) },
+        onChangeFinished = {
+            val n = draft.roundToInt()
+            studio.voxsum.core.hw.HwInfo.setMode(ctx, studio.voxsum.core.hw.ThreadMode.entries.first { it.fixed == n })
+            profile = studio.voxsum.core.hw.HwInfo.profile(ctx)
+        },
     ) { draft = it }
-    Text(
-        stringResource(R.string.settings_inference_summary, profile.soc, profile.cores, profile.upperCores,
-            profile.totalRamMb / 1024.0, profile.threads) +
-            (if (profile.capped) "\n" + stringResource(R.string.settings_inference_capped) else ""),
-        style = MaterialTheme.typography.bodySmall,
-        color = pal.Slate400,
-    )
+    if (profile.capped) Text(stringResource(R.string.settings_inference_capped), style = MaterialTheme.typography.bodySmall, color = pal.Slate400)
     if (profile.benchScores.isNotEmpty()) {
         // Compact column chart: one column per measured thread count, scaled to the best; the count in use is highlighted.
         val best = profile.benchScores.values.max().coerceAtLeast(1.0)
@@ -690,6 +673,7 @@ private fun InferencePanel(enabled: Boolean) {
         onClick = {
             running = true; needModel = false
             scope.launch {
+                studio.voxsum.core.hw.HwInfo.setMode(ctx, studio.voxsum.core.hw.ThreadMode.AUTO)
                 profile = runCatching { studio.voxsum.core.hw.HwInfo.ensureBench(ctx, force = true) }.getOrDefault(profile)
                 val models = studio.voxsum.core.models.ModelManager(ctx)
                 val spec = studio.voxsum.core.models.LlmRegistry.byId(

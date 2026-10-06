@@ -159,7 +159,7 @@ dependencies {
 // The LiteRT runtime the mobile reader engine was built and measured against
 // (voxsumdroid-integration.md §13.1). Resolved as an artifact, never put on the classpath.
 val litertAar: Configuration by configurations.creating { isTransitive = false }
-dependencies { litertAar("com.google.ai.edge.litert:litert:2.1.6@aar") }
+dependencies { litertAar("com.google.ai.edge.litert:litert:2.2.0@aar") }
 
 val extractLiteRt by tasks.registering(Copy::class) {
     from({ zipTree(litertAar.singleFile) }) {

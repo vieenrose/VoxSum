@@ -140,3 +140,18 @@ private fun AnnotatedString.Builder.appendInline(text: String) {
         }
     }
 }
+
+/**
+ * A GitHub release body turned into what [renderMarkdown] can show: images and HTML tags dropped,
+ * `[text](url)` reduced to its text, `---` rules removed, runs of blank lines folded into one.
+ */
+fun cleanReleaseNotes(md: String): String = md
+    .replace("\r", "")
+    .replace(Regex("<!--.*?-->", RegexOption.DOT_MATCHES_ALL), "")
+    .replace(Regex("!\\[[^\\]]*]\\([^)]*\\)"), "")
+    .replace(Regex("\\[([^\\]]+)]\\([^)]*\\)"), "$1")
+    .replace(Regex("</?[a-zA-Z][^>]*>"), "")
+    .lines().filter { !Regex("^\\s*([-*_])\\s*\\1\\s*\\1[\\s\\-*_]*$").matches(it) }
+    .joinToString("\n")
+    .replace(Regex("\n{3,}"), "\n\n")
+    .trim()

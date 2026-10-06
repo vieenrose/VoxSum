@@ -6,7 +6,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.remember
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,7 +30,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import studio.voxsum.R
 import studio.voxsum.ui.components.DownloadStatusBar
@@ -36,7 +39,7 @@ import studio.voxsum.ui.theme.LocalVoxSumPalette
 /**
  * Dismissible "a newer version is available" card. While downloading it shows the progress bar
  * instead of the action buttons. [versionTag] is the release tag (e.g. "v0.2.3"); [notes] is the
- * release body (first few lines shown). [progress] non-null => downloading.
+ * release body (rendered as markdown, scrollable). [progress] non-null => downloading.
  */
 @Composable
 fun UpdateBanner(
@@ -74,13 +77,14 @@ fun UpdateBanner(
                     }
                 }
             }
-            if (notes.isNotBlank()) {
+            val shown = remember(notes) { cleanReleaseNotes(notes) }
+            if (shown.isNotBlank()) {
+                // The whole body, rendered (headings, bullets, bold, code), in a box that scrolls past ~8 lines.
                 Text(
-                    notes.trim().lineSequence().filter { it.isNotBlank() }.take(4).joinToString("\n"),
+                    remember(shown) { renderMarkdown(shown) },
                     style = MaterialTheme.typography.bodySmall,
                     color = pal.Slate400,
-                    maxLines = 4,
-                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 170.dp).verticalScroll(rememberScrollState()),
                 )
             }
             if (progress != null) {

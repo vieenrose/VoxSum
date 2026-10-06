@@ -393,7 +393,7 @@
     <string name="settings_threads_label">Threads: %1$s</string>
     <string name="settings_inference_summary">%1$s · %2$d cores (%3$d fast) · %4$.1f GB RAM\nThe AI engines use %5$d threads.</string>
     <string name="settings_inference_capped">A reading failed with more threads, so 2 are used until the next benchmark.</string>
-    <string name="settings_inference_bench_title">Benchmark: speed by thread count</string>
+    <string name="settings_inference_bench_title">Benchmark: relative speed (%) by thread count</string>
     <string name="settings_inference_run">Run benchmark</string>
     <string name="settings_inference_running">Measuring…</string>
     <string name="settings_inference_hint">Auto measures every count from 2 to all the cores once (a few seconds) and keeps the fewest threads that run about as fast as the best on this phone. Force a value only if recordings stall.</string>

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -614,32 +615,25 @@ private fun InferencePanel(enabled: Boolean) {
         color = pal.Slate400,
     )
     if (profile.benchScores.isNotEmpty()) {
-        // One bar per measured thread count, scaled to the best; the count in use is highlighted.
+        // Compact column chart: one column per measured thread count, scaled to the best; the count in use is highlighted.
         val best = profile.benchScores.values.max().coerceAtLeast(1.0)
         Text(stringResource(R.string.settings_inference_bench_title), style = MaterialTheme.typography.labelMedium, color = pal.Slate400)
-        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
             profile.benchScores.entries.sortedBy { it.key }.forEach { (n, v) ->
                 val used = n == profile.threads
-                val frac = (v / best).toFloat().coerceIn(0.02f, 1f)
-                val tint = if (used) pal.Sky else pal.Slate400.copy(alpha = 0.45f)
-                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                    Text("$n", modifier = Modifier.width(22.dp), style = MaterialTheme.typography.bodySmall,
-                        color = if (used) pal.Sky else pal.Slate400)
-                    androidx.compose.foundation.layout.Box(
-                        Modifier.weight(1f).height(10.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(5.dp))
-                            .background(pal.Slate400.copy(alpha = 0.12f)),
-                    ) {
+                val frac = (v / best).toFloat().coerceIn(0.04f, 1f)
+                Column(Modifier.weight(1f), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+                    Text("${(v / best * 100).roundToInt()}", style = MaterialTheme.typography.labelSmall,
+                        color = if (used) pal.Sky else pal.Slate400.copy(alpha = 0.8f))
+                    androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().height(34.dp), contentAlignment = androidx.compose.ui.Alignment.BottomCenter) {
                         androidx.compose.foundation.layout.Box(
-                            Modifier.fillMaxWidth(frac).height(10.dp)
-                                .clip(androidx.compose.foundation.shape.RoundedCornerShape(5.dp)).background(tint),
+                            Modifier.fillMaxWidth(0.7f).fillMaxHeight(frac)
+                                .clip(androidx.compose.foundation.shape.RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                                .background(if (used) pal.Sky else pal.Slate400.copy(alpha = 0.4f)),
                         )
                     }
-                    Text(
-                        "${(v / best * 100).roundToInt()} %" + if (used) " ✓" else "",
-                        modifier = Modifier.width(80.dp).wrapContentWidth(androidx.compose.ui.Alignment.End),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (used) pal.Sky else pal.Slate400,
-                    )
+                    Text("$n", style = MaterialTheme.typography.labelSmall, fontWeight = if (used) FontWeight.Bold else FontWeight.Normal,
+                        color = if (used) pal.Sky else pal.Slate400)
                 }
             }
         }

@@ -11,7 +11,7 @@ LRT=$HOME/work/litert-build/out-lib/libLiteRt.so   # x86_64 simulator LiteRT, se
 if [ $SDK = iphonesimulator ] && [ -f $LRT ]; then MFA="$B/libvoxsum-mfa.a $(find $B -name 'libsentencepiece*.a' | head -1) $LRT"; fi
 if [ $SDK = iphoneos ]; then MFA="$B/libvoxsum-mfa.a $(find $B -name 'libsentencepiece*.a' | head -1) -F$FW -framework CLiteRTLM"; fi
 xcrun --sdk $SDK swiftc -parse-as-library -O $([ -n "$MFA" ] && echo -DVOX_REAL_READER) -target $T -import-objc-header $A/Bridging.h -Xcc -I$ROOT/ios/native -Xcc -I$ROOT/ios/native/mfa \
-  $A/App.swift $A/Engine.swift $A/Library.swift $A/Recorder.swift $A/ModelStore.swift $A/Reader/*.swift -o $APP/VoxSum \
+  $A/App.swift $A/Engine.swift $A/Library.swift $A/AudioDecode.swift $A/Recorder.swift $A/ModelStore.swift $A/Reader/*.swift -o $APP/VoxSum \
   $B/libvoxsum-nemo.a $MFA $C/src/libxasr.a $C/src/libcrispasr-core.a $C/ggml/src/libggml.a $C/ggml/src/libggml-cpu.a $C/ggml/src/libggml-base.a \
   -L$B/audiocpp/bin -laudiocpp -lc++ -Xlinker -rpath -Xlinker @executable_path/Frameworks
 cp -L $B/audiocpp/bin/libaudiocpp.0.dylib $APP/Frameworks/libaudiocpp.0.dylib

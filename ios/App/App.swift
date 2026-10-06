@@ -85,41 +85,62 @@ final class ChunkBuffer: @unchecked Sendable {
         }
     }
 
-    func run() {
+    /// Transcribe + read a source of 16 kHz mono chunks (a file, the bundled sample). `feed` pushes chunks until done or false.
+    func process(seconds: Double, feed: @escaping @Sendable (([Float]) -> Bool) throws -> Void) {
         status = "Chargement des modèles…"; lines = []; notes = []; title = ""; summary = ""
         let b = base
         Task.detached {
-            guard let eng = NemoEngine(xasr: "\(b)/models/x-asr-zh-en-q8_0.gguf", diar: "\(b)/models/nemotron-3-diarization-q8_0.gguf"),
-                  let pcm = loadWav("\(b)/clips/diar_ref_2spk_123s.wav") else {
+            guard await self.downloadSpeech(),
+                  let eng = NemoEngine(xasr: self.modelPath("x-asr-zh-en-q8_0.gguf", b), diar: self.modelPath("nemotron-3-diarization-q8_0.gguf", b)) else {
                 await MainActor.run { self.status = "Échec chargement" }; return }
             let stored = await self.store.isComplete(.e2b) ? await self.store.dir(.e2b).path : nil
             let r = ReaderFactory.make(dir: ProcessInfo.processInfo.environment["VOX_READER_DIR"] ?? stored)
             let reader = MeetingReader(llm: r.llm, systemPrompt: r.systemPrompt, budget: .mobile)
             do { try reader.start() } catch { await MainActor.run { self.status = "Lecteur : \(error)" }; return }
             var seenFrozen = 0
-            for s in stride(from: 0, to: pcm.count, by: 16000) {
-                _ = eng.push(Array(pcm[s..<min(pcm.count, s + 16000)]))
-                let (frozen, tail) = eng.live()
-                for u in frozen.dropFirst(seenFrozen) { if let l = ReaderSummarizer.toLine(u) { try? reader.offer(l) } }
-                seenFrozen = frozen.count
-                let j = reader.journal
-                await MainActor.run {
-                    self.lines = frozen + tail; self.notes = j
-                    self.status = String(format: "ASR %.0f s / %.0f s", eng.fedSeconds, Double(pcm.count) / 16000)
+            do {
+                try feed { chunk in
+                    _ = eng.push(chunk)
+                    let (frozen, tail) = eng.live()
+                    for u in frozen.dropFirst(seenFrozen) { if let l = ReaderSummarizer.toLine(u) { try? reader.offer(l) } }
+                    seenFrozen = frozen.count
+                    let j = reader.journal, fed = eng.fedSeconds
+                    Task { @MainActor in
+                        self.lines = frozen + tail; self.notes = j
+                        self.status = String(format: "Transcription %.0f s / %.0f s", fed, seconds)
+                    }
+                    return true
                 }
-            }
+            } catch { await MainActor.run { self.status = "Audio : \(error.localizedDescription)" }; return }
             let final = eng.finish() ?? []
             _ = try? reader.finish(); let journal = reader.journal
             let sum = ReaderSummarizer(llm: r.llm)
             let t = sum.title(journal), prose = sum.prose(journal) ?? ReaderProtocol.minutes(journal)
             await MainActor.run { self.lines = final; self.notes = journal; self.title = t ?? ""; self.summary = prose; self.status = "Terminé" }
-            await self.archive(lines: final, notes: journal, title: t ?? "", summary: prose, seconds: Double(pcm.count) / 16000)
+            await self.archive(lines: final, notes: journal, title: t ?? "", summary: prose, seconds: seconds)
+        }
+    }
+
+    func run() {
+        guard let pcm = loadWav("\(base)/clips/diar_ref_2spk_123s.wav") else { status = "Exemple absent"; return }
+        process(seconds: Double(pcm.count) / 16000) { sink in
+            for s in stride(from: 0, to: pcm.count, by: 16000) { if !sink(Array(pcm[s..<min(pcm.count, s + 16000)])) { return } }
+        }
+    }
+
+    func importAudio(_ url: URL) {
+        let scoped = url.startAccessingSecurityScopedResource()
+        guard let secs = AudioDecode.duration(url) else { if scoped { url.stopAccessingSecurityScopedResource() }; status = "Fichier audio illisible"; return }
+        process(seconds: secs) { sink in
+            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            try AudioDecode.stream(url, onChunk: sink)
         }
     }
 }
 
 struct ContentView: View {
     @StateObject var m = Model()
+    @State private var picking = false
     var body: some View {
         NavigationStack {
             List {
@@ -148,12 +169,14 @@ struct ContentView: View {
                 }
             }
             .navigationTitle("VoxSum")
-            .onAppear { m.reload(); if let d = ProcessInfo.processInfo.environment["VOX_DOWNLOAD"] { if d == "speech" { Task { _ = await m.downloadSpeech() } } else { m.downloadReader() } }; if ProcessInfo.processInfo.environment["VOX_AUTORUN"] != nil { m.run() } }
+            .onAppear { m.reload(); if let d = ProcessInfo.processInfo.environment["VOX_DOWNLOAD"] { if d == "speech" { Task { _ = await m.downloadSpeech() } } else { m.downloadReader() } }; if ProcessInfo.processInfo.environment["VOX_AUTORUN"] != nil { m.run() }; if let f = ProcessInfo.processInfo.environment["VOX_IMPORT"] { m.importAudio(URL(fileURLWithPath: f)) } }
             .toolbar {
                 ToolbarItem(placement: .bottomBar) { Button("Transcrire l'exemple") { m.run() } }
+                ToolbarItem(placement: .bottomBar) { Button("Importer") { picking = true } }
                 ToolbarItem(placement: .bottomBar) { Button("Lecteur") { m.downloadReader() } }
                 ToolbarItem(placement: .bottomBar) { Button(m.recording ? "Stop" : "Micro") { m.toggleRecord() } }
             }
+            .fileImporter(isPresented: $picking, allowedContentTypes: [.audio]) { if case .success(let u) = $0 { m.importAudio(u) } }
             .safeAreaInset(edge: .bottom) { Text(m.status).font(.footnote).padding(4) }
         }
     }

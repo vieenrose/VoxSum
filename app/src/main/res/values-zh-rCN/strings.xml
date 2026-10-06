@@ -402,5 +402,5 @@
     <string name="backend_untested">尚未测试</string>
     <string name="backend_testing">正在测试 %1$s…</string>
     <string name="backend_need_model">请先下载阅读器模型（摘要一段录音），才能一并测试 GPU 和 NPU。</string>
-    <string name="backend_hint">CPU 是默认也最稳定。GPU 和 NPU 须在此手机通过测试后才能选用；若日后加载失败，应用会自动改用 CPU。</string>
+    <string name="backend_hint">CPU 是默认也最稳定。GPU 须在此手机通过测试后才能选用；若日后加载失败，应用会自动改用 CPU。</string>
 </resources>

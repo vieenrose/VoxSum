@@ -120,7 +120,7 @@ object HwInfo {
     /** The backend to load the reader on: the user's choice while its last benchmark passed, else CPU. */
     fun backend(context: Context): Backend {
         val b = BackendBench.chosen(context)
-        return if (b == Backend.CPU || BackendBench.results(context, key(context))[b]?.passed == true) b else Backend.CPU
+        return if (b !in Backend.offered) Backend.CPU else if (b == Backend.CPU || BackendBench.results(context, key(context))[b]?.passed == true) b else Backend.CPU
     }
 
     fun benchDone(context: Context): Boolean = prefs(context).getString("benchKey", null) == key(context)

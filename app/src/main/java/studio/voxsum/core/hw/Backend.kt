@@ -7,7 +7,14 @@ import studio.voxsum.core.llm.SpTokenizer
 import java.io.File
 
 /** Where the reader's model runs. CPU is the default and the only backend the weight cache serves. */
-enum class Backend(val id: Int) { CPU(0), GPU(1), NPU(2) }
+enum class Backend(val id: Int) {
+    CPU(0), GPU(1), NPU(2);
+
+    companion object {
+        /** NPU is plumbed through the engine but hidden: no dispatch library or NPU graph ships yet (docs/GPU_NPU.md). */
+        val offered: List<Backend> = listOf(CPU, GPU)
+    }
+}
 
 /** One backend's benchmark verdict. [passed] = the model loaded and generated on it. */
 data class BackendResult(
@@ -47,7 +54,7 @@ object BackendBench {
     }
 
     fun results(c: Context, key: String): Map<Backend, BackendResult> =
-        Backend.entries.mapNotNull { b -> prefs(c).getString("r|$key|${b.name}", null)?.let { decode(b, it) }?.let { b to it } }.toMap()
+        Backend.offered.mapNotNull { b -> prefs(c).getString("r|$key|${b.name}", null)?.let { decode(b, it) }?.let { b to it } }.toMap()
 
     /** The user's choice, honoured only while that backend's last benchmark passed. */
     fun chosen(c: Context): Backend =
@@ -63,7 +70,7 @@ object BackendBench {
         val tok = SpTokenizer.load(tokenizer)
         val ids = intArrayOf(MfaEngine.BOS) + tok.encode(PROMPT).take(80).toIntArray()
         tok.close()
-        for (b in Backend.entries) {
+        for (b in Backend.offered) {
             onStep(b)
             val r = when {
                 b == Backend.NPU && !npuShipped(c) -> BackendResult(b, false, note = "no_runtime")

@@ -13,7 +13,7 @@
 - NPU: no dispatch library ships in the app (about 30 MB of Qualcomm libraries, plus a graph compiled for the chip), so the NPU test reports "this build has no runtime for it". It could not be tried here: no Snapdragon 8 Elite (Gen 5) phone was available.
 
 ## What the app does
-- **Benchmark** (Settings > Inference > Run benchmark): thread benchmark, then the reader model on CPU, GPU and NPU with the same fixed prompt (80 tokens read, 16 written). A card per backend: works with its speed (and the ratio to the CPU), or why not. Needs the reader model on the phone.
+- **Benchmark** (Settings > Inference > Run benchmark): thread benchmark, then the reader model on CPU and GPU with the same fixed prompt (80 tokens read, 16 written); a card per backend. The NPU is not offered in the app for now (`Backend.offered`); the engine still accepts it.
 - **Choice**: CPU is the default. GPU / NPU chips are greyed until their test passed on this phone and app version; a failed load later falls back to the CPU on its own.
 - **Crash guard**: a GPU / NPU probe that kills the process is recorded as "crashed" on the next launch and stays off.
 - **Status line**: the GPU gauge appears only while the reader runs on the GPU; an NPU tag only while it runs on the NPU (no app-readable NPU load exists).

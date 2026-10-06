@@ -616,7 +616,7 @@ private fun InferencePanel(enabled: Boolean) {
         style = MaterialTheme.typography.bodySmall,
         color = pal.Slate400,
     )
-    // The reader on each backend: a card per backend, GPU / NPU selectable only once their test passed.
+    // The reader on each backend: a card per backend, GPU selectable only once their test passed.
     val hwKey = remember { studio.voxsum.core.hw.HwInfo.benchKey(ctx) }
     var results by remember { mutableStateOf(studio.voxsum.core.hw.BackendBench.results(ctx, hwKey)) }
     var chosen by remember { mutableStateOf(studio.voxsum.core.hw.HwInfo.backend(ctx)) }
@@ -624,7 +624,7 @@ private fun InferencePanel(enabled: Boolean) {
     var needModel by remember { mutableStateOf(false) }
     Section(stringResource(R.string.settings_backend_title))
     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        studio.voxsum.core.hw.Backend.entries.forEach { b ->
+        studio.voxsum.core.hw.Backend.offered.forEach { b ->
             val usable = b == studio.voxsum.core.hw.Backend.CPU || results[b]?.passed == true
             FilterChip(
                 selected = chosen == b,
@@ -640,7 +640,7 @@ private fun InferencePanel(enabled: Boolean) {
         }
     }
     val cpuDecode = results[studio.voxsum.core.hw.Backend.CPU]?.takeIf { it.passed }?.decodeTps
-    studio.voxsum.core.hw.Backend.entries.forEach { b ->
+    studio.voxsum.core.hw.Backend.offered.forEach { b ->
         val r = results[b]
         val line = when {
             testing == b -> stringResource(R.string.backend_testing, backendLabel(b))

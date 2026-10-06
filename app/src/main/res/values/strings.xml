@@ -410,5 +410,5 @@
     <string name="backend_untested">Not tested yet</string>
     <string name="backend_testing">Testing %1$s…</string>
     <string name="backend_need_model">Download the reader model (summarize one recording) to also test the GPU and NPU.</string>
-    <string name="backend_hint">The CPU is the default and the safest. GPU and NPU unlock only after their test passes here; if one fails to load later, the app falls back to the CPU on its own.</string>
+    <string name="backend_hint">The CPU is the default and the safest. The GPU unlocks only after its test passes here; if it fails to load later, the app falls back to the CPU on its own.</string>
 </resources>

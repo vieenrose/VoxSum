@@ -216,7 +216,7 @@ struct ContentView: View {
                 }
             }
             .navigationTitle("VoxSum")
-            .onAppear { m.reload(); if let d = ProcessInfo.processInfo.environment["VOX_DOWNLOAD"] { if d == "speech" { Task { _ = await m.downloadSpeech() } } else { m.downloadReader() } }; if ProcessInfo.processInfo.environment["VOX_AUTORUN"] != nil { m.run() }; m.drain(); if let f = ProcessInfo.processInfo.environment["VOX_IMPORT"] { m.importAudio(URL(fileURLWithPath: f)) } }
+            .onAppear { m.reload(); if let d = ProcessInfo.processInfo.environment["VOX_DOWNLOAD"] { if d == "speech" { Task { _ = await m.downloadSpeech() } } else { m.downloadReader() } }; if ProcessInfo.processInfo.environment["VOX_AUTORUN"] != nil { m.run() }; m.drain(); if let f = ProcessInfo.processInfo.environment["VOX_IMPORT"] { m.importAudio(URL(fileURLWithPath: f)) }; if let q = ProcessInfo.processInfo.environment["VOX_PODCAST"] { Task { if let sr = try? await Podcast.search(q).first, let ep = try? await Podcast.episodes(sr.feedUrl, limit: 3).last { m.addEpisode(ep) } else { m.status = "podcast: no result" } } } }
             .toolbar {
                 ToolbarItem(placement: .bottomBar) { Button(L("settings")) { showSettings = true } }
                 ToolbarItem(placement: .bottomBar) { Button(L("sample")) { m.run() } }

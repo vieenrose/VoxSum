@@ -9,7 +9,7 @@ import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
 
 /** The user's thread choice: Auto follows the benchmark, the others force a count. */
-enum class ThreadMode(val fixed: Int?) { AUTO(null), T2(2), T3(3), T4(4), T5(5), T6(6) }
+enum class ThreadMode(val fixed: Int?) { AUTO(null), T2(2), T3(3), T4(4), T5(5), T6(6), T7(7), T8(8) }
 
 /**
  * Pure rules turning the CPU layout and the benchmark into a thread count for the native engines
@@ -41,7 +41,7 @@ object ThreadPolicy {
 
     /** [capped]: a reading failed at a higher count on this phone — stay at 2 until the next benchmark. */
     fun resolve(mode: ThreadMode, benched: Int?, heuristic: Int, capped: Boolean, cores: Int): Int {
-        mode.fixed?.let { return clamp(it, cores) }
+        mode.fixed?.let { return it.coerceAtLeast(2).coerceAtMost(cores.coerceAtLeast(1)) }   // manual: any count up to the cores
         val base = benched ?: heuristic
         return clamp(if (capped) minOf(base, 2) else base, cores)
     }

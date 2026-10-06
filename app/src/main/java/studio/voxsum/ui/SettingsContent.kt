@@ -590,7 +590,9 @@ private fun InferencePanel(enabled: Boolean) {
         studio.voxsum.core.hw.ThreadMode.T4 to "4",
         studio.voxsum.core.hw.ThreadMode.T5 to "5",
         studio.voxsum.core.hw.ThreadMode.T6 to "6",
-    ).filter { (m, _) -> (m.fixed ?: 0) <= maxOf(4, profile.upperCores) }
+        studio.voxsum.core.hw.ThreadMode.T7 to "7",
+        studio.voxsum.core.hw.ThreadMode.T8 to "8",
+    ).filter { (m, _) -> (m.fixed ?: 0) <= profile.cores }
     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         options.forEach { (mode, label) ->
             FilterChip(

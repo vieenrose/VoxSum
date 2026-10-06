@@ -390,7 +390,7 @@
     <string name="action_resume">Resume</string>
     <string name="settings_inference">Inference</string>
     <string name="settings_threads_auto">Auto</string>
-    <string name="settings_threads_label">Threads: %1$s</string>
+    <string name="settings_threads">Threads</string>
     <string name="settings_inference_summary">%1$s · %2$d cores (%3$d fast) · %4$.1f GB RAM\nThe AI engines use %5$d threads.</string>
     <string name="settings_inference_capped">A reading failed with more threads, so 2 are used until the next benchmark.</string>
     <string name="settings_inference_bench_title">Benchmark: relative speed (%) by thread count</string>

@@ -382,7 +382,7 @@
     <string name="action_resume">繼續處理</string>
     <string name="settings_inference">推論</string>
     <string name="settings_threads_auto">自動</string>
-    <string name="settings_threads_label">執行緒：%1$s</string>
+    <string name="settings_threads">執行緒</string>
     <string name="settings_inference_summary">%1$s · %2$d 核心（%3$d 顆高效能）· %4$.1f GB 記憶體\nAI 引擎使用 %5$d 個執行緒。</string>
     <string name="settings_inference_capped">曾有一次閱讀在較多執行緒下失敗，因此在下次測試前改用 2 個。</string>
     <string name="settings_inference_bench_title">測試結果：各執行緒數的相對速度（%）</string>

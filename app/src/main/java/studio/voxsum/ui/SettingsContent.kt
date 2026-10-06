@@ -586,27 +586,30 @@ private fun InferencePanel(enabled: Boolean) {
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     var profile by remember { mutableStateOf(studio.voxsum.core.hw.HwInfo.profile(ctx)) }
     var running by remember { mutableStateOf(false) }
-    val options = studio.voxsum.core.hw.ThreadMode.entries.filter { (it.fixed ?: 0) <= profile.cores }
-    var menuOpen by remember { mutableStateOf(false) }
-    val autoLabel = stringResource(R.string.settings_threads_auto)
-    fun modeLabel(m: studio.voxsum.core.hw.ThreadMode) = m.fixed?.toString() ?: autoLabel
-    androidx.compose.foundation.layout.Box {
-        OutlinedButton(enabled = enabled, onClick = { menuOpen = true }) {
-            Text(stringResource(R.string.settings_threads_label, modeLabel(profile.mode)) + "  ▾")
-        }
-        androidx.compose.material3.DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-            options.forEach { mode ->
-                androidx.compose.material3.DropdownMenuItem(
-                    text = { Text(modeLabel(mode), color = if (profile.mode == mode) pal.Sky else androidx.compose.ui.graphics.Color.Unspecified) },
-                    onClick = {
-                        menuOpen = false
-                        studio.voxsum.core.hw.HwInfo.setMode(ctx, mode)
-                        profile = studio.voxsum.core.hw.HwInfo.profile(ctx)
-                    },
-                )
-            }
-        }
+    // Auto (chip) = the benchmark picks; off = a slider from 2 to all the cores. Applied on release.
+    val auto = profile.mode == studio.voxsum.core.hw.ThreadMode.AUTO
+    var draft by remember(profile.threads, auto) { mutableFloatStateOf(profile.threads.toFloat()) }
+    fun setThreads(n: Int) {
+        studio.voxsum.core.hw.HwInfo.setMode(ctx, studio.voxsum.core.hw.ThreadMode.entries.first { it.fixed == n })
+        profile = studio.voxsum.core.hw.HwInfo.profile(ctx)
     }
+    FilterChip(
+        selected = auto,
+        enabled = enabled,
+        onClick = {
+            if (auto) setThreads(profile.threads.coerceIn(2, maxOf(2, profile.cores)))
+            else { studio.voxsum.core.hw.HwInfo.setMode(ctx, studio.voxsum.core.hw.ThreadMode.AUTO); profile = studio.voxsum.core.hw.HwInfo.profile(ctx) }
+        },
+        label = { Text(stringResource(R.string.settings_threads_auto)) },
+        colors = FilterChipDefaults.filterChipColors(
+            selectedContainerColor = pal.Sky.copy(alpha = 0.15f), selectedLabelColor = pal.Sky, labelColor = pal.Slate400),
+    )
+    if (profile.cores > 2) SliderRow(
+        stringResource(R.string.settings_threads), draft, 2f, profile.cores.toFloat(), enabled && !auto,
+        steps = profile.cores - 3,
+        format = { "${it.roundToInt()}" },
+        onChangeFinished = { setThreads(draft.roundToInt()) },
+    ) { draft = it }
     Text(
         stringResource(R.string.settings_inference_summary, profile.soc, profile.cores, profile.upperCores,
             profile.totalRamMb / 1024.0, profile.threads) +

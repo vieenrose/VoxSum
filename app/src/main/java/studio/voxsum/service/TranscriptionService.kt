@@ -1948,7 +1948,9 @@ class TranscriptionService : LifecycleService() {
     private fun readFailed(task: ReadTask, e: Throwable) {
         if (task.aborted) return
         Log.w("voxsum-reader", "reading failed", e)
-        events.tryEmit(task.gen to TranscriptEvent.Status(getString(R.string.svc_summary_failed)))
+        // The cause rides on the status line (screenshots are what users send with a bug report).
+        val why = (e.message ?: e.javaClass.simpleName).lineSequence().first().take(120)
+        events.tryEmit(task.gen to TranscriptEvent.Status("${getString(R.string.svc_summary_failed)} [$why]"))
         val entry = task.entry ?: return
         if (task.gen == QUEUE_GEN) {
             notifyItemFailed(entry.title ?: SessionLibrary.defaultTitle(entry.createdAt))

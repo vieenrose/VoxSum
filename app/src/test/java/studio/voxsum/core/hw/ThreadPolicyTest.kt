@@ -21,7 +21,11 @@ class ThreadPolicyTest {
     }
 
     @Test fun candidatesStopAtTheCoreCount() {
-        assertEquals(listOf(2, 3, 4), ThreadPolicy.candidates(8))
+        assertEquals(listOf(2, 3, 4), ThreadPolicy.candidates(8))                // SD855: 4 fast cores
+        assertEquals(listOf(2, 3, 4, 5, 6), ThreadPolicy.candidates(8, 8))       // 8 fast cores: capped at 6
+        assertEquals(listOf(2, 3, 4, 5), ThreadPolicy.candidates(8, 5))
+        assertEquals(6, ThreadPolicy.resolve(ThreadMode.T6, null, 4, false, 8))
+        assertEquals(4, ThreadPolicy.heuristic(List(8) { 2000000L }, 8))         // no benchmark: stay at 4
         assertEquals(listOf(2, 3), ThreadPolicy.candidates(3))
         assertEquals(listOf(1), ThreadPolicy.candidates(1))
     }

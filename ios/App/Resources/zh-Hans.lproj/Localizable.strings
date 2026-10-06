@@ -46,3 +46,13 @@
 "podcast_search" = "搜索播客";
 "podcast_downloading" = "下载单集 %d %%";
 "back" = "返回";
+"speaker_n" = "说话者 %d";
+"rename" = "重命名";
+"export" = "导出";
+"play" = "播放";
+"pause" = "暂停";
+"follow" = "跟随播放";
+"speaker_rename" = "重命名说话者";
+"speaker_name" = "名称";
+"title" = "标题";
+"cancel" = "取消";

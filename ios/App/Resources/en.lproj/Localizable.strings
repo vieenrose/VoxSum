@@ -46,3 +46,13 @@
 "podcast_search" = "Search podcasts";
 "podcast_downloading" = "Downloading episode %d %%";
 "back" = "Back";
+"speaker_n" = "Speaker %d";
+"rename" = "Rename";
+"export" = "Export";
+"play" = "Play";
+"pause" = "Pause";
+"follow" = "Follow playback";
+"speaker_rename" = "Rename speaker";
+"speaker_name" = "Name";
+"title" = "Title";
+"cancel" = "Cancel";

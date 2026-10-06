@@ -46,3 +46,13 @@
 "podcast_search" = "搜尋 Podcast";
 "podcast_downloading" = "下載單集 %d %%";
 "back" = "返回";
+"speaker_n" = "說話者 %d";
+"rename" = "重新命名";
+"export" = "匯出";
+"play" = "播放";
+"pause" = "暫停";
+"follow" = "跟隨播放";
+"speaker_rename" = "重新命名說話者";
+"speaker_name" = "名稱";
+"title" = "標題";
+"cancel" = "取消";

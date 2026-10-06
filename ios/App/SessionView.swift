@@ -1,0 +1,148 @@
+import SwiftUI
+import AVFoundation
+
+/// Plays a session's recording and publishes the position (Android MediaPlayer + seek bar).
+@MainActor final class Player: ObservableObject {
+    @Published var time = 0.0
+    @Published var playing = false
+    private(set) var duration = 0.0
+    private var p: AVAudioPlayer?
+    private var timer: Timer?
+    var available: Bool { p != nil }
+
+    init(file: String?) {
+        guard let file, let pl = try? AVAudioPlayer(contentsOf: JobQueue.audioDir.appendingPathComponent(file)) else { return }
+        pl.prepareToPlay(); p = pl; duration = pl.duration
+    }
+    func toggle() {
+        guard let p else { return }
+        if p.isPlaying { p.pause(); playing = false; timer?.invalidate(); return }
+        try? AVAudioSession.sharedInstance().setCategory(.playback); try? AVAudioSession.sharedInstance().setActive(true)
+        p.play(); playing = true
+        timer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, let p = self.p else { return }
+                self.time = p.currentTime
+                if !p.isPlaying { self.playing = false; self.timer?.invalidate() }
+            }
+        }
+    }
+    func seek(_ t: Double) { p?.currentTime = max(0, min(t, duration)); time = p?.currentTime ?? 0 }
+    func stop() { p?.stop(); timer?.invalidate(); playing = false }
+}
+
+/// One finished meeting: player, summary (timestamps seek), notes, searchable transcript, rename, export.
+struct SessionView: View {
+    @State var s: Session
+    let save: (Session) -> Void
+    @StateObject private var player: Player
+    @State private var query = ""
+    @State private var follow = true
+    @State private var renamingTitle = false
+    @State private var draft = ""
+    @State private var renamingSpeaker: Int?
+    @State private var exportFile: URL?
+
+    init(session: Session, save: @escaping (Session) -> Void) {
+        _s = State(initialValue: session); self.save = save
+        _player = StateObject(wrappedValue: Player(file: session.audio))
+    }
+    private var shown: [Utterance] {
+        if query.isEmpty { return s.lines }
+        return s.lines.filter { (l: Utterance) -> Bool in
+            l.text.localizedCaseInsensitiveContains(query) || s.name(l.speaker).localizedCaseInsensitiveContains(query)
+        }
+    }
+    private var current: UUID? {
+        guard player.playing || player.time > 0 else { return nil }
+        return s.lines.last(where: { (l: Utterance) -> Bool in l.start <= player.time })?.id
+    }
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            List {
+                if player.available {
+                    Section {
+                        HStack {
+                            Button { player.toggle() } label: { Image(systemName: player.playing ? "pause.circle.fill" : "play.circle.fill").font(.largeTitle) }
+                                .buttonStyle(.borderless).accessibilityLabel(L(player.playing ? "pause" : "play"))
+                            Slider(value: Binding(get: { player.time }, set: { player.seek($0) }), in: 0...max(1, player.duration))
+                            Text(Export.mmss(player.time)).font(.caption.monospacedDigit())
+                        }
+                        Toggle(L("follow"), isOn: $follow)
+                    }
+                }
+                if !s.summary.isEmpty { Section(L("summary")) { Text(Self.linked(s.summary)).environment(\.openURL, OpenURLAction { u in
+                    if u.scheme == "vox", let t = Double(u.host ?? "") { player.seek(t); if !player.playing { player.toggle() }; return .handled }
+                    return .systemAction }) } }
+                if !s.notes.isEmpty { Section(L("agent")) { ForEach(s.notes) { Text(ReaderProtocol.render($0)).font(.caption) } } }
+                Section(L("transcript")) {
+                    ForEach(shown) { l in
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack {
+                                Button { renamingSpeaker = l.speaker; draft = s.speakerNames?[String(l.speaker)] ?? "" } label: { Text(s.name(l.speaker)).font(.caption.bold()) }.buttonStyle(.borderless)
+                                Text(Export.mmss(l.start)).font(.caption2).foregroundStyle(.secondary)
+                            }
+                            Text(l.text)
+                        }
+                        .id(l.id).padding(.vertical, 2)
+                        .listRowBackground(highlight(l.id))
+                        .contentShape(Rectangle())
+                        .onTapGesture { if player.available { player.seek(l.start) } }
+                    }
+                }
+            }
+            .onChange(of: current) { _, id in if follow, player.playing, let id { withAnimation { proxy.scrollTo(id, anchor: .center) } } }
+        }
+        .searchable(text: $query)
+        .navigationTitle(s.title).navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Button(L("rename")) { draft = s.title; renamingTitle = true }
+                    Menu(L("export")) { ForEach(Export.Format.allCases) { f in Button(f.rawValue.uppercased()) { exportFile = Export.file(s, f) } } }
+                } label: { Image(systemName: "ellipsis.circle") }
+            }
+        }
+        .sheet(isPresented: Binding(get: { exportFile != nil }, set: { if !$0 { exportFile = nil } })) { if let exportFile { ShareSheet(url: exportFile) } }
+        .alert(L("rename"), isPresented: $renamingTitle) {
+            TextField(L("title"), text: $draft)
+            Button(L("done")) { let t = draft.trimmingCharacters(in: .whitespaces); if !t.isEmpty { s.title = t; save(s) } }
+            Button(L("cancel"), role: .cancel) {}
+        }
+        .alert(L("speaker_rename"), isPresented: Binding(get: { renamingSpeaker != nil }, set: { if !$0 { renamingSpeaker = nil } })) {
+            TextField(L("speaker_name"), text: $draft)
+            Button(L("done")) {
+                if let k = renamingSpeaker {
+                    var n = s.speakerNames ?? [:]; let t = draft.trimmingCharacters(in: .whitespaces)
+                    if t.isEmpty { n[String(k)] = nil } else { n[String(k)] = t }
+                    s.speakerNames = n.isEmpty ? nil : n; save(s)
+                }
+            }
+            Button(L("cancel"), role: .cancel) {}
+        }
+        .onDisappear { player.stop() }
+    }
+
+    private func highlight(_ id: UUID) -> Color? { id == current ? Color.accentColor.opacity(0.18) : nil }
+
+    /// "[1:06]" markers in the summary become links that seek the recording.
+    static func linked(_ text: String) -> AttributedString {
+        var out = AttributedString(), last = text.startIndex
+        guard let re = try? NSRegularExpression(pattern: #"\[(\d+):(\d{2})\]"#) else { return AttributedString(text) }
+        for m in re.matches(in: text, range: NSRange(text.startIndex..., in: text)) {
+            guard let r = Range(m.range, in: text), let a = Range(m.range(at: 1), in: text), let b = Range(m.range(at: 2), in: text),
+                  let mm = Double(text[a]), let ss = Double(text[b]) else { continue }
+            out += AttributedString(text[last..<r.lowerBound])
+            var link = AttributedString(text[r]); link.link = URL(string: "vox://\(Int(mm * 60 + ss))"); out += link
+            last = r.upperBound
+        }
+        return out + AttributedString(text[last...])
+    }
+}
+
+struct ShareSheet: UIViewControllerRepresentable {
+    let url: URL
+    func makeUIViewController(context: Context) -> UIActivityViewController { UIActivityViewController(activityItems: [url], applicationActivities: nil) }
+    func updateUIViewController(_ c: UIActivityViewController, context: Context) {}
+}

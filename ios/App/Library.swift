@@ -10,6 +10,8 @@ struct Session: Identifiable, Codable, Hashable {
     var lines: [Utterance]
     var notes: [Note]
     var audio: String? = nil      // file name in Application Support/audio
+    var speakerNames: [String: String]? = nil   // speaker index -> custom name
+    func name(_ spk: Int) -> String { speakerNames?[String(spk)].flatMap { $0.isEmpty ? nil : $0 } ?? L("speaker_n", spk + 1) }
     static func == (a: Session, b: Session) -> Bool { a.id == b.id }
     func hash(into h: inout Hasher) { h.combine(id) }
 }

@@ -22,6 +22,7 @@ final class ChunkBuffer: @unchecked Sendable {
     let library = LibraryStore()
     @Published var sessions: [Session] = []
     func reload() { Task { sessions = await library.all() } }
+    func update(_ s: Session) { Task { try? await library.save(s); sessions = await library.all() } }
     func remove(_ s: Session) { Task { await library.delete(s.id); sessions = await library.all() } }
     func open(_ s: Session) { lines = s.lines; notes = s.notes; title = s.title; summary = s.summary; status = L("archive_of", s.date.formatted(date: .abbreviated, time: .shortened)) }
     private func archive(lines: [Utterance], notes: [Note], title: String, summary: String, seconds: Double, job: Job? = nil) async {
@@ -187,14 +188,15 @@ struct ContentView: View {
     @State private var picking = false
     @State private var showSettings = false
     @State private var showPodcast = false
+    @State private var path: [Session] = []
     @AppStorage("language") private var language = "system"
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             List {
                 if !m.sessions.isEmpty {
                     Section(L("library")) {
                         ForEach(m.sessions) { x in
-                            Button { m.open(x) } label: {
+                            NavigationLink(value: x) {
                                 VStack(alignment: .leading) {
                                     Text(x.title).font(.headline)
                                     Text(L("session_meta", x.date.formatted(date: .abbreviated, time: .shortened), Int(x.seconds))).font(.caption).foregroundStyle(.secondary)
@@ -216,7 +218,8 @@ struct ContentView: View {
                 }
             }
             .navigationTitle("VoxSum")
-            .onAppear { m.reload(); if let d = ProcessInfo.processInfo.environment["VOX_DOWNLOAD"] { if d == "speech" { Task { _ = await m.downloadSpeech() } } else { m.downloadReader() } }; if ProcessInfo.processInfo.environment["VOX_AUTORUN"] != nil { m.run() }; m.drain(); if let f = ProcessInfo.processInfo.environment["VOX_IMPORT"] { m.importAudio(URL(fileURLWithPath: f)) }; if let q = ProcessInfo.processInfo.environment["VOX_PODCAST"] { Task { if let sr = try? await Podcast.search(q).first, let ep = try? await Podcast.episodes(sr.feedUrl, limit: 3).last { m.addEpisode(ep) } else { m.status = "podcast: no result" } } } }
+            .navigationDestination(for: Session.self) { x in SessionView(session: m.sessions.first { $0.id == x.id } ?? x) { m.update($0) } }
+            .onAppear { m.reload(); if ProcessInfo.processInfo.environment["VOX_OPEN"] != nil { Task { path = await m.library.all().prefix(1).map { $0 } } }; if let d = ProcessInfo.processInfo.environment["VOX_DOWNLOAD"] { if d == "speech" { Task { _ = await m.downloadSpeech() } } else { m.downloadReader() } }; if ProcessInfo.processInfo.environment["VOX_AUTORUN"] != nil { m.run() }; m.drain(); if let f = ProcessInfo.processInfo.environment["VOX_IMPORT"] { m.importAudio(URL(fileURLWithPath: f)) }; if let q = ProcessInfo.processInfo.environment["VOX_PODCAST"] { Task { if let sr = try? await Podcast.search(q).first, let ep = try? await Podcast.episodes(sr.feedUrl, limit: 3).last { m.addEpisode(ep) } else { m.status = "podcast: no result" } } } }
             .toolbar {
                 ToolbarItem(placement: .bottomBar) { Button(L("settings")) { showSettings = true } }
                 ToolbarItem(placement: .bottomBar) { Button(L("sample")) { m.run() } }

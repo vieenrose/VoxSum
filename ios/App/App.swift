@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 @main struct VoxSumApp: App { var body: some Scene { WindowGroup { ContentView() } } }
 
@@ -7,6 +8,15 @@ final class ChunkBuffer: @unchecked Sendable {
     private var data: [Float] = []; private let lock = NSLock()
     func add(_ c: [Float]) { lock.lock(); data += c; lock.unlock() }
     func take() -> [Float] { lock.lock(); defer { lock.unlock() }; let d = data; data = []; return d }
+}
+
+/// Local notification when a meeting is ready (Android posts one from its foreground service).
+enum Notifier {
+    static func requestPermission() { UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in } }
+    static func done(_ title: String) {
+        let c = UNMutableNotificationContent(); c.title = L("notif_ready"); c.body = title; c.sound = .default
+        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: UUID().uuidString, content: c, trigger: nil))
+    }
 }
 
 /// Every status line, timestamped, in Documents/status.log (pullable with devicectl: the console is not always attached).
@@ -43,6 +53,7 @@ enum StatusLog {
         if let job { s.id = job.id; s.date = job.date; s.audio = job.audio; if let t = job.title, !t.isEmpty { s.title = t } }
         try? await library.save(s)
         sessions = await library.all()
+        Notifier.done(s.title)
     }
     @Published var recording = false
     private var recorder: Recorder?
@@ -54,7 +65,7 @@ enum StatusLog {
             guard await Recorder.requestPermission() else { status = L("mic_denied"); return }
             guard await downloadSpeech() else { return }
             status = L("loading_models"); lines = []; notes = []; title = ""; summary = ""
-            let r = Recorder(); recorder = r; recording = true
+            let r = Recorder(); recorder = r; recording = true; UIApplication.shared.isIdleTimerDisabled = true
             let job = Job(audio: UUID().uuidString + ".wav")
             guard let wav = try? WavWriter(JobQueue.url(job)) else { recording = false; return }
             recordingJob = job.id
@@ -156,6 +167,8 @@ enum StatusLog {
     func drain() {
         guard !draining else { return }
         draining = true
+        UIApplication.shared.isIdleTimerDisabled = true   // iOS suspends a locked app: stay awake while the queue works (Android: wake lock)
+        Notifier.requestPermission()
         Task {
             while let job = await queue.first(skipping: recordingJob) {
                 let url = JobQueue.url(job)
@@ -167,6 +180,7 @@ enum StatusLog {
                 if await queue.first(skipping: recordingJob)?.id == job.id { await queue.remove(job.id) }   // failed run: never loop on it
             }
             draining = false
+            UIApplication.shared.isIdleTimerDisabled = false
         }
     }
 

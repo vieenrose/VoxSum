@@ -61,3 +61,4 @@
 "theme_light" = "Light";
 "theme_dark" = "Dark";
 "storage" = "Storage";
+"notif_ready" = "Meeting ready";

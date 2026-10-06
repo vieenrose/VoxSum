@@ -38,6 +38,7 @@ final class ChunkBuffer: @unchecked Sendable {
         if recording { recorder?.stop(); recorder = nil; recording = false; status = "Arrêt…"; return }
         Task {
             guard await Recorder.requestPermission() else { status = "Micro refusé"; return }
+            guard await downloadSpeech() else { return }
             status = "Chargement des modèles…"; lines = []; notes = []; title = ""; summary = ""
             let r = Recorder(); recorder = r; recording = true
             let b = base
@@ -61,7 +62,19 @@ final class ChunkBuffer: @unchecked Sendable {
             }
         }
     }
-    nonisolated func modelPath(_ n: String, _ b: String) -> String { "\(b)/models/\(n)" }
+    /// Dev override (VOX_BASE, simulator only) else the downloaded copy in Application Support.
+    nonisolated func modelPath(_ n: String, _ b: String) -> String {
+        if ProcessInfo.processInfo.environment["VOX_BASE"] != nil { return "\(b)/models/\(n)" }
+        return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("models/nemo/\(n)").path
+    }
+    func downloadSpeech() async -> Bool {
+        if ProcessInfo.processInfo.environment["VOX_BASE"] != nil { return true }
+        if await store.isComplete(.speech) { return true }
+        do {
+            try await store.download(.speech) { d, t in Task { @MainActor in self.status = String(format: "Modèles de transcription %.0f / %.0f Mo", Double(d) / 1e6, Double(t) / 1e6) } }
+            return true
+        } catch { status = "Téléchargement : \(error)"; return false }
+    }
     func downloadReader() {
         status = "Téléchargement du lecteur…"
         Task.detached { [store] in
@@ -135,7 +148,7 @@ struct ContentView: View {
                 }
             }
             .navigationTitle("VoxSum")
-            .onAppear { m.reload(); if ProcessInfo.processInfo.environment["VOX_DOWNLOAD"] != nil { m.downloadReader() }; if ProcessInfo.processInfo.environment["VOX_AUTORUN"] != nil { m.run() } }
+            .onAppear { m.reload(); if let d = ProcessInfo.processInfo.environment["VOX_DOWNLOAD"] { if d == "speech" { Task { _ = await m.downloadSpeech() } } else { m.downloadReader() } }; if ProcessInfo.processInfo.environment["VOX_AUTORUN"] != nil { m.run() } }
             .toolbar {
                 ToolbarItem(placement: .bottomBar) { Button("Transcrire l'exemple") { m.run() } }
                 ToolbarItem(placement: .bottomBar) { Button("Lecteur") { m.downloadReader() } }

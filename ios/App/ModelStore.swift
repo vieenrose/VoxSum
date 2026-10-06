@@ -8,7 +8,18 @@ struct ModelFile { let name: String, remote: String, size: Int64, sha256: String
 struct ReaderModel {
     let id: String, repo: String, rev: String
     let files: [ModelFile]
-    func url(_ f: ModelFile) -> URL { URL(string: "https://huggingface.co/\(repo)/resolve/\(rev)/\(f.remote)")! }
+    func url(_ f: ModelFile) -> URL { URL(string: f.remote.hasPrefix("https://") ? f.remote : "https://huggingface.co/\(repo)/resolve/\(rev)/\(f.remote)")! }
+
+    /// Speech engine (ASR + diarization), the two pins of Android `ModelManager.NEMO_FILES`; CPU only.
+    static let speech: ReaderModel = {
+        let x = "acb1a95eac809719a2c86d1048471f96fc6444ad", d = "647d39feaa0e91dca5ce355a95403837b76dff56"
+        return ReaderModel(id: "nemo", repo: "", rev: "", files: [
+            ModelFile(name: "x-asr-zh-en-q8_0.gguf", remote: "https://huggingface.co/cstr/x-asr-zh-en-GGUF/resolve/\(x)/x-asr-zh-en-q8_0.gguf",
+                      size: 168_189_920, sha256: "1ca120084a1517cf02d96e44cdd9a9544f0c887f6d0149c9f85d151be6833a61"),
+            ModelFile(name: "nemotron-3-diarization-q8_0.gguf", remote: "https://huggingface.co/audio-cpp/Nemotron-3-Diarization-GGUF/resolve/\(d)/nemotron-3-diarization-q8_0.gguf",
+                      size: 106_675_136, sha256: "9a737455bd10123bcf1e036d9a0b07b6e8c42e7d0dd1a5ee4141dc386db46d0b"),
+        ])
+    }()
 
     private static let tokSha = "e594c8a90eb08d8bda498ff4747977dc827ae0c3c56b5c0d41a605a22d02ef03"
     private static let promptSha = "406040c70270b5b9d47a4222138fcf2177f361dcbfb79fba164ca2559e0ffbf3"

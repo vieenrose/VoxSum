@@ -388,4 +388,19 @@
     <string name="settings_inference_run">執行測試</string>
     <string name="settings_inference_running">測試中…</string>
     <string name="settings_inference_hint">自動模式只測一次（約一秒），並採用此手機上跑得最快的執行緒數。只有在錄音卡頓時才需要手動指定。</string>
+    <string name="settings_backend_title">閱讀器執行於</string>
+    <string name="backend_cpu">CPU</string>
+    <string name="backend_gpu">GPU</string>
+    <string name="backend_npu">NPU</string>
+    <string name="backend_ok">可用 · 寫入 %1$.1f 詞元/秒，讀取 %2$d 詞元/秒%3$s</string>
+    <string name="backend_vs_cpu"> · 為 CPU 的 %1$.1f 倍</string>
+    <string name="backend_fail">無法使用：%1$s</string>
+    <string name="backend_why_runtime">此版本不含它的執行環境</string>
+    <string name="backend_why_crashed">曾使引擎當機，因此保持關閉</string>
+    <string name="backend_why_output">沒有產生文字</string>
+    <string name="backend_why_unsupported">此晶片無法執行閱讀器所需的運算</string>
+    <string name="backend_untested">尚未測試</string>
+    <string name="backend_testing">正在測試 %1$s…</string>
+    <string name="backend_need_model">請先下載閱讀器模型（摘要一段錄音），才能一併測試 GPU 與 NPU。</string>
+    <string name="backend_hint">CPU 是預設也最穩定。GPU 與 NPU 須在此手機通過測試後才能選用；若日後載入失敗，應用程式會自動改用 CPU。</string>
 </resources>

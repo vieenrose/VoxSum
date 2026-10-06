@@ -64,12 +64,13 @@ class MfaEngine private constructor(@Volatile private var handle: Long) : Closea
         /**
          * Load the model in [dir] (the `mfa/` folder of the HF repo). [weightCache] is built on the
          * first load (~0.8 GB for E2B, 2.2 GB for E4B) — do that once after the download, before any
-         * recording, with nothing else loaded (§13.2). Throws IllegalStateException on failure.
+         * recording, with nothing else loaded (§13.2). [backend]: 0 CPU, 1 GPU, 2 NPU (see
+         * [studio.voxsum.core.hw.Backend]). Throws IllegalStateException on failure.
          */
-        fun load(dir: String, ctx: Int, threads: Int, weightCache: String): MfaEngine =
-            MfaEngine(nativeLoad(dir, "$dir/prefill_decode_fused.tflite", ctx, threads, weightCache))
+        fun load(dir: String, ctx: Int, threads: Int, weightCache: String, backend: Int = 0): MfaEngine =
+            MfaEngine(nativeLoad(dir, "$dir/prefill_decode_fused.tflite", ctx, threads, weightCache, backend))
 
-        @JvmStatic private external fun nativeLoad(dir: String, main: String, ctx: Int, threads: Int, cache: String): Long
+        @JvmStatic private external fun nativeLoad(dir: String, main: String, ctx: Int, threads: Int, cache: String, backend: Int): Long
         @JvmStatic private external fun nativeGenerate(
             h: Long, ids: IntArray, maxNew: Int, temp: Float, topK: Int, topP: Float, seed: Int,
             cb: TokenCallback?, stats: DoubleArray,

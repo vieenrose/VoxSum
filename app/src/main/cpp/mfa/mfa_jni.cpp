@@ -39,9 +39,9 @@ extern "C" {
 
 JNIEXPORT jlong JNICALL
 Java_studio_voxsum_core_llm_MfaEngine_nativeLoad(JNIEnv* env, jclass, jstring dir, jstring main, jint ctx,
-                                                jint threads, jstring cache) {
+                                                jint threads, jstring cache, jint backend) {
     try {
-        auto* e = new mfa::Engine(str(env, dir), str(env, main), ctx, threads, str(env, cache));
+        auto* e = new mfa::Engine(str(env, dir), str(env, main), ctx, threads, str(env, cache), backend);
         LOGI("loaded %s, context %d", str(env, main).c_str(), e->context());
         return reinterpret_cast<jlong>(e);
     } catch (const std::exception& ex) {

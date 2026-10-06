@@ -162,7 +162,8 @@ dependencies { litertAar("com.google.ai.edge.litert:litert:2.2.0@aar") }
 
 val extractLiteRt by tasks.registering(Copy::class) {
     from({ zipTree(litertAar.singleFile) }) {
-        include("jni/arm64-v8a/libLiteRt.so", "jni/x86_64/libLiteRt.so")
+        include("jni/arm64-v8a/libLiteRt.so", "jni/x86_64/libLiteRt.so",
+            "jni/arm64-v8a/libLiteRtClGlAccelerator.so", "jni/x86_64/libLiteRtClGlAccelerator.so")
         eachFile { path = path.removePrefix("jni/") }
         includeEmptyDirs = false
     }

@@ -616,19 +616,88 @@ private fun InferencePanel(enabled: Boolean) {
         style = MaterialTheme.typography.bodySmall,
         color = pal.Slate400,
     )
+    // The reader on each backend: a card per backend, GPU / NPU selectable only once their test passed.
+    val hwKey = remember { studio.voxsum.core.hw.HwInfo.benchKey(ctx) }
+    var results by remember { mutableStateOf(studio.voxsum.core.hw.BackendBench.results(ctx, hwKey)) }
+    var chosen by remember { mutableStateOf(studio.voxsum.core.hw.HwInfo.backend(ctx)) }
+    var testing by remember { mutableStateOf<studio.voxsum.core.hw.Backend?>(null) }
+    var needModel by remember { mutableStateOf(false) }
+    Section(stringResource(R.string.settings_backend_title))
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        studio.voxsum.core.hw.Backend.entries.forEach { b ->
+            val usable = b == studio.voxsum.core.hw.Backend.CPU || results[b]?.passed == true
+            FilterChip(
+                selected = chosen == b,
+                enabled = enabled && usable && !running,
+                onClick = { studio.voxsum.core.hw.BackendBench.choose(ctx, b); chosen = b },
+                label = { Text(backendLabel(b)) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = pal.Sky.copy(alpha = 0.15f),
+                    selectedLabelColor = pal.Sky,
+                    labelColor = pal.Slate400,
+                ),
+            )
+        }
+    }
+    val cpuDecode = results[studio.voxsum.core.hw.Backend.CPU]?.takeIf { it.passed }?.decodeTps
+    studio.voxsum.core.hw.Backend.entries.forEach { b ->
+        val r = results[b]
+        val line = when {
+            testing == b -> stringResource(R.string.backend_testing, backendLabel(b))
+            r == null -> stringResource(R.string.backend_untested)
+            r.passed -> stringResource(R.string.backend_ok, r.decodeTps, r.prefillTps.roundToInt(),
+                if (b != studio.voxsum.core.hw.Backend.CPU && cpuDecode != null && cpuDecode > 0)
+                    stringResource(R.string.backend_vs_cpu, r.decodeTps / cpuDecode) else "")
+            else -> stringResource(R.string.backend_fail, stringResource(when (r.note) {
+                "no_runtime" -> R.string.backend_why_runtime
+                "crashed" -> R.string.backend_why_crashed
+                "no_output" -> R.string.backend_why_output
+                else -> R.string.backend_why_unsupported
+            }))
+        }
+        Text("${backendLabel(b)}  ${if (r?.passed == true) "✓" else if (r != null) "✗" else "·"}  $line",
+            style = MaterialTheme.typography.bodySmall, color = pal.Slate400)
+    }
+    if (needModel) Text(stringResource(R.string.backend_need_model), style = MaterialTheme.typography.labelSmall, color = pal.Slate400)
     androidx.compose.material3.OutlinedButton(
         enabled = enabled && !running,
         onClick = {
-            running = true
+            running = true; needModel = false
             scope.launch {
                 profile = runCatching { studio.voxsum.core.hw.HwInfo.ensureBench(ctx, force = true) }.getOrDefault(profile)
+                val models = studio.voxsum.core.models.ModelManager(ctx)
+                val spec = studio.voxsum.core.models.LlmRegistry.byId(
+                    studio.voxsum.core.config.TranscriptionConfig.Holder.config.llmModelId)
+                val dir = models.llmDir(spec)
+                if (java.io.File(dir, spec.mainFile).exists() && java.io.File(dir, "weights.xnnpack_cache").exists()) {
+                    results = withContext(kotlinx.coroutines.Dispatchers.Default) {
+                        runCatching {
+                            studio.voxsum.core.hw.BackendBench.run(
+                                ctx, hwKey, java.io.File(dir, spec.mainFile).parentFile!!.path, java.io.File(dir, spec.tokenizerFile).path, spec.maxCtx, profile.threads,
+                                java.io.File(dir, "weights.xnnpack_cache").path,
+                            ) { testing = it }
+                        }.getOrDefault(results)
+                    }
+                    testing = null
+                    chosen = studio.voxsum.core.hw.HwInfo.backend(ctx)
+                } else needModel = true
                 running = false
             }
         },
     ) { Text(stringResource(if (running) R.string.settings_inference_running else R.string.settings_inference_run)) }
+    Text(stringResource(R.string.backend_hint), style = MaterialTheme.typography.labelSmall, color = pal.Slate400)
     Text(
         stringResource(R.string.settings_inference_hint),
         style = MaterialTheme.typography.labelSmall,
         color = pal.Slate400,
     )
 }
+
+@Composable
+private fun backendLabel(b: studio.voxsum.core.hw.Backend): String = stringResource(
+    when (b) {
+        studio.voxsum.core.hw.Backend.CPU -> R.string.backend_cpu
+        studio.voxsum.core.hw.Backend.GPU -> R.string.backend_gpu
+        studio.voxsum.core.hw.Backend.NPU -> R.string.backend_npu
+    },
+)

@@ -27,7 +27,7 @@ public:
     // prefill/decode graph. weight_cache: XNNPACK weight-cache file, built on first load.
     // Throws std::runtime_error on any failure.
     Engine(const std::string& dir, const std::string& main, int ctx, int threads,
-           const std::string& weight_cache);
+           const std::string& weight_cache, int backend = 0);
     ~Engine();
 
     int context() const;

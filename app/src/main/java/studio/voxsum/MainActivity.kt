@@ -324,6 +324,7 @@ class MainActivity : ComponentActivity() {
         maybeRequestNotifications()
         // First launch (and after an update / on a new SoC): measure how many threads this phone scales to.
         if (!TranscriptionService.pipelineActive) lifecycleScope.launch {
+            runCatching { studio.voxsum.core.hw.BackendBench.settleCrash(applicationContext, studio.voxsum.core.hw.HwInfo.benchKey(applicationContext)) }
             runCatching { studio.voxsum.core.hw.HwInfo.ensureBench(applicationContext) }
         }
         // Reclaim space from any download the app was killed mid-way through (stale "*.part" temp

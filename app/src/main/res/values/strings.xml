@@ -396,4 +396,19 @@
     <string name="settings_inference_run">Run benchmark</string>
     <string name="settings_inference_running">Measuring…</string>
     <string name="settings_inference_hint">Auto measures once (about a second) and keeps the thread count that runs fastest on this phone. Force a value only if recordings stall.</string>
+    <string name="settings_backend_title">Run the reader on</string>
+    <string name="backend_cpu">CPU</string>
+    <string name="backend_gpu">GPU</string>
+    <string name="backend_npu">NPU</string>
+    <string name="backend_ok">Works · writes %1$.1f tokens/s, reads %2$d tokens/s%3$s</string>
+    <string name="backend_vs_cpu"> · %1$.1f× the CPU</string>
+    <string name="backend_fail">Not usable: %1$s</string>
+    <string name="backend_why_runtime">this build has no runtime for it</string>
+    <string name="backend_why_crashed">it crashed the engine, so it stays off</string>
+    <string name="backend_why_output">it produced no text</string>
+    <string name="backend_why_unsupported">this chip cannot run the reader\'s operations</string>
+    <string name="backend_untested">Not tested yet</string>
+    <string name="backend_testing">Testing %1$s…</string>
+    <string name="backend_need_model">Download the reader model (summarize one recording) to also test the GPU and NPU.</string>
+    <string name="backend_hint">The CPU is the default and the safest. GPU and NPU unlock only after their test passes here; if one fails to load later, the app falls back to the CPU on its own.</string>
 </resources>

@@ -75,10 +75,16 @@ struct Mapping {
     ~Mapping() { if (p != MAP_FAILED) munmap(p, n); }
 };
 
-LiteRtOptions make_options(int threads, const std::string& cache, bool fused, int attn_threads) {
+// backend: 0 CPU (XNNPACK, the default and the only one the weight cache serves), 1 GPU, 2 NPU.
+// GPU / NPU keep the CPU as the fallback for ops they cannot take (the fused int8 attention is a
+// CPU kernel), so a compiled model may be partly delegated; the benchmark measures what that buys.
+LiteRtOptions make_options(int threads, const std::string& cache, bool fused, int attn_threads, int backend = 0) {
     LiteRtOptions opts;
     ENSURE(LiteRtCreateOptions(&opts));
-    ENSURE(LiteRtSetOptionsHardwareAccelerators(opts, kLiteRtHwAcceleratorCpu));
+    int hw = kLiteRtHwAcceleratorCpu;
+    if (backend == 1) hw |= kLiteRtHwAcceleratorGpu;
+    if (backend == 2) hw |= kLiteRtHwAcceleratorNpu;
+    ENSURE(LiteRtSetOptionsHardwareAccelerators(opts, static_cast<LiteRtHwAccelerators>(hw)));
     if (LiteRtOpaqueOptions oo = cpu_options(threads, cache)) ENSURE(LiteRtAddOpaqueOptions(opts, oo));
     if (fused) {
         LiteRtCustomOpKernel k; void* ud = nullptr;
@@ -113,10 +119,11 @@ struct Model {
     std::vector<LiteRtTensorBuffer> owned;
 
     Model(LiteRtEnvironment e, const std::string& path, int threads, const std::string& cache,
-          bool fused, std::map<std::string, LiteRtTensorBuffer>* kv, const std::vector<std::string>& only)
+          bool fused, std::map<std::string, LiteRtTensorBuffer>* kv, const std::vector<std::string>& only,
+          int backend = 0)
         : env(e), map(new Mapping(path)), shared(kv) {
         ENSURE(LiteRtCreateModelFromBuffer(env, map->p, map->n, &model));
-        opts = make_options(threads, cache, fused, 0);
+        opts = make_options(threads, cache, fused, 0, backend);
         ENSURE(LiteRtCreateCompiledModel(env, model, opts, &cm));
         LiteRtParamIndex n = 0;
         ENSURE(LiteRtGetNumModelSignatures(model, &n));
@@ -336,7 +343,8 @@ struct Engine::Impl {
     }
 };
 
-Engine::Engine(const std::string& dir, const std::string& main, int ctx, int threads, const std::string& cache)
+Engine::Engine(const std::string& dir, const std::string& main, int ctx, int threads, const std::string& cache,
+               int backend)
     : impl_(new Impl) {
     // OpenMP threads of the attention op must not spin between ops: XNNPACK runs its own pool
     // on the same cores (Reno7: prefill 80 -> 130 tok/s). Set before the OpenMP runtime starts.
@@ -356,9 +364,10 @@ Engine::Engine(const std::string& dir, const std::string& main, int ctx, int thr
     m.emb.reset(new Model(m.env, dir + "/Section2_TFLiteModel_tf_lite_embedder.tflite", threads, "", false, nullptr, {}));
     m.ple.reset(new Model(m.env, dir + "/Section3_TFLiteModel_tf_lite_per_layer_embedder.tflite", threads, "", false, nullptr, {}));
     struct stat cst;
-    if (!cache.empty() && (stat(cache.c_str(), &cst) != 0 || cst.st_size == 0))
+    if (backend == 0 && !cache.empty() && (stat(cache.c_str(), &cst) != 0 || cst.st_size == 0))
         build_weight_cache(m.env, main, threads, cache);
-    m.lm.reset(new Model(m.env, main, threads, cache, true, &m.kv, {"prefill_128", "decode"}));
+    m.lm.reset(new Model(m.env, main, threads, backend == 0 ? cache : std::string(), true, &m.kv,
+                         {"prefill_128", "decode"}, backend));
 
     if (!getenv("MFA_KEEP_TABLES")) {
         m.tables = clean_ranges(dir + "/Section2_TFLiteModel_tf_lite_embedder.tflite");

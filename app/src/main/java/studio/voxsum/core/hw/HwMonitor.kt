@@ -17,7 +17,10 @@ import java.io.File
 data class HwSample(
     /** This process's share of the whole CPU: the ASR and the reader both run in it. */
     val cpuPct: Int,
+    /** Only while the reader runs on the GPU (Adreno sysfs); null otherwise. */
     val gpuPct: Int?,
+    /** The reader runs on the NPU: no app-readable load figure exists, so only its presence is shown. */
+    val npuActive: Boolean,
     val ramPct: Int,
     val batteryPct: Int,
     val charging: Boolean,
@@ -50,7 +53,8 @@ fun hwSamples(context: Context, periodMs: Long = 2000): Flow<HwSample> = flow {
         val temp = bat?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, Int.MIN_VALUE) ?: Int.MIN_VALUE
         emit(HwSample(
             cpuPct = cpu,
-            gpuPct = readGpu(),
+            gpuPct = if (HwInfo.activeBackend == Backend.GPU) readGpu() else null,
+            npuActive = HwInfo.activeBackend == Backend.NPU,
             ramPct = (100 - mi.availMem * 100 / mi.totalMem).toInt(),
             batteryPct = if (level >= 0 && scale > 0) level * 100 / scale else -1,
             charging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL,

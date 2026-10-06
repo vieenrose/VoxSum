@@ -1798,15 +1798,29 @@ class TranscriptionService : LifecycleService() {
         // The mobile graphs on the forked LiteRT engine (integration note §13): CPU only, 4k,
         // the XNNPACK weight cache built on the first load next to the weights.
         val main = File(dir, spec.mainFile)
-        val engine = studio.voxsum.core.llm.MfaEngine.load(
-            main.parentFile!!.path, ctx = spec.maxCtx, threads = asrThreads(),
-            weightCache = File(dir, WEIGHT_CACHE).path,
-        )
+        // CPU unless the user picked a GPU / NPU whose benchmark passed; a failed load there falls
+        // back to the CPU rather than losing the reading.
+        var backend = studio.voxsum.core.hw.HwInfo.backend(this)
+        val engine = try {
+            studio.voxsum.core.llm.MfaEngine.load(
+                main.parentFile!!.path, ctx = spec.maxCtx, threads = asrThreads(),
+                weightCache = File(dir, WEIGHT_CACHE).path, backend = backend.id,
+            )
+        } catch (e: Exception) {
+            if (backend == studio.voxsum.core.hw.Backend.CPU) throw e
+            Log.w("voxsum-reader", "$backend failed to load, using the CPU", e)
+            backend = studio.voxsum.core.hw.Backend.CPU
+            studio.voxsum.core.llm.MfaEngine.load(
+                main.parentFile!!.path, ctx = spec.maxCtx, threads = asrThreads(),
+                weightCache = File(dir, WEIGHT_CACHE).path,
+            )
+        }
+        studio.voxsum.core.hw.HwInfo.activeBackend = backend
         val tok = studio.voxsum.core.llm.SpTokenizer.load(File(dir, spec.tokenizerFile).path)
         val session = studio.voxsum.core.llm.MfaSession(engine, tok, spec.sampler.topK, spec.sampler.topP)
         return ReaderModel(
             spec.id, session, system, studio.voxsum.core.reader.ReaderBudget.MOBILE, notesChars = 3900,
-            cancelFn = session::cancel, resumeFn = session::resume, closeFn = { engine.close(); tok.close() },
+            cancelFn = session::cancel, resumeFn = session::resume, closeFn = { engine.close(); tok.close(); studio.voxsum.core.hw.HwInfo.activeBackend = studio.voxsum.core.hw.Backend.CPU },
         )
     }
 

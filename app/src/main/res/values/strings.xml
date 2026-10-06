@@ -392,9 +392,9 @@
     <string name="settings_threads">Threads</string>
     <string name="settings_inference_capped">A reading failed with more threads, so 2 are used until the next benchmark.</string>
     <string name="settings_inference_bench_title">Benchmark: relative speed (%) by thread count</string>
-    <string name="settings_inference_run">Best</string>
+    <string name="settings_inference_run">Recommended</string>
     <string name="settings_inference_running">Measuring…</string>
-    <string name="settings_inference_hint">Slide to choose the thread count. Best measures every count from 2 to all the cores and picks the fewest threads that run about as fast as the best.</string>
+    <string name="settings_inference_hint">Slide to choose the thread count. Recommended measures every count from 2 to all the cores and picks the fewest threads that run about as fast as the best.</string>
     <string name="settings_backend_title">Run the reader on</string>
     <string name="backend_cpu">CPU</string>
     <string name="backend_gpu">GPU</string>

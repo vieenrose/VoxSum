@@ -384,9 +384,9 @@
     <string name="settings_threads">執行緒</string>
     <string name="settings_inference_capped">曾有一次閱讀在較多執行緒下失敗，因此在下次測試前改用 2 個。</string>
     <string name="settings_inference_bench_title">測試結果：各執行緒數的相對速度（%）</string>
-    <string name="settings_inference_run">最佳</string>
+    <string name="settings_inference_run">建議</string>
     <string name="settings_inference_running">測試中…</string>
-    <string name="settings_inference_hint">拖曳滑桿選擇執行緒數。「最佳」會測完從 2 到全部核心的執行緒數，並自動選用提升不再明顯的最少執行緒數。</string>
+    <string name="settings_inference_hint">拖曳滑桿選擇執行緒數。「建議」會測完從 2 到全部核心的執行緒數，並自動選用提升不再明顯的最少執行緒數。</string>
     <string name="settings_backend_title">閱讀器執行於</string>
     <string name="backend_cpu">CPU</string>
     <string name="backend_gpu">GPU</string>

@@ -2,6 +2,8 @@ package studio.voxsum.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.size
@@ -90,12 +92,12 @@ fun SettingsContent(
     onUpdateFound: (UpdateInfo) -> Unit = {},
 ) {
     val pal = LocalVoxSumPalette.current
-    Column(Modifier.padding(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        // (0) Appearance — theme selector (Auto follows the OS; E-ink is a manual e-paper theme).
-        Section(stringResource(R.string.settings_appearance))
+    Column(Modifier.padding(4.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        val ctx = androidx.compose.ui.platform.LocalContext.current
+        // Everyday choices first (look, language, the notes model), tuning and housekeeping after.
+        Section(stringResource(R.string.settings_appearance)) {
         AppearanceSelector(enabled)
         FontScaleSlider(enabled)
-        val ctx = androidx.compose.ui.platform.LocalContext.current
         var hwOn by remember { mutableStateOf(studio.voxsum.core.config.ThemeStore.loadHwMonitor(ctx)) }
         SwitchRow(stringResource(R.string.settings_hw_monitor), hwOn, enabled) {
             hwOn = it; studio.voxsum.core.config.ThemeStore.saveHwMonitor(ctx, it)
@@ -105,13 +107,9 @@ fun SettingsContent(
             style = MaterialTheme.typography.labelSmall,
             color = pal.Slate400,
         )
+        }
 
-        Section(stringResource(R.string.settings_inference))
-        InferencePanel(enabled)
-
-        // One choice for the interface AND every Chinese text the app produces: the strings switch
-        // live, and the Han script (Traditional / Simplified) follows the language.
-        Section(stringResource(R.string.settings_language))
+        Section(stringResource(R.string.settings_language)) {
         val lang = LocalLanguageController.current
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             listOf(
@@ -143,12 +141,13 @@ fun SettingsContent(
             color = pal.Slate400,
             modifier = Modifier.padding(top = 2.dp),
         )
+        }
 
-        // Recording.
-        Section(stringResource(R.string.settings_recording))
-        // The engine always separates speakers (one fused pass); only how late the LIVE view freezes
-        // a line's speaker is a choice.
-        // 5..30 s in 5 s steps (steps = 4 intermediate stops).
+        Section(stringResource(R.string.settings_reader_model)) {
+        ReaderModelSelector(config.llmModelId, enabled) { onChange(config.copy(llmModelId = it)) }
+        }
+
+        Section(stringResource(R.string.settings_recording)) {
         SliderRow(
             stringResource(R.string.settings_speaker_delay),
             config.speakerDelaySec.toFloat(),
@@ -162,12 +161,13 @@ fun SettingsContent(
             style = MaterialTheme.typography.bodySmall,
             color = pal.Slate400,
         )
+        }
 
-        Section(stringResource(R.string.settings_reader_model))
-        ReaderModelSelector(config.llmModelId, enabled) { onChange(config.copy(llmModelId = it)) }
+        Section(stringResource(R.string.settings_inference)) {
+            InferencePanel(enabled)
+        }
 
-        // Experimental — features whose output is not reliable enough to be on by default.
-        Section(stringResource(R.string.settings_experimental))
+        Section(stringResource(R.string.settings_experimental)) {
         SwitchRow(stringResource(R.string.settings_show_actions), config.showActionItems, enabled) {
             onChange(config.copy(showActionItems = it))
         }
@@ -176,18 +176,19 @@ fun SettingsContent(
             style = MaterialTheme.typography.bodySmall,
             color = pal.Slate400,
         )
+        }
 
-        // (6) Storage — downloaded models, per-item delete (each re-downloads on next use).
-        Section(stringResource(R.string.settings_storage))
+        Section(stringResource(R.string.settings_storage)) {
         StoragePanel(enabled, summaryReady = LlmRegistry.byId(config.llmModelId).id in readyLlm, llmId = config.llmModelId)
+        }
 
-        // (7) Background reliability — keep screen-off runs alive across OEM power policies.
-        Section(stringResource(R.string.settings_background))
-        BackgroundReliabilityPanel(enabled)
+        Section(stringResource(R.string.settings_background)) {
+            BackgroundReliabilityPanel(enabled)
+        }
 
-        // (8) About — version, license, and open-source components.
-        Section(stringResource(R.string.settings_about))
-        AboutContent(onUpdateFound)
+        Section(stringResource(R.string.settings_about)) {
+            AboutContent(onUpdateFound)
+        }
     }
 }
 
@@ -506,17 +507,24 @@ private val COMPONENT_LICENSES = listOf(
     R.string.lic_compose to "Apache-2.0",
 )
 
+/** A titled card: one topic per card, so the page reads as a few groups rather than one long list. */
+@Composable
+private fun Section(title: String, content: @Composable ColumnScope.() -> Unit) {
+    val pal = LocalVoxSumPalette.current
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(pal.InsetSurface).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(title, style = MaterialTheme.typography.titleSmall, color = pal.Sky, fontWeight = FontWeight.SemiBold)
+        content()
+    }
+}
+
+/** Title only, for the hidden backend picker inside the Inference card. */
 @Composable
 private fun Section(title: String) {
-    val pal = LocalVoxSumPalette.current
-    Text(
-        title.uppercase(),
-        style = MaterialTheme.typography.labelMedium,
-        color = pal.Sky,
-        fontWeight = FontWeight.SemiBold,
-        letterSpacing = 1.sp,
-        modifier = Modifier.padding(top = 22.dp, bottom = 4.dp),
-    )
+    Text(title, style = MaterialTheme.typography.titleSmall, color = LocalVoxSumPalette.current.Sky,
+        fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 8.dp))
 }
 
 @Composable
@@ -600,30 +608,6 @@ private fun InferencePanel(enabled: Boolean) {
         },
     ) { draft = it }
     if (profile.capped) Text(stringResource(R.string.settings_inference_capped), style = MaterialTheme.typography.bodySmall, color = pal.Slate400)
-    if (profile.benchScores.isNotEmpty()) {
-        // Compact column chart: one column per measured thread count, scaled to the best; the count in use is highlighted.
-        val best = profile.benchScores.values.max().coerceAtLeast(1.0)
-        Text(stringResource(R.string.settings_inference_bench_title), style = MaterialTheme.typography.labelMedium, color = pal.Slate400)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-            profile.benchScores.entries.sortedBy { it.key }.forEach { (n, v) ->
-                val used = n == profile.threads
-                val frac = (v / best).toFloat().coerceIn(0.04f, 1f)
-                Column(Modifier.weight(1f), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
-                    Text("${(v / best * 100).roundToInt()}", style = MaterialTheme.typography.labelSmall,
-                        color = if (used) pal.Sky else pal.Slate400.copy(alpha = 0.8f))
-                    androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().height(34.dp), contentAlignment = androidx.compose.ui.Alignment.BottomCenter) {
-                        androidx.compose.foundation.layout.Box(
-                            Modifier.fillMaxWidth(0.7f).fillMaxHeight(frac)
-                                .clip(androidx.compose.foundation.shape.RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                                .background(if (used) pal.Sky else pal.Slate400.copy(alpha = 0.4f)),
-                        )
-                    }
-                    Text("$n", style = MaterialTheme.typography.labelSmall, fontWeight = if (used) FontWeight.Bold else FontWeight.Normal,
-                        color = if (used) pal.Sky else pal.Slate400)
-                }
-            }
-        }
-    }
     // The reader on each backend: a card per backend, GPU selectable only once their test passed.
     val hwKey = remember { studio.voxsum.core.hw.HwInfo.benchKey(ctx) }
     var results by remember { mutableStateOf(studio.voxsum.core.hw.BackendBench.results(ctx, hwKey)) }

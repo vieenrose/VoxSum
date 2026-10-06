@@ -16,7 +16,8 @@ COMMON=(-DCMAKE_SYSTEM_NAME=$SYSN -DCMAKE_OSX_SYSROOT=$SDK -DCMAKE_OSX_ARCHITECT
   -DGGML_NATIVE=OFF -DGGML_OPENMP=OFF -DGGML_METAL=$METAL -DGGML_METAL_EMBED_LIBRARY=ON -DGGML_BLAS=$ACCEL -DGGML_ACCELERATE=$ACCEL)
 # CMake 3.31 leaves the OBJC rules unset for CMAKE_SYSTEM_NAME=iOS; ggml-metal has .m files
 if [ $METAL = ON ]; then COMMON+=("-DCMAKE_OBJC_COMPILE_OBJECT=<CMAKE_OBJC_COMPILER> <DEFINES> <INCLUDES> <FLAGS> -o <OBJECT> -c <SOURCE>" "-DCMAKE_OBJCXX_COMPILE_OBJECT=<CMAKE_OBJCXX_COMPILER> <DEFINES> <INCLUDES> <FLAGS> -o <OBJECT> -c <SOURCE>"); fi
-[ "$ARCH" = arm64 ] && COMMON+=(-DGGML_CPU_ARM_ARCH=armv8.2-a+dotprod)
+# A12 (iPhone XR) has no dotprod: tinyBLAS raised SIGILL, so devices get fp16 only (simulator on Apple silicon keeps dotprod)
+[ "$ARCH" = arm64 ] && COMMON+=("-DGGML_CPU_ARM_ARCH=armv8.2-a$([ $SDK = iphoneos ] && echo +fp16 || echo +dotprod)")
 if [ "$1" != audiocpp-only ]; then
 $CMAKE -S $NATIVE/crispasr -B $OUT/crispasr "${COMMON[@]}" \
   -DCMAKE_PROJECT_crispasr_INCLUDE=$ROOT/ios/native/crispasr_ggml.cmake -DNEMO_GGML_SRC=$NATIVE/crispasr-ggml \

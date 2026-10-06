@@ -6,11 +6,13 @@ set -e
 SDK=${1:-iphonesimulator}; ARCH=${2:-x86_64}; shift 2 || true
 ROOT=$(cd "$(dirname "$0")/../.." && pwd); NATIVE=$ROOT/native
 CMAKE=${CMAKE:-$HOME/tools/cmake-3.31.6-macos-universal/CMake.app/Contents/bin/cmake}
-OBJC_SYS="-isysroot $(xcrun --sdk $SDK --show-sdk-path) -arch $ARCH -m$([ $SDK = iphonesimulator ] && echo ios-simulator || echo iphoneos)-version-min=17.0"
+# SDK=macosx: native Mac build (host proxy for Metal timings: M1 GPU is the same family as A14/A15)
+case $SDK in macosx) MINV=-mmacosx-version-min=14.0; SYSN=Darwin; DT=14.0;; iphonesimulator) MINV=-mios-simulator-version-min=17.0; SYSN=iOS; DT=17.0;; *) MINV=-miphoneos-version-min=17.0; SYSN=iOS; DT=17.0;; esac
+OBJC_SYS="-isysroot $(xcrun --sdk $SDK --show-sdk-path) -arch $ARCH $MINV"
 TAG=${TAG:-}; METAL=${METAL:-OFF}; ACCEL=${ACCEL:-OFF}   # TAG=-metal / METAL=ON / ACCEL=ON: GPU / Accelerate variants side by side
 OUT=$ROOT/build-ios/$SDK-$ARCH$TAG; mkdir -p $OUT
-COMMON=(-DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=$SDK -DCMAKE_OSX_ARCHITECTURES=$ARCH
-  -DCMAKE_OSX_DEPLOYMENT_TARGET=17.0 -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
+COMMON=(-DCMAKE_SYSTEM_NAME=$SYSN -DCMAKE_OSX_SYSROOT=$SDK -DCMAKE_OSX_ARCHITECTURES=$ARCH
+  -DCMAKE_OSX_DEPLOYMENT_TARGET=$DT -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
   -DGGML_NATIVE=OFF -DGGML_OPENMP=OFF -DGGML_METAL=$METAL -DGGML_METAL_EMBED_LIBRARY=ON -DGGML_BLAS=$ACCEL -DGGML_ACCELERATE=$ACCEL)
 # CMake 3.31 leaves the OBJC rules unset for CMAKE_SYSTEM_NAME=iOS; ggml-metal has .m files
 if [ $METAL = ON ]; then COMMON+=("-DCMAKE_OBJC_COMPILE_OBJECT=<CMAKE_OBJC_COMPILER> <DEFINES> <INCLUDES> <FLAGS> -o <OBJECT> -c <SOURCE>" "-DCMAKE_OBJCXX_COMPILE_OBJECT=<CMAKE_OBJCXX_COMPILER> <DEFINES> <INCLUDES> <FLAGS> -o <OBJECT> -c <SOURCE>"); fi

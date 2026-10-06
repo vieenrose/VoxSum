@@ -5,6 +5,7 @@
 set -e
 SDK=${1:-iphonesimulator}; ARCH=${2:-x86_64}
 ROOT=$(cd "$(dirname "$0")/../.." && pwd); N=$ROOT/native; E=$ROOT/app/src/main/cpp/nemo
+case $SDK in macosx) MINV=-mmacosx-version-min=14.0;; iphonesimulator) MINV=-mios-simulator-version-min=17.0;; *) MINV=-miphoneos-version-min=17.0;; esac
 TAG=${TAG:-}; B=$ROOT/build-ios/$SDK-$ARCH$TAG; C=$B/crispasr
 # GPUTEST=1: experiment build, the engine reads VOX_ASR_GPU / VOX_DIAR_BACKEND (the shipped engine says "cpu"
 # on purpose; on the Android branch that stays untouched). The patched copy lives in the build dir only.
@@ -13,7 +14,7 @@ if [ -n "$GPUTEST" ]; then
   sed -i "" 's/p.use_gpu = false;/p.use_gpu = getenv("VOX_ASR_GPU") != nullptr;/; s/bc.backend = "cpu";/bc.backend = getenv("VOX_DIAR_BACKEND") ? getenv("VOX_DIAR_BACKEND") : "cpu";/' $E/engine.cpp
 fi
 xcrun --sdk $SDK clang++ -O2 -std=c++17 -w -include $ROOT/ios/native/apple_sched_shim.h -DNEMO_HAVE_TOKEN_TIMES -arch $ARCH \
-  -isysroot $(xcrun --sdk $SDK --show-sdk-path) $([ $SDK = iphonesimulator ] && echo -mios-simulator-version-min=17.0 || echo -miphoneos-version-min=17.0) \
+  -isysroot $(xcrun --sdk $SDK --show-sdk-path) $MINV \
   -I$E -I$N/crispasr/src -I$N/audiocpp/include -I$N/crispasr-ggml/include -I$N/crispasr-ggml/src -I$N/crispasr-ggml/src/ggml-cpu \
   $E/engine.cpp $E/fusion.cpp $E/diar_crispasr.cpp $ROOT/tools/nemo-eval/nemo_eval.cpp -o $B/nemo_eval \
   -L$B/audiocpp/bin -laudiocpp $C/src/libxasr.a $C/src/libcrispasr-core.a $C/ggml/src/libggml.a $C/ggml/src/libggml-cpu.a \

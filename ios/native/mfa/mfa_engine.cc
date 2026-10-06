@@ -1,3 +1,5 @@
+#include <cerrno>
+#include <cstring>
 // mfa_engine.cc - see mfa_engine.h. The model protocol is unchanged from the upstream driver:
 //   - the cache length is the magic number 32003 in the graph, replaced at load by `ctx`;
 //   - token -> embedder -> embeddings, token -> per-layer embedder -> PLE;
@@ -69,8 +71,9 @@ struct Mapping {
         if (fd < 0) fail("cannot open " + path);
         struct stat st; fstat(fd, &st); n = st.st_size;
         p = mmap(nullptr, n, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
+        int e = errno;
         close(fd);
-        if (p == MAP_FAILED) fail("mmap " + path);
+        if (p == MAP_FAILED) fail("mmap " + path + " (" + std::to_string(n >> 20) + " MB): " + strerror(e));
     }
     ~Mapping() { if (p != MAP_FAILED) munmap(p, n); }
 };

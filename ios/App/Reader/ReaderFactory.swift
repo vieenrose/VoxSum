@@ -9,10 +9,15 @@ enum ReaderFactory {
         #if !VOX_REAL_READER
         return (StubLlm(), fallback, false)
         #else
-        guard let dir, let tok = try? SpTokenizer(path: dir + "/Section1_SP_Tokenizer.spiece"),
-              let eng = try? MfaEngine(dir: dir, ctx: ReaderBudget.mobile.ctxBudget, threads: threads,
-                                       weightCache: dir + "/weights.xnnpack_cache")
-        else { return (StubLlm(), fallback, false) }
+        guard let dir else { return (StubLlm(), fallback, false) }
+        let tok: SpTokenizer, eng: MfaEngine
+        do {
+            tok = try SpTokenizer(path: dir + "/Section1_SP_Tokenizer.spiece")
+            eng = try MfaEngine(dir: dir, ctx: ReaderBudget.mobile.ctxBudget, threads: threads, weightCache: dir + "/weights.xnnpack_cache")
+        } catch {
+            FileHandle.standardError.write(Data("voxsum-reader: load failed, using the stub: \(error)\n".utf8))
+            return (StubLlm(), fallback, false)
+        }
         let prompt = (try? String(contentsOfFile: dir + "/system_prompt.txt", encoding: .utf8)) ?? fallback
         return (MfaSession(engine: eng, tok: tok), prompt, true)
         #endif

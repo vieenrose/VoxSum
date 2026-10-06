@@ -622,8 +622,9 @@ private fun InferencePanel(enabled: Boolean) {
     var chosen by remember { mutableStateOf(studio.voxsum.core.hw.HwInfo.backend(ctx)) }
     var testing by remember { mutableStateOf<studio.voxsum.core.hw.Backend?>(null) }
     var needModel by remember { mutableStateOf(false) }
-    Section(stringResource(R.string.settings_backend_title))
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    val multiBackend = studio.voxsum.core.hw.Backend.offered.size > 1
+    if (multiBackend) Section(stringResource(R.string.settings_backend_title))
+    if (multiBackend) FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         studio.voxsum.core.hw.Backend.offered.forEach { b ->
             val usable = b == studio.voxsum.core.hw.Backend.CPU || results[b]?.passed == true
             FilterChip(
@@ -640,7 +641,7 @@ private fun InferencePanel(enabled: Boolean) {
         }
     }
     val cpuDecode = results[studio.voxsum.core.hw.Backend.CPU]?.takeIf { it.passed }?.decodeTps
-    studio.voxsum.core.hw.Backend.offered.forEach { b ->
+    if (multiBackend) studio.voxsum.core.hw.Backend.offered.forEach { b ->
         val r = results[b]
         val line = when {
             testing == b -> stringResource(R.string.backend_testing, backendLabel(b))
@@ -658,7 +659,7 @@ private fun InferencePanel(enabled: Boolean) {
         Text("${backendLabel(b)}  ${if (r?.passed == true) "✓" else if (r != null) "✗" else "·"}  $line",
             style = MaterialTheme.typography.bodySmall, color = pal.Slate400)
     }
-    if (needModel) Text(stringResource(R.string.backend_need_model), style = MaterialTheme.typography.labelSmall, color = pal.Slate400)
+    if (multiBackend && needModel) Text(stringResource(R.string.backend_need_model), style = MaterialTheme.typography.labelSmall, color = pal.Slate400)
     androidx.compose.material3.OutlinedButton(
         enabled = enabled && !running,
         onClick = {
@@ -669,7 +670,8 @@ private fun InferencePanel(enabled: Boolean) {
                 val spec = studio.voxsum.core.models.LlmRegistry.byId(
                     studio.voxsum.core.config.TranscriptionConfig.Holder.config.llmModelId)
                 val dir = models.llmDir(spec)
-                if (java.io.File(dir, spec.mainFile).exists() && java.io.File(dir, "weights.xnnpack_cache").exists()) {
+                if (!multiBackend) {
+                } else if (java.io.File(dir, spec.mainFile).exists() && java.io.File(dir, "weights.xnnpack_cache").exists()) {
                     results = withContext(kotlinx.coroutines.Dispatchers.Default) {
                         runCatching {
                             studio.voxsum.core.hw.BackendBench.run(
@@ -685,7 +687,7 @@ private fun InferencePanel(enabled: Boolean) {
             }
         },
     ) { Text(stringResource(if (running) R.string.settings_inference_running else R.string.settings_inference_run)) }
-    Text(stringResource(R.string.backend_hint), style = MaterialTheme.typography.labelSmall, color = pal.Slate400)
+    if (multiBackend) Text(stringResource(R.string.backend_hint), style = MaterialTheme.typography.labelSmall, color = pal.Slate400)
     Text(
         stringResource(R.string.settings_inference_hint),
         style = MaterialTheme.typography.labelSmall,

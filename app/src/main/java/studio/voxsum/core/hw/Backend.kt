@@ -11,8 +11,8 @@ enum class Backend(val id: Int) {
     CPU(0), GPU(1), NPU(2);
 
     companion object {
-        /** NPU is plumbed through the engine but hidden: no dispatch library or NPU graph ships yet (docs/GPU_NPU.md). */
-        val offered: List<Backend> = listOf(CPU, GPU)
+        /** GPU and NPU are plumbed through the engine but hidden: the reader's graph does not run on the GPU and no NPU runtime ships (docs/GPU_NPU.md). With one entry the Settings backend picker and cards disappear. */
+        val offered: List<Backend> = listOf(CPU)
     }
 }
 

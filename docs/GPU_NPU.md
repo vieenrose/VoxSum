@@ -1,6 +1,6 @@
 # GPU / NPU for the reader — study and result (2026-10-06)
 
-**Verdict: not viable today with the shipped graphs. The app measures it on each phone, keeps the CPU as the default and unlocks GPU / NPU in Settings only when their test passes.**
+**Verdict: not viable today with the shipped graphs. The app keeps the CPU only; the GPU / NPU plumbing (engine option, benchmark, picker, CPU fallback) is in the code but hidden from users.**
 
 ## What LiteRT offers (2.2.0)
 - `CompiledModel` takes a bitmask of accelerators (`kLiteRtHwAcceleratorCpu | Gpu | Npu`); ops an accelerator cannot take stay on the CPU.
@@ -13,7 +13,7 @@
 - NPU: no dispatch library ships in the app (about 30 MB of Qualcomm libraries, plus a graph compiled for the chip), so the NPU test reports "this build has no runtime for it". It could not be tried here: no Snapdragon 8 Elite (Gen 5) phone was available.
 
 ## What the app does
-- **Benchmark** (Settings > Inference > Run benchmark): thread benchmark, then the reader model on CPU and GPU with the same fixed prompt (80 tokens read, 16 written); a card per backend. The NPU is not offered in the app for now (`Backend.offered`); the engine still accepts it.
+- **Benchmark** (hidden for now; enable by adding GPU to `Backend.offered`): Settings > Inference runs the reader on each offered backend with a fixed prompt and shows a card per backend.
 - **Choice**: CPU is the default. GPU / NPU chips are greyed until their test passed on this phone and app version; a failed load later falls back to the CPU on its own.
 - **Crash guard**: a GPU / NPU probe that kills the process is recorded as "crashed" on the next launch and stays off.
 - **Status line**: the GPU gauge appears only while the reader runs on the GPU; an NPU tag only while it runs on the NPU (no app-readable NPU load exists).

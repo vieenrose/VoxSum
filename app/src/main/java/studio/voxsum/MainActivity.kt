@@ -148,6 +148,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -321,6 +322,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         maybeRequestNotifications()
+        // First launch (and after an update / on a new SoC): measure how many threads this phone scales to.
+        if (!TranscriptionService.pipelineActive) lifecycleScope.launch {
+            runCatching { studio.voxsum.core.hw.HwInfo.ensureBench(applicationContext) }
+        }
         // Reclaim space from any download the app was killed mid-way through (stale "*.part" temp
         // files) AND the transient audio work files (shared_* import copies, decoded_* decode
         // outputs, orphaned recording_* captures) that filesDir/audio accumulated — the durable

@@ -103,6 +103,9 @@ fun SettingsContent(
             color = pal.Slate400,
         )
 
+        Section(stringResource(R.string.settings_inference))
+        InferencePanel(enabled)
+
         // One choice for the interface AND every Chinese text the app produces: the strings switch
         // live, and the Han script (Traditional / Simplified) follows the language.
         Section(stringResource(R.string.settings_language))
@@ -569,4 +572,63 @@ private fun SliderRow(
             // A 48 dp touch target needs a real handle, not the default 4 dp sliver.
             thumb = { SliderDefaults.Thumb(interaction, colors = colors, enabled = enabled, thumbSize = DpSize(20.dp, 32.dp)) })
     }
+}
+
+/** Detected hardware, the thread count the engines use, a manual override and the benchmark. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun InferencePanel(enabled: Boolean) {
+    val pal = LocalVoxSumPalette.current
+    val ctx = LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var profile by remember { mutableStateOf(studio.voxsum.core.hw.HwInfo.profile(ctx)) }
+    var running by remember { mutableStateOf(false) }
+    val options = listOf(
+        studio.voxsum.core.hw.ThreadMode.AUTO to stringResource(R.string.settings_threads_auto),
+        studio.voxsum.core.hw.ThreadMode.T2 to "2",
+        studio.voxsum.core.hw.ThreadMode.T3 to "3",
+        studio.voxsum.core.hw.ThreadMode.T4 to "4",
+    )
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        options.forEach { (mode, label) ->
+            FilterChip(
+                selected = profile.mode == mode,
+                enabled = enabled,
+                onClick = {
+                    studio.voxsum.core.hw.HwInfo.setMode(ctx, mode)
+                    profile = studio.voxsum.core.hw.HwInfo.profile(ctx)
+                },
+                label = { Text(label) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = pal.Sky.copy(alpha = 0.15f),
+                    selectedLabelColor = pal.Sky,
+                    labelColor = pal.Slate400,
+                ),
+            )
+        }
+    }
+    val scores = profile.benchScores.entries.sortedBy { it.key }.joinToString("  ") { "${it.key}→${it.value.roundToInt()}" }
+    Text(
+        stringResource(R.string.settings_inference_summary, profile.soc, profile.cores, profile.upperCores,
+            profile.totalRamMb / 1024.0, profile.threads) +
+            (if (profile.capped) "\n" + stringResource(R.string.settings_inference_capped) else "") +
+            (if (scores.isNotEmpty()) "\n" + stringResource(R.string.settings_inference_bench, scores) else ""),
+        style = MaterialTheme.typography.bodySmall,
+        color = pal.Slate400,
+    )
+    androidx.compose.material3.OutlinedButton(
+        enabled = enabled && !running,
+        onClick = {
+            running = true
+            scope.launch {
+                profile = runCatching { studio.voxsum.core.hw.HwInfo.ensureBench(ctx, force = true) }.getOrDefault(profile)
+                running = false
+            }
+        },
+    ) { Text(stringResource(if (running) R.string.settings_inference_running else R.string.settings_inference_run)) }
+    Text(
+        stringResource(R.string.settings_inference_hint),
+        style = MaterialTheme.typography.labelSmall,
+        color = pal.Slate400,
+    )
 }

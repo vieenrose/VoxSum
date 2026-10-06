@@ -1948,6 +1948,7 @@ class TranscriptionService : LifecycleService() {
     private fun readFailed(task: ReadTask, e: Throwable) {
         if (task.aborted) return
         Log.w("voxsum-reader", "reading failed", e)
+        studio.voxsum.core.hw.HwInfo.reportReadFailure(this)
         // The cause rides on the status line (screenshots are what users send with a bug report).
         val why = (e.message ?: e.javaClass.simpleName).lineSequence().first().take(120)
         events.tryEmit(task.gen to TranscriptEvent.Status("${getString(R.string.svc_summary_failed)} [$why]"))
@@ -1968,7 +1969,7 @@ class TranscriptionService : LifecycleService() {
     private fun liveReaderCapable(): Boolean {
         val am = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
         val mi = android.app.ActivityManager.MemoryInfo().also(am::getMemoryInfo)
-        return mi.totalMem >= LIVE_READER_MIN_RAM
+        return mi.totalMem >= LIVE_READER_MIN_RAM && studio.voxsum.core.hw.HwInfo.liveCapable()
     }
 
     /** The current run's live reading task: queued now, fed as the transcript grows. */
@@ -2077,34 +2078,12 @@ class TranscriptionService : LifecycleService() {
             ChineseScript.SIMPLIFIED -> OpenCcConverter.getTranscriptSimplified(this)
         }
 
-    /** Small thread budget — phone big-core count, not all cores (cf. num_vcpus). */
-    // Thread budget for the native ASR/diarization/LLM ops. Prefer the count of highest-frequency
-    // ("big") cores, not all cores: a compute-bound native op with more threads than big cores
-    // schedules the surplus onto slow little cores, and the parallel step runs at the pace of the
-    // slowest thread — so on a lopsided SoC (e.g. 2 big + 6 little) 4 threads is SLOWER than 2. On a
-    // balanced 4-big SoC (this Boox: Snapdragon 662, 4×2.0 GHz + 4×1.8 GHz) it resolves to 4, so no
-    // change there. Falls back to all cores if cpufreq is unreadable. Clamped 2..4: the ceiling is
-    // diminishing returns (memory-bandwidth bound above that on mobile); the FLOOR of 2 stops a
-    // single-big-core reading from handing the ASR engines one thread. XNNPACK's own default is a
-    // single thread and it roughly halves throughput, so never land there by accident.
-    // Computed once.
-    private val bigCoreThreads: Int by lazy {
-        val cores = Runtime.getRuntime().availableProcessors()
-        val n = runCatching {
-            val freqs = (0 until cores).mapNotNull { c ->
-                File("/sys/devices/system/cpu/cpu$c/cpufreq/cpuinfo_max_freq")
-                    .takeIf { it.exists() }?.readText()?.trim()?.toLongOrNull()
-            }
-            // Every core above the efficiency cluster: counting only the top frequency found 1 core on
-            // prime+big+little SoCs (Snapdragon 855: 1×2.84 + 3×2.42 + 4×1.79 GHz) and left the big ones idle.
-            if (freqs.isEmpty()) null else freqs.min().let { low ->
-                freqs.count { it > low }.takeIf { it > 0 } ?: freqs.size
-            }
-        }.getOrNull() ?: cores
-        n.coerceIn(2, 4)
-    }
-
-    private fun asrThreads(): Int = bigCoreThreads
+    /**
+     * Thread budget of the native engines (ASR/diarization, reader): the hardware profile's pick —
+     * a first-launch benchmark, or the topology heuristic until it has run — unless the user forced
+     * a count in Settings. See [studio.voxsum.core.hw.HwInfo].
+     */
+    private fun asrThreads(): Int = studio.voxsum.core.hw.HwInfo.threads(this)
 
     /** Start/refresh the FGS with the right type: microphone while recording, else data-sync. */
     private fun startForegroundTyped(recording: Boolean, text: String) {

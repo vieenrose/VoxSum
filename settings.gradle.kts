@@ -22,5 +22,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "VoxSumDroid"
+rootProject.name = "VoxSum"
 include(":app")

@@ -38,7 +38,7 @@ class UpdateFlowTest {
     }
 
     @Test(timeout = 180_000) fun downloadsTheRealSignedReleaseApk() = runBlocking {
-        val url = "https://github.com/vieenrose/VoxSumDroid/releases/download/v0.4.2/voxsum-v0.4.2.apk"
+        val url = "https://github.com/vieenrose/VoxSum/releases/download/v0.4.2/voxsum-v0.4.2.apk"
         var progress = 0f
         val apk = UpdateInstaller.download(ctx, url) { progress = it }
         Log.i(TAG, "downloaded ${apk.length()} bytes (progress=$progress)")

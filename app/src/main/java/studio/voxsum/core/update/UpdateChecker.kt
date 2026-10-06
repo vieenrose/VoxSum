@@ -29,7 +29,7 @@ data class UpdateInfo(
  */
 object UpdateChecker {
     private const val LATEST_API =
-        "https://api.github.com/repos/vieenrose/VoxSumDroid/releases/latest"
+        "https://api.github.com/repos/vieenrose/VoxSum/releases/latest"
     private const val PREFS = "voxsum_update"
     private const val KEY_LAST_CHECK = "last_check_ms"
     private const val ONE_DAY_MS = 24L * 60 * 60 * 1000

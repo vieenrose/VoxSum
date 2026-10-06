@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/vieenrose/VoxSumDroid/releases/latest"><img alt="版本" src="https://img.shields.io/github/v/release/vieenrose/VoxSumDroid?sort=semver"></a>
+  <a href="https://github.com/vieenrose/VoxSum/releases/latest"><img alt="版本" src="https://img.shields.io/github/v/release/vieenrose/VoxSum?sort=semver"></a>
   <img alt="平台" src="https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white">
   <img alt="授權" src="https://img.shields.io/badge/license-GPL--3.0-blue">
 </p>
@@ -67,7 +67,7 @@
 
 ## 安裝
 
-從 [**Releases**](https://github.com/vieenrose/VoxSumDroid/releases/latest) 下載 APK。
+從 [**Releases**](https://github.com/vieenrose/VoxSum/releases/latest) 下載 APK。
 
 - Android 8.0 以上，ARMv8.2（dotprod）處理器，約 2019 年後的手機。
 - 模型首次使用時下載：語音引擎約 275 MB，AI 筆記模型 E2B 約 2.2 GB（E4B 約 3.3 GB），下載後準備一次（約一分鐘）。
@@ -98,7 +98,7 @@ AI 筆記（閱讀代理）的設計——閱讀協定、筆記類型、約 1,50
 需要 Android Studio、SDK 35、NDK 27.2：
 
 ```bash
-git clone https://github.com/vieenrose/VoxSumDroid.git && cd VoxSumDroid
+git clone https://github.com/vieenrose/VoxSum.git && cd VoxSum
 git submodule update --init           # 不要加 --recursive
 ./gradlew :app:assembleDebug          # arm64-v8a；模擬器用 -PvoxsumAbi=x86_64
 ./gradlew :app:testDebugUnitTest

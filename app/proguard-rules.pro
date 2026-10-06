@@ -3,6 +3,13 @@
 #  Kotlin so R8 keeps them, and the release dex is checked in CI.)
 -keep class studio.voxsum.core.llm.TextGen$TokenCallback { *; }
 
+# The reader engine (cpp/mfa/mfa_jni.cpp) resolves GetMethodID(<callback's class>, "onToken", "(I)Z")
+# by name. Without this rule R8 merges the interface into its lambda class and renames the method:
+# every reading died with `no non-static method "Lt0/P0;.onToken(I)Z"` in release builds (0.48+,
+# issue #5) — debug builds are not minified, so nothing caught it.
+-keep class studio.voxsum.core.llm.MfaEngine$TokenCallback { *; }
+-keepclassmembers class * implements studio.voxsum.core.llm.MfaEngine$TokenCallback { *; }
+
 # llama.cpp bridge: llm_jni.cpp exports Java_studio_voxsum_core_llm_LlmEngine_native*, so the
 # class name, its package and the native method names must all survive R8 — otherwise the symbols
 # stop matching and every load/generate throws UnsatisfiedLinkError in RELEASE builds only, which

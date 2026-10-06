@@ -8,7 +8,7 @@ android {
     compileSdk = 37
 
     // Pin the NDK so F-Droid's build server uses the same toolchain we test with.
-    ndkVersion = "27.2.12479018"
+    ndkVersion = "29.0.14206865"
 
     defaultConfig {
         manifestPlaceholders["appLabel"] = "@string/app_name"

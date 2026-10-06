@@ -31,6 +31,6 @@ scripts/test-on-device.sh [serial]   # instrumented tests on a device — use th
 
 ## Build/release notes
 
-- NDK is pinned (`27.2.12479018`); minSdk 26. Native deps are submodules: `native/sentencepiece`, `native/audiocpp`, `native/crispasr`, `native/crispasr-ggml` (CrispASR's own nested ggml is replaced by the last via `nemo/crispasr_ggml.cmake`).
+- NDK is pinned (`29.0.14206865`); minSdk 26. Native deps are submodules: `native/sentencepiece`, `native/audiocpp`, `native/crispasr`, `native/crispasr-ggml` (CrispASR's own nested ggml is replaced by the last via `nemo/crispasr_ggml.cmake`).
 - Releases: bump `versionCode`/`versionName` in `app/build.gradle.kts`, push a `v*` tag; `.github/workflows/release.yml` builds a signed APK and attaches it to a GitHub Release (no F-Droid). Every release gets notes in English (what changed for users, fixes with their issue numbers, install line): after the workflow creates the release, `gh release edit vX.Y.Z --notes-file <file>`.
 - The app supports English, 繁體中文 and 简体中文 (`values/`, `values-zh-rTW/`, `values-zh-rCN/`) — keep user-facing strings in sync across all three. `values-zh-rCN` is generated from zh-TW (OpenCC `TSPhrases`/`TSCharacters` plus a Taiwan→mainland UI vocabulary); `ResourceLanguageTest` guards keys, placeholders and script purity. The Settings language (`AppLanguage`: system / English / 繁體 / 简体) sets the interface AND the Han script of everything generated (transcript, summary, title, actions, agent notes, library titles). The README is Chinese only.

@@ -37,6 +37,9 @@ nemo_handle* nemo_create(const char* xasr, const char* diar, int threads, double
     cfg.threads = threads;
     cfg.max_segment_s = 10.0;   // one transcript line per ~10 s sentence group (as on Android)
     cfg.live_settle_s = settle_s;
+    // audio.cpp reserves 1 GiB per ggml context by default (graph arena + weights); a 3 GB iPhone refuses the malloc.
+    cfg.diar_session_opts.push_back({"nemotron_3_diar.graph_arena_mb", "128"});
+    cfg.diar_session_opts.push_back({"nemotron_3_diar.weight_context_mb", "128"});
     auto h = std::make_unique<nemo_handle>();
     h->engine = std::make_unique<nemo::Engine>(cfg);
     std::string err;

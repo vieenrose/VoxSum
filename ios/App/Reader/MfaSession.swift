@@ -1,3 +1,4 @@
+import os
 import Foundation
 
 #if VOX_REAL_READER   // needs LiteRT: CLiteRTLM (device) or the x86_64 libLiteRt.so built by native/litert_x86_sim (Intel simulator)
@@ -66,6 +67,9 @@ final class MfaEngine {
             }
         }
         guard n >= 0 else { throw ReaderError(description: String(cString: err)) }
+        if stats[3] + stats[4] > 5 {   // prefilled, reused, generated, prefill_s, decode_s: compute-bound or paging?
+            StatusLog.add("trace mfa prefilled \(Int(stats[0])) (reused \(Int(stats[1]))) in \(Int(stats[3])) s = \(Int(stats[0] / max(stats[3], 0.1))) tok/s; generated \(Int(stats[2])) in \(Int(stats[4])) s; \(os_proc_available_memory() / 1_048_576) MB free")
+        }
         defer { mfa_ids_free(out) }
         return (0..<Int(n)).map { Int(out![$0]) }
     }

@@ -1,5 +1,6 @@
 import SwiftUI
 import UserNotifications
+import os
 
 @main struct VoxSumApp: App { var body: some Scene { WindowGroup { ContentView() } } }
 
@@ -28,6 +29,14 @@ enum StatusLog {
         guard let d = (ISO8601DateFormatter().string(from: Date()) + " " + s + "\n").data(using: .utf8) else { return }
         if let h = try? FileHandle(forWritingTo: url) { defer { try? h.close() }; _ = try? h.seekToEnd(); try? h.write(contentsOf: d) } else { try? d.write(to: url) }
     }
+}
+
+/// Debug watchdog: logs the engine stage when it has not changed for 60 s (a hung call shows up in status.log).
+enum Stage {
+    nonisolated(unsafe) static var name = "idle"; nonisolated(unsafe) static var since = Date()
+    static func set(_ n: String) { name = n; since = Date() }
+    static let watchdog: Void = { Thread.detachNewThread { while true { Thread.sleep(forTimeInterval: 60)
+        let d = Int(Date().timeIntervalSince(since)); if name != "idle" && d >= 60 { StatusLog.add("trace stage \(name) stuck \(d) s, \(os_proc_available_memory() / 1_048_576) MB free") } } } }()
 }
 
 @MainActor final class Model: ObservableObject {
@@ -129,18 +138,30 @@ enum StatusLog {
             var seenFrozen = 0; let conv = TextConv()
             do {
                 try feed { chunk in
-                    _ = eng.push(chunk)
+                    _ = Stage.watchdog; Stage.set("push")
+                    if !eng.push(chunk) { StatusLog.add("trace push failed at \(Int(eng.fedSeconds)) s") }
+                    Stage.set("live")
                     let (frozen, tail) = eng.live()
-                    for u in frozen.dropFirst(seenFrozen) { if let l = ReaderSummarizer.toLine(u) { try? reader.offer(l) } }
+                    for u in frozen.dropFirst(seenFrozen) {
+                        Stage.set("offer")
+                        guard let l = ReaderSummarizer.toLine(u) else { continue }
+                        let t0 = Date()
+                        do { try reader.offer(l) } catch { StatusLog.add("trace reader.offer error at \(Int(eng.fedSeconds)) s: \(error)") }
+                        let dt = Date().timeIntervalSince(t0)
+                        if dt > 20 { StatusLog.add("trace reader.offer took \(Int(dt)) s at \(Int(eng.fedSeconds)) s, footprint \(os_proc_available_memory() / 1_048_576) MB free") }
+                    }
                     seenFrozen = frozen.count
+                    Stage.set("journal")
                     let j = reader.journal, fed = eng.fedSeconds
                     Task { @MainActor in
                         self.lines = conv.utterances(frozen + tail); self.notes = conv.notes(j)
                         self.status = L("transcribing_s", Int(fed), Int(seconds))
                     }
+                    Stage.set("decode")
                     return true
                 }
             } catch { await MainActor.run { self.status = L("audio_error", error.localizedDescription) }; return }
+            Stage.set("finish")
             let final = eng.finish() ?? []
             _ = try? reader.finish(); let journal = reader.journal
             let sum = ReaderSummarizer(llm: r.llm)
@@ -245,7 +266,7 @@ struct ContentView: View {
             }
             .navigationTitle("VoxSum")
             .navigationDestination(for: Session.self) { x in SessionView(session: m.sessions.first { $0.id == x.id } ?? x) { m.update($0) } }
-            .onAppear { m.reload(); if ProcessInfo.processInfo.environment["VOX_OPEN"] != nil { Task { path = await m.library.all().prefix(1).map { $0 } } }; if let d = ProcessInfo.processInfo.environment["VOX_DOWNLOAD"] { if d == "speech" { Task { _ = await m.downloadSpeech() } } else { m.downloadReader() } }; if ProcessInfo.processInfo.environment["VOX_AUTORUN"] != nil { m.run() }; m.drain(); if let f = ProcessInfo.processInfo.environment["VOX_IMPORT"] { m.importAudio(URL(fileURLWithPath: f)) }; if let q = ProcessInfo.processInfo.environment["VOX_PODCAST"] { Task { if let sr = try? await Podcast.search(q).first, let ep = try? await Podcast.episodes(sr.feedUrl, limit: 3).last { m.addEpisode(ep) } else { m.status = "podcast: no result" } } } }
+            .onAppear { m.reload(); if ProcessInfo.processInfo.environment["VOX_OPEN"] != nil { Task { path = await m.library.all().prefix(1).map { $0 } } }; if let d = ProcessInfo.processInfo.environment["VOX_DOWNLOAD"] { if d == "speech" { Task { _ = await m.downloadSpeech() } } else { m.downloadReader() } }; if ProcessInfo.processInfo.environment["VOX_AUTORUN"] != nil { m.run() }; m.drain(); if let f = ProcessInfo.processInfo.environment["VOX_IMPORT"] { m.importAudio(URL(fileURLWithPath: f.hasPrefix("/") ? f : NSHomeDirectory() + "/" + f)) }; if let q = ProcessInfo.processInfo.environment["VOX_PODCAST"] { Task { if let sr = try? await Podcast.search(q).first, let ep = try? await Podcast.episodes(sr.feedUrl, limit: 3).last { m.addEpisode(ep) } else { m.status = "podcast: no result" } } } }
             .toolbar {
                 ToolbarItem(placement: .bottomBar) { Button(L("settings")) { showSettings = true } }
                 ToolbarItem(placement: .bottomBar) { Button(L("sample")) { m.run() } }

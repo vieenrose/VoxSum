@@ -1,6 +1,8 @@
 package studio.voxsum.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.PaddingValues
@@ -604,15 +606,44 @@ private fun InferencePanel(enabled: Boolean) {
             }
         }
     }
-    val scores = profile.benchScores.entries.sortedBy { it.key }.joinToString("  ") { "${it.key}→${it.value.roundToInt()}" }
     Text(
         stringResource(R.string.settings_inference_summary, profile.soc, profile.cores, profile.upperCores,
             profile.totalRamMb / 1024.0, profile.threads) +
-            (if (profile.capped) "\n" + stringResource(R.string.settings_inference_capped) else "") +
-            (if (scores.isNotEmpty()) "\n" + stringResource(R.string.settings_inference_bench, scores) else ""),
+            (if (profile.capped) "\n" + stringResource(R.string.settings_inference_capped) else ""),
         style = MaterialTheme.typography.bodySmall,
         color = pal.Slate400,
     )
+    if (profile.benchScores.isNotEmpty()) {
+        // One bar per measured thread count, scaled to the best; the count in use is highlighted.
+        val best = profile.benchScores.values.max().coerceAtLeast(1.0)
+        Text(stringResource(R.string.settings_inference_bench_title), style = MaterialTheme.typography.labelMedium, color = pal.Slate400)
+        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            profile.benchScores.entries.sortedBy { it.key }.forEach { (n, v) ->
+                val used = n == profile.threads
+                val frac = (v / best).toFloat().coerceIn(0.02f, 1f)
+                val tint = if (used) pal.Sky else pal.Slate400.copy(alpha = 0.45f)
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Text("$n", modifier = Modifier.width(22.dp), style = MaterialTheme.typography.bodySmall,
+                        color = if (used) pal.Sky else pal.Slate400)
+                    androidx.compose.foundation.layout.Box(
+                        Modifier.weight(1f).height(10.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(5.dp))
+                            .background(pal.Slate400.copy(alpha = 0.12f)),
+                    ) {
+                        androidx.compose.foundation.layout.Box(
+                            Modifier.fillMaxWidth(frac).height(10.dp)
+                                .clip(androidx.compose.foundation.shape.RoundedCornerShape(5.dp)).background(tint),
+                        )
+                    }
+                    Text(
+                        "${(v / best * 100).roundToInt()} %" + if (used) " ✓" else "",
+                        modifier = Modifier.width(80.dp).wrapContentWidth(androidx.compose.ui.Alignment.End),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (used) pal.Sky else pal.Slate400,
+                    )
+                }
+            }
+        }
+    }
     // The reader on each backend: a card per backend, GPU selectable only once their test passed.
     val hwKey = remember { studio.voxsum.core.hw.HwInfo.benchKey(ctx) }
     var results by remember { mutableStateOf(studio.voxsum.core.hw.BackendBench.results(ctx, hwKey)) }

@@ -385,7 +385,7 @@
     <string name="settings_threads_label">執行緒：%1$s</string>
     <string name="settings_inference_summary">%1$s · %2$d 核心（%3$d 顆高效能）· %4$.1f GB 記憶體\nAI 引擎使用 %5$d 個執行緒。</string>
     <string name="settings_inference_capped">曾有一次閱讀在較多執行緒下失敗，因此在下次測試前改用 2 個。</string>
-    <string name="settings_inference_bench">測試結果（執行緒→速度）：%1$s</string>
+    <string name="settings_inference_bench_title">測試結果：各執行緒數的速度</string>
     <string name="settings_inference_run">執行測試</string>
     <string name="settings_inference_running">測試中…</string>
     <string name="settings_inference_hint">自動模式會一次測完從 2 到全部核心的執行緒數（約數秒），並採用提升不再明顯的最少執行緒數。只有在錄音卡頓時才需要手動指定。</string>

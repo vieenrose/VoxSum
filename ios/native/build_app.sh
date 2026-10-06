@@ -15,13 +15,14 @@ if [ $ARCH = arm64 ]; then
   MFA="$B/libvoxsum-mfa.a $(find $B -name 'libsentencepiece*.a' | head -1) -F$FW -framework CLiteRTLM"
 fi
 xcrun --sdk $SDK swiftc -parse-as-library -O $([ -n "$MFA" ] && echo -DVOX_REAL_READER) -target $T -import-objc-header $A/Bridging.h -Xcc -I$ROOT/ios/native -Xcc -I$ROOT/ios/native/mfa \
-  $A/App.swift $A/Engine.swift $A/Library.swift $A/AudioDecode.swift $A/Recorder.swift $A/ModelStore.swift $A/Reader/*.swift -o $APP/VoxSum \
+  $A/App.swift $A/Engine.swift $A/Library.swift $A/AudioDecode.swift $A/OpenCC.swift $A/Settings.swift $A/Recorder.swift $A/ModelStore.swift $A/Reader/*.swift -o $APP/VoxSum \
   $B/libvoxsum-nemo.a $MFA $C/src/libxasr.a $C/src/libcrispasr-core.a $C/ggml/src/libggml.a $C/ggml/src/libggml-cpu.a $C/ggml/src/libggml-base.a \
   -L$B/audiocpp/bin -laudiocpp -lc++ -Xlinker -rpath -Xlinker @executable_path/Frameworks
 cp -L $B/audiocpp/bin/libaudiocpp.0.dylib $APP/Frameworks/libaudiocpp.0.dylib
 if [ $SDK = iphonesimulator ] && [ -f $LRT ]; then cp $LRT $APP/Frameworks/; fi
 if [ $ARCH = arm64 ]; then cp -R $FW/CLiteRTLM.framework $APP/Frameworks/; fi
 cp $A/Info.plist $APP/
+cp -R $A/Resources/opencc $A/Resources/en.lproj $A/Resources/zh-Hant.lproj $A/Resources/zh-Hans.lproj $APP/
 /usr/libexec/PlistBuddy -c "Add :UIDeviceFamily array" -c "Add :UIDeviceFamily:0 integer 1" $APP/Info.plist
 codesign -f -s - $APP/Frameworks/*.dylib $APP/Frameworks/*.framework $APP 2>/dev/null || codesign -f -s - $APP/Frameworks/*.dylib $APP   # the simulator refuses unsigned bundles
 echo "built $APP"

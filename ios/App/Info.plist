@@ -7,6 +7,8 @@
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleVersion</key><string>1</string>
 <key>CFBundleShortVersionString</key><string>0.1</string>
+<key>CFBundleDevelopmentRegion</key><string>en</string>
+<key>CFBundleLocalizations</key><array><string>en</string><string>zh-Hant</string><string>zh-Hans</string></array>
 <key>MinimumOSVersion</key><string>17.0</string>
 <key>UILaunchScreen</key><dict/>
 	<key>NSMicrophoneUsageDescription</key>

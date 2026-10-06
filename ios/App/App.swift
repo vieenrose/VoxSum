@@ -14,7 +14,7 @@ final class ChunkBuffer: @unchecked Sendable {
     @Published var notes: [Note] = []
     @Published var title = ""
     @Published var summary = ""
-    @Published var status = "Prêt"
+    @Published var status = L("app_ready")
     // Dev paths on the Mac (the simulator shares its filesystem).
     let base = ProcessInfo.processInfo.environment["VOX_BASE"] ?? "/Users/Pesi/work"
 
@@ -23,10 +23,10 @@ final class ChunkBuffer: @unchecked Sendable {
     @Published var sessions: [Session] = []
     func reload() { Task { sessions = await library.all() } }
     func remove(_ s: Session) { Task { await library.delete(s.id); sessions = await library.all() } }
-    func open(_ s: Session) { lines = s.lines; notes = s.notes; title = s.title; summary = s.summary; status = "Archive du \(s.date.formatted(date: .abbreviated, time: .shortened))" }
+    func open(_ s: Session) { lines = s.lines; notes = s.notes; title = s.title; summary = s.summary; status = L("archive_of", s.date.formatted(date: .abbreviated, time: .shortened)) }
     private func archive(lines: [Utterance], notes: [Note], title: String, summary: String, seconds: Double) async {
         guard !lines.isEmpty else { return }
-        let fallback = lines.first.map { String($0.text.prefix(20)) } ?? "Réunion"
+        let fallback = lines.first.map { String($0.text.prefix(20)) } ?? L("meeting")
         try? await library.save(Session(title: title.isEmpty ? fallback : title, summary: summary, seconds: seconds, lines: lines, notes: notes))
         sessions = await library.all()
     }
@@ -35,30 +35,31 @@ final class ChunkBuffer: @unchecked Sendable {
     private let buffer = ChunkBuffer()
 
     func toggleRecord() {
-        if recording { recorder?.stop(); recorder = nil; recording = false; status = "Arrêt…"; return }
+        if recording { recorder?.stop(); recorder = nil; recording = false; status = L("stopping"); return }
         Task {
-            guard await Recorder.requestPermission() else { status = "Micro refusé"; return }
+            guard await Recorder.requestPermission() else { status = L("mic_denied"); return }
             guard await downloadSpeech() else { return }
-            status = "Chargement des modèles…"; lines = []; notes = []; title = ""; summary = ""
+            status = L("loading_models"); lines = []; notes = []; title = ""; summary = ""
             let r = Recorder(); recorder = r; recording = true
             let b = base
             Task.detached { [weak self] in
                 guard let self, let eng = NemoEngine(xasr: self.modelPath("x-asr-zh-en-q8_0.gguf", b), diar: self.modelPath("nemotron-3-diarization-q8_0.gguf", b)) else {
-                    await MainActor.run { self?.status = "Modèles ASR absents"; self?.recording = false }; return }
+                    await MainActor.run { self?.status = L("models_missing"); self?.recording = false }; return }
                 do { try r.start { [buffer = self.buffer] c in buffer.add(c) } }
-                catch { await MainActor.run { self.status = "Micro : \(error)"; self.recording = false }; return }
-                var seen = 0
+                catch { await MainActor.run { self.status = L("mic_error", "\(error)"); self.recording = false }; return }
+                var seen = 0; let conv = TextConv()
                 while await MainActor.run(body: { self.recording }) {
                     try? await Task.sleep(nanoseconds: 500_000_000)
                     let chunk = self.buffer.take()
                     if !chunk.isEmpty { _ = eng.push(chunk) }
                     let (frozen, tail) = eng.live(); seen = frozen.count
-                    await MainActor.run { self.lines = frozen + tail; self.status = String(format: "Enregistrement %.0f s", eng.fedSeconds) }
+                    await MainActor.run { self.lines = conv.utterances(frozen + tail); self.status = L("recording_s", Int(eng.fedSeconds)) }
                 }
                 let final = eng.finish() ?? []
                 let secs = eng.fedSeconds
-                await MainActor.run { self.lines = final; self.status = "Terminé" }
-                await self.archive(lines: final, notes: [], title: "", summary: "", seconds: secs)
+                let finalC = conv.utterances(final)
+                await MainActor.run { self.lines = finalC; self.status = L("finished") }
+                await self.archive(lines: finalC, notes: [], title: "", summary: "", seconds: secs)
             }
         }
     }
@@ -71,33 +72,33 @@ final class ChunkBuffer: @unchecked Sendable {
         if ProcessInfo.processInfo.environment["VOX_BASE"] != nil { return true }
         if await store.isComplete(.speech) { return true }
         do {
-            try await store.download(.speech) { d, t in Task { @MainActor in self.status = String(format: "Modèles de transcription %.0f / %.0f Mo", Double(d) / 1e6, Double(t) / 1e6) } }
+            try await store.download(.speech) { d, t in Task { @MainActor in self.status = L("download_speech", Int(d / 1_000_000), Int(t / 1_000_000)) } }
             return true
-        } catch { status = "Téléchargement : \(error)"; return false }
+        } catch { status = L("download_failed", "\(error)"); return false }
     }
     func downloadReader() {
-        status = "Téléchargement du lecteur…"
+        status = L("download_reader")
         Task.detached { [store] in
             do {
-                try await store.download(.e2b) { d, t in Task { @MainActor in self.status = String(format: "Lecteur %.0f / %.0f Mo", Double(d) / 1e6, Double(t) / 1e6) } }
-                await MainActor.run { self.status = "Lecteur prêt" }
-            } catch { await MainActor.run { self.status = "Téléchargement : \(error)" } }
+                try await store.download(.e2b) { d, t in Task { @MainActor in self.status = L("download_reader_p", Int(d / 1_000_000), Int(t / 1_000_000)) } }
+                await MainActor.run { self.status = L("reader_ready") }
+            } catch { await MainActor.run { self.status = L("download_failed", "\(error)") } }
         }
     }
 
     /// Transcribe + read a source of 16 kHz mono chunks (a file, the bundled sample). `feed` pushes chunks until done or false.
     func process(seconds: Double, feed: @escaping @Sendable (([Float]) -> Bool) throws -> Void) {
-        status = "Chargement des modèles…"; lines = []; notes = []; title = ""; summary = ""
+        status = L("loading_models"); lines = []; notes = []; title = ""; summary = ""
         let b = base
         Task.detached {
             guard await self.downloadSpeech(),
                   let eng = NemoEngine(xasr: self.modelPath("x-asr-zh-en-q8_0.gguf", b), diar: self.modelPath("nemotron-3-diarization-q8_0.gguf", b)) else {
-                await MainActor.run { self.status = "Échec chargement" }; return }
+                await MainActor.run { self.status = L("load_failed") }; return }
             let stored = await self.store.isComplete(.e2b) ? await self.store.dir(.e2b).path : nil
             let r = ReaderFactory.make(dir: ProcessInfo.processInfo.environment["VOX_READER_DIR"] ?? stored)
             let reader = MeetingReader(llm: r.llm, systemPrompt: r.systemPrompt, budget: .mobile)
-            do { try reader.start() } catch { await MainActor.run { self.status = "Lecteur : \(error)" }; return }
-            var seenFrozen = 0
+            do { try reader.start() } catch { await MainActor.run { self.status = L("reader_error", "\(error)") }; return }
+            var seenFrozen = 0; let conv = TextConv()
             do {
                 try feed { chunk in
                     _ = eng.push(chunk)
@@ -106,23 +107,24 @@ final class ChunkBuffer: @unchecked Sendable {
                     seenFrozen = frozen.count
                     let j = reader.journal, fed = eng.fedSeconds
                     Task { @MainActor in
-                        self.lines = frozen + tail; self.notes = j
-                        self.status = String(format: "Transcription %.0f s / %.0f s", fed, seconds)
+                        self.lines = conv.utterances(frozen + tail); self.notes = conv.notes(j)
+                        self.status = L("transcribing_s", Int(fed), Int(seconds))
                     }
                     return true
                 }
-            } catch { await MainActor.run { self.status = "Audio : \(error.localizedDescription)" }; return }
+            } catch { await MainActor.run { self.status = L("audio_error", error.localizedDescription) }; return }
             let final = eng.finish() ?? []
             _ = try? reader.finish(); let journal = reader.journal
             let sum = ReaderSummarizer(llm: r.llm)
             let t = sum.title(journal), prose = sum.prose(journal) ?? ReaderProtocol.minutes(journal)
-            await MainActor.run { self.lines = final; self.notes = journal; self.title = t ?? ""; self.summary = prose; self.status = "Terminé" }
-            await self.archive(lines: final, notes: journal, title: t ?? "", summary: prose, seconds: seconds)
+            let (fl, fn, ft, fp) = (conv.utterances(final), conv.notes(journal), conv.text(t ?? ""), conv.text(prose))
+            await MainActor.run { self.lines = fl; self.notes = fn; self.title = ft; self.summary = fp; self.status = L("finished") }
+            await self.archive(lines: fl, notes: fn, title: ft, summary: fp, seconds: seconds)
         }
     }
 
     func run() {
-        guard let pcm = loadWav("\(base)/clips/diar_ref_2spk_123s.wav") else { status = "Exemple absent"; return }
+        guard let pcm = loadWav("\(base)/clips/diar_ref_2spk_123s.wav") else { status = L("sample_missing"); return }
         process(seconds: Double(pcm.count) / 16000) { sink in
             for s in stride(from: 0, to: pcm.count, by: 16000) { if !sink(Array(pcm[s..<min(pcm.count, s + 16000)])) { return } }
         }
@@ -130,7 +132,7 @@ final class ChunkBuffer: @unchecked Sendable {
 
     func importAudio(_ url: URL) {
         let scoped = url.startAccessingSecurityScopedResource()
-        guard let secs = AudioDecode.duration(url) else { if scoped { url.stopAccessingSecurityScopedResource() }; status = "Fichier audio illisible"; return }
+        guard let secs = AudioDecode.duration(url) else { if scoped { url.stopAccessingSecurityScopedResource() }; status = L("audio_unreadable"); return }
         process(seconds: secs) { sink in
             defer { if scoped { url.stopAccessingSecurityScopedResource() } }
             try AudioDecode.stream(url, onChunk: sink)
@@ -141,28 +143,30 @@ final class ChunkBuffer: @unchecked Sendable {
 struct ContentView: View {
     @StateObject var m = Model()
     @State private var picking = false
+    @State private var showSettings = false
+    @AppStorage("language") private var language = "system"
     var body: some View {
         NavigationStack {
             List {
                 if !m.sessions.isEmpty {
-                    Section("Bibliothèque") {
+                    Section(L("library")) {
                         ForEach(m.sessions) { x in
                             Button { m.open(x) } label: {
                                 VStack(alignment: .leading) {
                                     Text(x.title).font(.headline)
-                                    Text("\(x.date.formatted(date: .abbreviated, time: .shortened)) · \(Int(x.seconds)) s").font(.caption).foregroundStyle(.secondary)
+                                    Text(L("session_meta", x.date.formatted(date: .abbreviated, time: .shortened), Int(x.seconds))).font(.caption).foregroundStyle(.secondary)
                                 }
                             }
-                            .swipeActions { Button("Supprimer", role: .destructive) { m.remove(x) } }
+                            .swipeActions { Button(L("delete"), role: .destructive) { m.remove(x) } }
                         }
                     }
                 }
-                if !m.summary.isEmpty { Section(m.title.isEmpty ? "Résumé" : m.title) { Text(m.summary) } }
-                if !m.notes.isEmpty { Section("Agent") { ForEach(m.notes) { Text(ReaderProtocol.render($0)).font(.caption) } } }
-                Section("Transcription") {
+                if !m.summary.isEmpty { Section(m.title.isEmpty ? L("summary") : m.title) { Text(m.summary) } }
+                if !m.notes.isEmpty { Section(L("agent")) { ForEach(m.notes) { Text(ReaderProtocol.render($0)).font(.caption) } } }
+                Section(L("transcript")) {
                     ForEach(m.lines) { l in
                         VStack(alignment: .leading) {
-                            Text("Locuteur \(l.speaker + 1) · \(Int(l.start)) s").font(.caption2).foregroundStyle(.secondary)
+                            Text(L("speaker_at", l.speaker + 1, Int(l.start))).font(.caption2).foregroundStyle(.secondary)
                             Text(l.text)
                         }
                     }
@@ -171,13 +175,30 @@ struct ContentView: View {
             .navigationTitle("VoxSum")
             .onAppear { m.reload(); if let d = ProcessInfo.processInfo.environment["VOX_DOWNLOAD"] { if d == "speech" { Task { _ = await m.downloadSpeech() } } else { m.downloadReader() } }; if ProcessInfo.processInfo.environment["VOX_AUTORUN"] != nil { m.run() }; if let f = ProcessInfo.processInfo.environment["VOX_IMPORT"] { m.importAudio(URL(fileURLWithPath: f)) } }
             .toolbar {
-                ToolbarItem(placement: .bottomBar) { Button("Transcrire l'exemple") { m.run() } }
-                ToolbarItem(placement: .bottomBar) { Button("Importer") { picking = true } }
-                ToolbarItem(placement: .bottomBar) { Button("Lecteur") { m.downloadReader() } }
-                ToolbarItem(placement: .bottomBar) { Button(m.recording ? "Stop" : "Micro") { m.toggleRecord() } }
+                ToolbarItem(placement: .bottomBar) { Button(L("settings")) { showSettings = true } }
+                ToolbarItem(placement: .bottomBar) { Button(L("sample")) { m.run() } }
+                ToolbarItem(placement: .bottomBar) { Button(L("import_audio")) { picking = true } }
+                ToolbarItem(placement: .bottomBar) { Button(L("download_reader")) { m.downloadReader() } }
+                ToolbarItem(placement: .bottomBar) { Button(m.recording ? L("stop") : L("record")) { m.toggleRecord() } }
             }
+            .sheet(isPresented: $showSettings) { SettingsView(language: $language) }
             .fileImporter(isPresented: $picking, allowedContentTypes: [.audio]) { if case .success(let u) = $0 { m.importAudio(u) } }
             .safeAreaInset(edge: .bottom) { Text(m.status).font(.footnote).padding(4) }
+        }
+    }
+}
+
+struct SettingsView: View {
+    @Binding var language: String
+    @Environment(\.dismiss) private var dismiss
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section { Picker(L("language"), selection: $language) { ForEach(AppLanguage.allCases) { Text($0.autonym).tag($0.rawValue) } } }
+                footer: { Text(L("settings_language_note")) }
+            }
+            .navigationTitle(L("settings"))
+            .toolbar { Button(L("done")) { dismiss() } }
         }
     }
 }

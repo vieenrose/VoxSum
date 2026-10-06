@@ -24,10 +24,12 @@ final class ChunkBuffer: @unchecked Sendable {
     func reload() { Task { sessions = await library.all() } }
     func remove(_ s: Session) { Task { await library.delete(s.id); sessions = await library.all() } }
     func open(_ s: Session) { lines = s.lines; notes = s.notes; title = s.title; summary = s.summary; status = L("archive_of", s.date.formatted(date: .abbreviated, time: .shortened)) }
-    private func archive(lines: [Utterance], notes: [Note], title: String, summary: String, seconds: Double) async {
+    private func archive(lines: [Utterance], notes: [Note], title: String, summary: String, seconds: Double, job: Job? = nil) async {
         guard !lines.isEmpty else { return }
         let fallback = lines.first.map { String($0.text.prefix(20)) } ?? L("meeting")
-        try? await library.save(Session(title: title.isEmpty ? fallback : title, summary: summary, seconds: seconds, lines: lines, notes: notes))
+        var s = Session(title: title.isEmpty ? fallback : title, summary: summary, seconds: seconds, lines: lines, notes: notes)
+        if let job { s.id = job.id; s.date = job.date; s.audio = job.audio }
+        try? await library.save(s)
         sessions = await library.all()
     }
     @Published var recording = false
@@ -41,11 +43,15 @@ final class ChunkBuffer: @unchecked Sendable {
             guard await downloadSpeech() else { return }
             status = L("loading_models"); lines = []; notes = []; title = ""; summary = ""
             let r = Recorder(); recorder = r; recording = true
+            let job = Job(audio: UUID().uuidString + ".wav")
+            guard let wav = try? WavWriter(JobQueue.url(job)) else { recording = false; return }
+            recordingJob = job.id
+            await queue.add(job)       // on the list before the first sample: a kill mid-recording keeps the audio
             let b = base
             Task.detached { [weak self] in
                 guard let self, let eng = NemoEngine(xasr: self.modelPath("x-asr-zh-en-q8_0.gguf", b), diar: self.modelPath("nemotron-3-diarization-q8_0.gguf", b), threads: Prefs.effectiveThreads) else {
                     await MainActor.run { self?.status = L("models_missing"); self?.recording = false }; return }
-                do { try r.start { [buffer = self.buffer] c in buffer.add(c) } }
+                do { try r.start { [buffer = self.buffer] c in wav.append(c); buffer.add(c) } }
                 catch { await MainActor.run { self.status = L("mic_error", "\(error)"); self.recording = false }; return }
                 var seen = 0; let conv = TextConv()
                 while await MainActor.run(body: { self.recording }) {
@@ -55,11 +61,9 @@ final class ChunkBuffer: @unchecked Sendable {
                     let (frozen, tail) = eng.live(); seen = frozen.count
                     await MainActor.run { self.lines = conv.utterances(frozen + tail); self.status = L("recording_s", Int(eng.fedSeconds)) }
                 }
-                let final = eng.finish() ?? []
-                let secs = eng.fedSeconds
-                let finalC = conv.utterances(final)
-                await MainActor.run { self.lines = finalC; self.status = L("finished") }
-                await self.archive(lines: finalC, notes: [], title: "", summary: "", seconds: secs)
+                wav.finish()
+                await MainActor.run { self.recordingJob = nil }
+                await MainActor.run { self.drain() }   // full pipeline (diarization settled + notes) from the saved audio
             }
         }
     }
@@ -87,10 +91,10 @@ final class ChunkBuffer: @unchecked Sendable {
     }
 
     /// Transcribe + read a source of 16 kHz mono chunks (a file, the bundled sample). `feed` pushes chunks until done or false.
-    func process(seconds: Double, feed: @escaping @Sendable (([Float]) -> Bool) throws -> Void) {
+    func process(seconds: Double, job: Job? = nil, feed: @escaping @Sendable (([Float]) -> Bool) throws -> Void) async {
         status = L("loading_models"); lines = []; notes = []; title = ""; summary = ""
         let b = base
-        Task.detached {
+        await Task.detached {
             guard await self.downloadSpeech(),
                   let eng = NemoEngine(xasr: self.modelPath("x-asr-zh-en-q8_0.gguf", b), diar: self.modelPath("nemotron-3-diarization-q8_0.gguf", b), threads: Prefs.effectiveThreads) else {
                 await MainActor.run { self.status = L("load_failed") }; return }
@@ -120,24 +124,46 @@ final class ChunkBuffer: @unchecked Sendable {
             let t = sum.title(journal), prose = sum.prose(journal) ?? ReaderProtocol.minutes(journal)
             let (fl, fn, ft, fp) = (conv.utterances(final), conv.notes(journal), conv.text(t ?? ""), conv.text(prose))
             await MainActor.run { self.lines = fl; self.notes = fn; self.title = ft; self.summary = fp; self.status = L("finished") }
-            await self.archive(lines: fl, notes: fn, title: ft, summary: fp, seconds: seconds)
-        }
+            await self.archive(lines: fl, notes: fn, title: ft, summary: fp, seconds: seconds, job: job)
+            if let job { await self.queue.remove(job.id) }
+        }.value
     }
 
     func run() {
         guard let pcm = loadWav("\(base)/clips/diar_ref_2spk_123s.wav") else { status = L("sample_missing"); return }
-        process(seconds: Double(pcm.count) / 16000) { sink in
+        Task { await process(seconds: Double(pcm.count) / 16000) { sink in
             for s in stride(from: 0, to: pcm.count, by: 16000) { if !sink(Array(pcm[s..<min(pcm.count, s + 16000)])) { return } }
+        } }
+    }
+
+    // MARK: processing queue
+    let queue = JobQueue()
+    private var draining = false
+    private var recordingJob: UUID?   // being recorded: not for the queue yet
+    /// Processes every queued job in order (also at launch: recordings cut short by a kill are picked up here).
+    func drain() {
+        guard !draining else { return }
+        draining = true
+        Task {
+            while let job = await queue.first(skipping: recordingJob) {
+                let url = JobQueue.url(job)
+                WavWriter.repair(url)
+                guard let secs = AudioDecode.duration(url), secs > 0 else { await queue.remove(job.id); continue }
+                let left = await queue.count
+                if left > 1 { status = L("queue_n", left) }
+                await process(seconds: secs, job: job) { sink in try AudioDecode.stream(url, onChunk: sink) }
+                if await queue.first(skipping: recordingJob)?.id == job.id { await queue.remove(job.id) }   // failed run: never loop on it
+            }
+            draining = false
         }
     }
 
     func importAudio(_ url: URL) {
         let scoped = url.startAccessingSecurityScopedResource()
-        guard let secs = AudioDecode.duration(url) else { if scoped { url.stopAccessingSecurityScopedResource() }; status = L("audio_unreadable"); return }
-        process(seconds: secs) { sink in
-            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-            try AudioDecode.stream(url, onChunk: sink)
-        }
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        let j = Job(audio: UUID().uuidString + "." + (url.pathExtension.isEmpty ? "m4a" : url.pathExtension))
+        do { try FileManager.default.copyItem(at: url, to: JobQueue.url(j)) } catch { status = L("audio_unreadable"); return }
+        Task { await queue.add(j); drain() }
     }
 }
 
@@ -174,7 +200,7 @@ struct ContentView: View {
                 }
             }
             .navigationTitle("VoxSum")
-            .onAppear { m.reload(); if let d = ProcessInfo.processInfo.environment["VOX_DOWNLOAD"] { if d == "speech" { Task { _ = await m.downloadSpeech() } } else { m.downloadReader() } }; if ProcessInfo.processInfo.environment["VOX_AUTORUN"] != nil { m.run() }; if let f = ProcessInfo.processInfo.environment["VOX_IMPORT"] { m.importAudio(URL(fileURLWithPath: f)) } }
+            .onAppear { m.reload(); if let d = ProcessInfo.processInfo.environment["VOX_DOWNLOAD"] { if d == "speech" { Task { _ = await m.downloadSpeech() } } else { m.downloadReader() } }; if ProcessInfo.processInfo.environment["VOX_AUTORUN"] != nil { m.run() }; m.drain(); if let f = ProcessInfo.processInfo.environment["VOX_IMPORT"] { m.importAudio(URL(fileURLWithPath: f)) } }
             .toolbar {
                 ToolbarItem(placement: .bottomBar) { Button(L("settings")) { showSettings = true } }
                 ToolbarItem(placement: .bottomBar) { Button(L("sample")) { m.run() } }

@@ -40,3 +40,4 @@
 "threads_auto" = "自动";
 "threads_n" = "%d 个线程";
 "threads_note" = "使用 %d / %d 个核心。线程越多不一定越快。";
+"queue_n" = "队列中有 %d 个录音";

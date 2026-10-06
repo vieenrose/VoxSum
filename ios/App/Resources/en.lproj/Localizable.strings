@@ -40,3 +40,4 @@
 "threads_auto" = "Automatic";
 "threads_n" = "%d threads";
 "threads_note" = "Using %d of %d cores. More threads is not always faster.";
+"queue_n" = "%d recordings queued";

@@ -9,6 +9,7 @@ struct Session: Identifiable, Codable, Hashable {
     var seconds: Double
     var lines: [Utterance]
     var notes: [Note]
+    var audio: String? = nil      // file name in Application Support/audio
     static func == (a: Session, b: Session) -> Bool { a.id == b.id }
     func hash(into h: inout Hasher) { h.combine(id) }
 }

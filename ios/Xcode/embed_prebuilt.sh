@@ -13,6 +13,7 @@ SRC="$HOME/work/vox/build-ios/$SDK-$ARCH/VoxSum.app"
 [ -d "$SRC" ] || { echo "error: $SRC missing (run build_app.sh)"; exit 1; }
 DST="$TARGET_BUILD_DIR/$WRAPPER_NAME"
 cp -f "$SRC/VoxSum" "$DST/VoxSum"
+for r in "$SRC"/*; do case "$(basename "$r")" in VoxSum|Frameworks|Info.plist|_CodeSignature) ;; *) rm -rf "$DST/$(basename "$r")"; cp -R "$r" "$DST/";; esac; done   # opencc, *.lproj, sample.wav
 rm -rf "$DST/Frameworks"; mkdir -p "$DST/Frameworks"
 [ -d "$SRC/Frameworks" ] && cp -R "$SRC/Frameworks/." "$DST/Frameworks/"
 if [ "${CODE_SIGNING_ALLOWED:-YES}" = YES ] && [ -n "${EXPANDED_CODE_SIGN_IDENTITY:-}" ]; then

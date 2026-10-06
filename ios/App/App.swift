@@ -130,7 +130,7 @@ final class ChunkBuffer: @unchecked Sendable {
     }
 
     func run() {
-        guard let pcm = loadWav("\(base)/clips/diar_ref_2spk_123s.wav") else { status = L("sample_missing"); return }
+        guard let pcm = loadWav(Bundle.main.path(forResource: "sample", ofType: "wav") ?? "\(base)/clips/diar_ref_2spk_123s.wav") else { status = L("sample_missing"); return }
         Task { await process(seconds: Double(pcm.count) / 16000) { sink in
             for s in stride(from: 0, to: pcm.count, by: 16000) { if !sink(Array(pcm[s..<min(pcm.count, s + 16000)])) { return } }
         } }

@@ -21,7 +21,7 @@ xcrun --sdk $SDK swiftc -parse-as-library -O $([ -n "$MFA" ] && echo -DVOX_REAL_
 cp -L $B/audiocpp/bin/libaudiocpp.0.dylib $APP/Frameworks/libaudiocpp.0.dylib
 if [ $SDK = iphonesimulator ] && [ -f $LRT ]; then cp $LRT $APP/Frameworks/; fi
 if [ $ARCH = arm64 ]; then cp -R $FW/CLiteRTLM.framework $APP/Frameworks/; fi
-cp $A/Info.plist $APP/
+cp $A/Info.plist $A/Resources/sample.wav $APP/
 cp -R $A/Resources/opencc $A/Resources/en.lproj $A/Resources/zh-Hant.lproj $A/Resources/zh-Hans.lproj $APP/
 /usr/libexec/PlistBuddy -c "Add :UIDeviceFamily array" -c "Add :UIDeviceFamily:0 integer 1" $APP/Info.plist
 codesign -f -s - $APP/Frameworks/*.dylib $APP/Frameworks/*.framework $APP 2>/dev/null || codesign -f -s - $APP/Frameworks/*.dylib $APP   # the simulator refuses unsigned bundles

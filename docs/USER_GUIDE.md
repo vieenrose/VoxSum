@@ -190,7 +190,7 @@ flowchart TD
 
 ## 9. 設定
 
-<img src="guide/22-settings.png" width="270" alt="設定"> <img src="guide/23-settings-2.png" width="270" alt="設定（續）">
+<img src="guide/22-settings.png" width="270" alt="設定"> <img src="guide/23-settings-2.png" width="270" alt="設定（續）"> <img src="guide/23b-settings-inference.png" width="270" alt="設定：推論與各後端測試">
 
 處理進行中時設定為唯讀。
 

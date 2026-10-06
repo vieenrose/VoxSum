@@ -1,4 +1,4 @@
-import Foundation
+import SwiftUI
 
 /// UI language (Android `AppLanguage`): "system" follows the device; the others force it.
 /// The Han script of everything generated follows the UI language, as on Android.
@@ -47,4 +47,27 @@ enum Prefs {
         set { UserDefaults.standard.set(newValue, forKey: "reader") }
     }
     static var reader: ReaderModel { readerId == "E4B" ? .e4b : .e2b }
+}
+
+/// Appearance (Android theme: Auto / Light / Dark; no e-ink on iOS).
+enum Theme: String, CaseIterable, Identifiable {
+    case auto, light, dark
+    var id: String { rawValue }
+    var label: String { L("theme_" + rawValue) }
+    var scheme: ColorScheme? { switch self { case .auto: return nil; case .light: return .light; case .dark: return .dark } }
+}
+
+/// What the app keeps on disk (Android Storage section): each model folder with its size, deletable.
+enum Storage {
+    struct Item: Identifiable { let url: URL; let bytes: Int64; var id: String { url.path }; var name: String { url.lastPathComponent } }
+    static var modelsRoot: URL { FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("models") }
+    static func size(_ u: URL) -> Int64 {
+        guard let e = FileManager.default.enumerator(at: u, includingPropertiesForKeys: [.fileSizeKey]) else { return 0 }
+        return e.compactMap { ($0 as? URL).flatMap { try? $0.resourceValues(forKeys: [.fileSizeKey]).fileSize } }.reduce(0) { $0 + Int64($1) }
+    }
+    static func models() -> [Item] {
+        let d = (try? FileManager.default.contentsOfDirectory(at: modelsRoot, includingPropertiesForKeys: nil)) ?? []
+        return d.map { Item(url: $0, bytes: size($0)) }.sorted { $0.name < $1.name }
+    }
+    static func delete(_ i: Item) { try? FileManager.default.removeItem(at: i.url) }
 }

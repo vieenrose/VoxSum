@@ -9,12 +9,23 @@ final class ChunkBuffer: @unchecked Sendable {
     func take() -> [Float] { lock.lock(); defer { lock.unlock() }; let d = data; data = []; return d }
 }
 
+/// Every status line, timestamped, in Documents/status.log (pullable with devicectl: the console is not always attached).
+enum StatusLog {
+    static let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("status.log")
+    private static let lock = NSLock()
+    static func add(_ s: String) {
+        lock.lock(); defer { lock.unlock() }
+        guard let d = (ISO8601DateFormatter().string(from: Date()) + " " + s + "\n").data(using: .utf8) else { return }
+        if let h = try? FileHandle(forWritingTo: url) { defer { try? h.close() }; _ = try? h.seekToEnd(); try? h.write(contentsOf: d) } else { try? d.write(to: url) }
+    }
+}
+
 @MainActor final class Model: ObservableObject {
     @Published var lines: [Utterance] = []
     @Published var notes: [Note] = []
     @Published var title = ""
     @Published var summary = ""
-    @Published var status = L("app_ready")
+    @Published var status = L("app_ready") { didSet { StatusLog.add(status) } }
     // Dev paths on the Mac (the simulator shares its filesystem).
     let base = ProcessInfo.processInfo.environment["VOX_BASE"] ?? "/Users/Pesi/work"
 
@@ -190,6 +201,7 @@ struct ContentView: View {
     @State private var showPodcast = false
     @State private var path: [Session] = []
     @AppStorage("language") private var language = "system"
+    @AppStorage("theme") private var theme = "auto"
     var body: some View {
         NavigationStack(path: $path) {
             List {
@@ -228,15 +240,18 @@ struct ContentView: View {
                 ToolbarItem(placement: .bottomBar) { Button(m.recording ? L("stop") : L("record")) { m.toggleRecord() } }
             }
             .sheet(isPresented: $showPodcast) { PodcastView { m.addEpisode($0) } }
-            .sheet(isPresented: $showSettings) { SettingsView(language: $language) }
+            .sheet(isPresented: $showSettings) { SettingsView(language: $language, theme: $theme) }
             .fileImporter(isPresented: $picking, allowedContentTypes: [.audio]) { if case .success(let u) = $0 { m.importAudio(u) } }
             .safeAreaInset(edge: .bottom) { Text(m.status).font(.footnote).padding(4) }
         }
+        .preferredColorScheme((Theme(rawValue: theme) ?? .auto).scheme)
     }
 }
 
 struct SettingsView: View {
     @Binding var language: String
+    @Binding var theme: String
+    @State private var models = Storage.models()
     @State private var threads = Prefs.threads
     @State private var reader = Prefs.readerId
     @Environment(\.dismiss) private var dismiss
@@ -245,6 +260,7 @@ struct SettingsView: View {
             Form {
                 Section { Picker(L("language"), selection: $language) { ForEach(AppLanguage.allCases) { Text($0.autonym).tag($0.rawValue) } } }
                 footer: { Text(L("settings_language_note")) }
+                Section(L("theme")) { Picker(L("theme"), selection: $theme) { ForEach(Theme.allCases) { Text($0.label).tag($0.rawValue) } }.pickerStyle(.segmented) }
                 Section(L("notes_model")) {
                     Picker(L("notes_model"), selection: $reader) {
                         Text("Gemma 4 E2B · 2.2 GB").tag("E2B")
@@ -258,6 +274,14 @@ struct SettingsView: View {
                         Stepper(L("threads_n", threads), value: Binding(get: { threads }, set: { threads = $0; Prefs.threads = $0 }), in: 2...max(2, Prefs.cores))
                     }
                 } header: { Text(L("threads")) } footer: { Text(L("threads_note", Prefs.effectiveThreads, Prefs.cores)) }
+                if !models.isEmpty {
+                    Section(L("storage")) {
+                        ForEach(models) { i in
+                            HStack { Text(i.name); Spacer(); Text(ByteCountFormatter.string(fromByteCount: i.bytes, countStyle: .file)).foregroundStyle(.secondary) }
+                                .swipeActions { Button(L("delete"), role: .destructive) { Storage.delete(i); models = Storage.models() } }
+                        }
+                    }
+                }
             }
             .navigationTitle(L("settings"))
             .toolbar { Button(L("done")) { dismiss() } }

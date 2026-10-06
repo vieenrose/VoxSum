@@ -56,3 +56,8 @@
 "speaker_name" = "Name";
 "title" = "Title";
 "cancel" = "Cancel";
+"theme" = "Appearance";
+"theme_auto" = "Auto";
+"theme_light" = "Light";
+"theme_dark" = "Dark";
+"storage" = "Storage";

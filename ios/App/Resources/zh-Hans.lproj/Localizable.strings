@@ -56,3 +56,8 @@
 "speaker_name" = "名称";
 "title" = "标题";
 "cancel" = "取消";
+"theme" = "外观";
+"theme_auto" = "自动";
+"theme_light" = "浅色";
+"theme_dark" = "深色";
+"storage" = "存储空间";

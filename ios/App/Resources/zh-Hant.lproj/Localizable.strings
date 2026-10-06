@@ -56,3 +56,8 @@
 "speaker_name" = "名稱";
 "title" = "標題";
 "cancel" = "取消";
+"theme" = "外觀";
+"theme_auto" = "自動";
+"theme_light" = "淺色";
+"theme_dark" = "深色";
+"storage" = "儲存空間";

@@ -9,7 +9,7 @@ import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
 
 /** The user's thread choice: Auto follows the benchmark, the others force a count. */
-enum class ThreadMode(val fixed: Int?) { AUTO(null), T2(2), T3(3), T4(4), T5(5), T6(6), T7(7), T8(8) }
+enum class ThreadMode(val fixed: Int?) { AUTO(null), T2(2), T3(3), T4(4), T5(5), T6(6), T7(7), T8(8), T9(9), T10(10), T11(11), T12(12), T13(13), T14(14), T15(15), T16(16) }
 
 /**
  * Pure rules turning the CPU layout and the benchmark into a thread count for the native engines
@@ -23,15 +23,11 @@ object ThreadPolicy {
         return freqs.count { it > low }.takeIf { it > 0 } ?: freqs.size
     }
 
-    /** The most threads ever used: past 6 the extra cores are efficiency cores or contend with the rest of the app. */
-    const val MAX_THREADS = 6
-
     /** Without a benchmark: the upper cores, 2..4 (the benchmark is what earns 5 or 6), never more than the phone has. */
     fun heuristic(freqs: List<Long>, cores: Int): Int = clamp(minOf(upperCores(freqs, cores), 4), cores)
 
-    /** Counts worth measuring: up to 4, and up to the fast cores (at most 6) on phones that have more of them. */
-    fun candidates(cores: Int, upper: Int = 4): List<Int> =
-        (2..minOf(maxOf(4, minOf(upper, MAX_THREADS)), cores)).toList().ifEmpty { listOf(1) }
+    /** Counts worth measuring: every count from 2 to all the cores; [pick] keeps the point where more threads stop paying. */
+    fun candidates(cores: Int): List<Int> = (2..cores).toList().ifEmpty { listOf(1) }
 
     /** The fewest threads within [slack] of the best throughput: extra threads that buy nothing only compete with the rest of the app. */
     fun pick(scores: Map<Int, Double>, slack: Double = 0.05): Int? {
@@ -47,7 +43,7 @@ object ThreadPolicy {
     }
 
     /** The floor of 2 stops a misread topology from handing XNNPACK one thread (roughly half the throughput). */
-    private fun clamp(n: Int, cores: Int): Int = n.coerceIn(2, MAX_THREADS).coerceAtMost(cores.coerceAtLeast(1))
+    private fun clamp(n: Int, cores: Int): Int = n.coerceAtLeast(2).coerceAtMost(cores.coerceAtLeast(1))
 }
 
 /** What the hardware check found, and what the engines will use. */
@@ -142,7 +138,7 @@ object HwInfo {
     suspend fun ensureBench(context: Context, force: Boolean = false): HwProfile {
         if ((force || !benchDone(context)) && benchRunning.compareAndSet(0, 1)) {
             try {
-                val scores = withContext(Dispatchers.Default) { ThreadBench.run(ThreadPolicy.candidates(cores, ThreadPolicy.upperCores(freqs, cores))) }
+                val scores = withContext(Dispatchers.Default) { ThreadBench.run(ThreadPolicy.candidates(cores)) }
                 val best = ThreadPolicy.pick(scores)
                 prefs(context).edit().putString("benchKey", key(context)).putString("scores", JSONObject(scores.mapKeys { it.key.toString() }).toString())
                     .putInt("benchThreads", best ?: 0).putBoolean("capped", false).apply()

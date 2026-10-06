@@ -583,32 +583,25 @@ private fun InferencePanel(enabled: Boolean) {
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     var profile by remember { mutableStateOf(studio.voxsum.core.hw.HwInfo.profile(ctx)) }
     var running by remember { mutableStateOf(false) }
-    val options = listOf(
-        studio.voxsum.core.hw.ThreadMode.AUTO to stringResource(R.string.settings_threads_auto),
-        studio.voxsum.core.hw.ThreadMode.T2 to "2",
-        studio.voxsum.core.hw.ThreadMode.T3 to "3",
-        studio.voxsum.core.hw.ThreadMode.T4 to "4",
-        studio.voxsum.core.hw.ThreadMode.T5 to "5",
-        studio.voxsum.core.hw.ThreadMode.T6 to "6",
-        studio.voxsum.core.hw.ThreadMode.T7 to "7",
-        studio.voxsum.core.hw.ThreadMode.T8 to "8",
-    ).filter { (m, _) -> (m.fixed ?: 0) <= profile.cores }
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        options.forEach { (mode, label) ->
-            FilterChip(
-                selected = profile.mode == mode,
-                enabled = enabled,
-                onClick = {
-                    studio.voxsum.core.hw.HwInfo.setMode(ctx, mode)
-                    profile = studio.voxsum.core.hw.HwInfo.profile(ctx)
-                },
-                label = { Text(label) },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = pal.Sky.copy(alpha = 0.15f),
-                    selectedLabelColor = pal.Sky,
-                    labelColor = pal.Slate400,
-                ),
-            )
+    val options = studio.voxsum.core.hw.ThreadMode.entries.filter { (it.fixed ?: 0) <= profile.cores }
+    var menuOpen by remember { mutableStateOf(false) }
+    val autoLabel = stringResource(R.string.settings_threads_auto)
+    fun modeLabel(m: studio.voxsum.core.hw.ThreadMode) = m.fixed?.toString() ?: autoLabel
+    androidx.compose.foundation.layout.Box {
+        OutlinedButton(enabled = enabled, onClick = { menuOpen = true }) {
+            Text(stringResource(R.string.settings_threads_label, modeLabel(profile.mode)) + "  ▾")
+        }
+        androidx.compose.material3.DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            options.forEach { mode ->
+                androidx.compose.material3.DropdownMenuItem(
+                    text = { Text(modeLabel(mode), color = if (profile.mode == mode) pal.Sky else androidx.compose.ui.graphics.Color.Unspecified) },
+                    onClick = {
+                        menuOpen = false
+                        studio.voxsum.core.hw.HwInfo.setMode(ctx, mode)
+                        profile = studio.voxsum.core.hw.HwInfo.profile(ctx)
+                    },
+                )
+            }
         }
     }
     val scores = profile.benchScores.entries.sortedBy { it.key }.joinToString("  ") { "${it.key}→${it.value.roundToInt()}" }

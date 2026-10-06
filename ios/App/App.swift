@@ -43,7 +43,7 @@ final class ChunkBuffer: @unchecked Sendable {
             let r = Recorder(); recorder = r; recording = true
             let b = base
             Task.detached { [weak self] in
-                guard let self, let eng = NemoEngine(xasr: self.modelPath("x-asr-zh-en-q8_0.gguf", b), diar: self.modelPath("nemotron-3-diarization-q8_0.gguf", b)) else {
+                guard let self, let eng = NemoEngine(xasr: self.modelPath("x-asr-zh-en-q8_0.gguf", b), diar: self.modelPath("nemotron-3-diarization-q8_0.gguf", b), threads: Prefs.effectiveThreads) else {
                     await MainActor.run { self?.status = L("models_missing"); self?.recording = false }; return }
                 do { try r.start { [buffer = self.buffer] c in buffer.add(c) } }
                 catch { await MainActor.run { self.status = L("mic_error", "\(error)"); self.recording = false }; return }
@@ -80,7 +80,7 @@ final class ChunkBuffer: @unchecked Sendable {
         status = L("download_reader")
         Task.detached { [store] in
             do {
-                try await store.download(.e2b) { d, t in Task { @MainActor in self.status = L("download_reader_p", Int(d / 1_000_000), Int(t / 1_000_000)) } }
+                try await store.download(Prefs.reader) { d, t in Task { @MainActor in self.status = L("download_reader_p", Int(d / 1_000_000), Int(t / 1_000_000)) } }
                 await MainActor.run { self.status = L("reader_ready") }
             } catch { await MainActor.run { self.status = L("download_failed", "\(error)") } }
         }
@@ -92,9 +92,10 @@ final class ChunkBuffer: @unchecked Sendable {
         let b = base
         Task.detached {
             guard await self.downloadSpeech(),
-                  let eng = NemoEngine(xasr: self.modelPath("x-asr-zh-en-q8_0.gguf", b), diar: self.modelPath("nemotron-3-diarization-q8_0.gguf", b)) else {
+                  let eng = NemoEngine(xasr: self.modelPath("x-asr-zh-en-q8_0.gguf", b), diar: self.modelPath("nemotron-3-diarization-q8_0.gguf", b), threads: Prefs.effectiveThreads) else {
                 await MainActor.run { self.status = L("load_failed") }; return }
-            let stored = await self.store.isComplete(.e2b) ? await self.store.dir(.e2b).path : nil
+            let rm = Prefs.reader
+            let stored = await self.store.isComplete(rm) ? await self.store.dir(rm).path : nil
             let r = ReaderFactory.make(dir: ProcessInfo.processInfo.environment["VOX_READER_DIR"] ?? stored)
             let reader = MeetingReader(llm: r.llm, systemPrompt: r.systemPrompt, budget: .mobile)
             do { try reader.start() } catch { await MainActor.run { self.status = L("reader_error", "\(error)") }; return }
@@ -190,12 +191,27 @@ struct ContentView: View {
 
 struct SettingsView: View {
     @Binding var language: String
+    @State private var threads = Prefs.threads
+    @State private var reader = Prefs.readerId
     @Environment(\.dismiss) private var dismiss
     var body: some View {
         NavigationStack {
             Form {
                 Section { Picker(L("language"), selection: $language) { ForEach(AppLanguage.allCases) { Text($0.autonym).tag($0.rawValue) } } }
                 footer: { Text(L("settings_language_note")) }
+                Section(L("notes_model")) {
+                    Picker(L("notes_model"), selection: $reader) {
+                        Text("Gemma 4 E2B · 2.2 GB").tag("E2B")
+                        if Prefs.e4bAllowed { Text("Gemma 4 E4B · 3.3 GB").tag("E4B") }
+                    }.pickerStyle(.inline).labelsHidden()
+                    .onChange(of: reader) { Prefs.readerId = reader }
+                }
+                Section {
+                    Toggle(L("threads_auto"), isOn: Binding(get: { threads == 0 }, set: { threads = $0 ? 0 : Prefs.effectiveThreads; Prefs.threads = threads }))
+                    if threads > 0 {
+                        Stepper(L("threads_n", threads), value: Binding(get: { threads }, set: { threads = $0; Prefs.threads = $0 }), in: 2...max(2, Prefs.cores))
+                    }
+                } header: { Text(L("threads")) } footer: { Text(L("threads_note", Prefs.effectiveThreads, Prefs.cores)) }
             }
             .navigationTitle(L("settings"))
             .toolbar { Button(L("done")) { dismiss() } }

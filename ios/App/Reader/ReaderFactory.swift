@@ -4,13 +4,13 @@ import Foundation
 /// with the locally built libLiteRt.so), the stub otherwise.
 enum ReaderFactory {
     /// `dir` holds the reader model files (see ModelStore); nil/missing → stub.
-    static func make(dir: String?) -> (llm: ReaderLlm, systemPrompt: String, real: Bool) {
+    static func make(dir: String?, threads: Int = Prefs.effectiveThreads) -> (llm: ReaderLlm, systemPrompt: String, real: Bool) {
         let fallback = "你是會議記錄助理。"
         #if !VOX_REAL_READER
         return (StubLlm(), fallback, false)
         #else
         guard let dir, let tok = try? SpTokenizer(path: dir + "/Section1_SP_Tokenizer.spiece"),
-              let eng = try? MfaEngine(dir: dir, ctx: ReaderBudget.mobile.ctxBudget, threads: max(2, ProcessInfo.processInfo.activeProcessorCount - 2),
+              let eng = try? MfaEngine(dir: dir, ctx: ReaderBudget.mobile.ctxBudget, threads: threads,
                                        weightCache: dir + "/weights.xnnpack_cache")
         else { return (StubLlm(), fallback, false) }
         let prompt = (try? String(contentsOfFile: dir + "/system_prompt.txt", encoding: .utf8)) ?? fallback

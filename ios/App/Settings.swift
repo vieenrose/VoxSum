@@ -31,3 +31,20 @@ func L(_ key: String, _ args: CVarArg...) -> String {
     let f = AppLanguage.current.bundle.localizedString(forKey: key, value: key, table: nil)
     return args.isEmpty ? f : String(format: f, arguments: args)
 }
+
+/// Persisted tuning (Android ConfigStore subset). Threads: 0 = Auto, else the slider value (2…cores).
+enum Prefs {
+    static var cores: Int { ProcessInfo.processInfo.activeProcessorCount }
+    static var threads: Int {
+        get { UserDefaults.standard.integer(forKey: "threads") }
+        set { UserDefaults.standard.set(newValue, forKey: "threads") }
+    }
+    static var effectiveThreads: Int { threads > 0 ? min(max(2, threads), cores) : min(4, max(2, cores - 2)) }
+    /// E4B needs the 8 GB class of phone, as on Android.
+    static var e4bAllowed: Bool { ProcessInfo.processInfo.physicalMemory >= 7 << 30 }
+    static var readerId: String {
+        get { let v = UserDefaults.standard.string(forKey: "reader") ?? "E2B"; return v == "E4B" && e4bAllowed ? v : "E2B" }
+        set { UserDefaults.standard.set(newValue, forKey: "reader") }
+    }
+    static var reader: ReaderModel { readerId == "E4B" ? .e4b : .e2b }
+}

@@ -35,3 +35,8 @@
 "sample_missing" = "Sample missing";
 "meeting" = "Meeting";
 "settings_language_note" = "Also sets the script (繁體 / 简体) of the transcript, summary and notes.";
+"notes_model" = "AI notes model";
+"threads" = "Threads";
+"threads_auto" = "Automatic";
+"threads_n" = "%d threads";
+"threads_note" = "Using %d of %d cores. More threads is not always faster.";

@@ -35,3 +35,8 @@
 "sample_missing" = "找不到示例";
 "meeting" = "会议";
 "settings_language_note" = "同时决定逐字稿、摘要与笔记使用的字体（繁体／简体）。";
+"notes_model" = "笔记模型";
+"threads" = "线程";
+"threads_auto" = "自动";
+"threads_n" = "%d 个线程";
+"threads_note" = "使用 %d / %d 个核心。线程越多不一定越快。";

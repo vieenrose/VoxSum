@@ -28,7 +28,7 @@ final class ChunkBuffer: @unchecked Sendable {
         guard !lines.isEmpty else { return }
         let fallback = lines.first.map { String($0.text.prefix(20)) } ?? L("meeting")
         var s = Session(title: title.isEmpty ? fallback : title, summary: summary, seconds: seconds, lines: lines, notes: notes)
-        if let job { s.id = job.id; s.date = job.date; s.audio = job.audio }
+        if let job { s.id = job.id; s.date = job.date; s.audio = job.audio; if let t = job.title, !t.isEmpty { s.title = t } }
         try? await library.save(s)
         sessions = await library.all()
     }
@@ -158,6 +158,21 @@ final class ChunkBuffer: @unchecked Sendable {
         }
     }
 
+    /// Podcast episode: download into the audio directory, then queue it like any import.
+    @Published var downloading: String?
+    func addEpisode(_ ep: Episode) {
+        guard downloading == nil else { return }
+        let j = Job(audio: UUID().uuidString + "." + Podcast.ext(ep.audioUrl), title: ep.title)
+        downloading = ep.title; status = L("podcast_downloading", 0)
+        Task {
+            defer { downloading = nil }
+            do {
+                _ = try await Podcast.download(ep, name: j.audio) { f in Task { @MainActor in self.status = L("podcast_downloading", Int(f * 100)) } }
+                await queue.add(j); drain()
+            } catch { status = L("download_failed", error.localizedDescription) }
+        }
+    }
+
     func importAudio(_ url: URL) {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
@@ -171,6 +186,7 @@ struct ContentView: View {
     @StateObject var m = Model()
     @State private var picking = false
     @State private var showSettings = false
+    @State private var showPodcast = false
     @AppStorage("language") private var language = "system"
     var body: some View {
         NavigationStack {
@@ -204,10 +220,11 @@ struct ContentView: View {
             .toolbar {
                 ToolbarItem(placement: .bottomBar) { Button(L("settings")) { showSettings = true } }
                 ToolbarItem(placement: .bottomBar) { Button(L("sample")) { m.run() } }
-                ToolbarItem(placement: .bottomBar) { Button(L("import_audio")) { picking = true } }
+                ToolbarItem(placement: .bottomBar) { Menu(L("import_audio")) { Button(L("from_files")) { picking = true }; Button(L("podcast")) { showPodcast = true } } }
                 ToolbarItem(placement: .bottomBar) { Button(L("download_reader")) { m.downloadReader() } }
                 ToolbarItem(placement: .bottomBar) { Button(m.recording ? L("stop") : L("record")) { m.toggleRecord() } }
             }
+            .sheet(isPresented: $showPodcast) { PodcastView { m.addEpisode($0) } }
             .sheet(isPresented: $showSettings) { SettingsView(language: $language) }
             .fileImporter(isPresented: $picking, allowedContentTypes: [.audio]) { if case .success(let u) = $0 { m.importAudio(u) } }
             .safeAreaInset(edge: .bottom) { Text(m.status).font(.footnote).padding(4) }
@@ -242,5 +259,55 @@ struct SettingsView: View {
             .navigationTitle(L("settings"))
             .toolbar { Button(L("done")) { dismiss() } }
         }
+    }
+}
+
+struct PodcastView: View {
+    let pick: (Episode) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var query = ""
+    @State private var series: [PodcastSeries] = []
+    @State private var episodes: [Episode] = []
+    @State private var current: PodcastSeries?
+    @State private var busy = false
+    @State private var error: String?
+    var body: some View {
+        NavigationStack {
+            List {
+                if let error { Text(error).foregroundStyle(.red) }
+                if current == nil {
+                    ForEach(series) { s in
+                        Button { open(s) } label: {
+                            VStack(alignment: .leading) { Text(s.title).font(.headline); Text(s.artist).font(.caption).foregroundStyle(.secondary) }
+                        }
+                    }
+                } else {
+                    ForEach(episodes) { e in
+                        Button { pick(e); dismiss() } label: {
+                            VStack(alignment: .leading) {
+                                Text(e.title)
+                                Text([e.duration, String(e.published.prefix(16))].filter { !$0.isEmpty }.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+                if busy { ProgressView() }
+            }
+            .navigationTitle(current?.title ?? L("podcast"))
+            .searchable(text: $query, prompt: L("podcast_search"))
+            .onSubmit(of: .search) { search() }
+            .toolbar {
+                if current != nil { ToolbarItem(placement: .navigation) { Button(L("back")) { current = nil; episodes = [] } } }
+                ToolbarItem { Button(L("done")) { dismiss() } }
+            }
+        }
+    }
+    private func search() {
+        busy = true; error = nil; current = nil
+        Task { defer { busy = false }; do { series = try await Podcast.search(query) } catch { self.error = error.localizedDescription } }
+    }
+    private func open(_ s: PodcastSeries) {
+        busy = true; error = nil; current = s
+        Task { defer { busy = false }; do { episodes = try await Podcast.episodes(s.feedUrl) } catch { self.error = error.localizedDescription } }
     }
 }

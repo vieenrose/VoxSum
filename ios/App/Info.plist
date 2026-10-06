@@ -11,6 +11,7 @@
 <key>CFBundleLocalizations</key><array><string>en</string><string>zh-Hant</string><string>zh-Hans</string></array>
 <key>MinimumOSVersion</key><string>17.0</string>
 <key>UILaunchScreen</key><dict/>
+<key>NSAppTransportSecurity</key><dict><key>NSAllowsArbitraryLoads</key><true/></dict>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>VoxSum transcrit vos réunions à partir du micro, sur l'appareil.</string>
 </dict></plist>

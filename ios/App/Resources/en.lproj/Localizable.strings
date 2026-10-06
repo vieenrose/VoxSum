@@ -41,3 +41,8 @@
 "threads_n" = "%d threads";
 "threads_note" = "Using %d of %d cores. More threads is not always faster.";
 "queue_n" = "%d recordings queued";
+"podcast" = "Podcast";
+"from_files" = "Audio file";
+"podcast_search" = "Search podcasts";
+"podcast_downloading" = "Downloading episode %d %%";
+"back" = "Back";

@@ -7,6 +7,7 @@ struct Job: Codable, Identifiable, Equatable {
     var id = UUID()
     var date = Date()
     var audio: String        // file name in Application Support/audio
+    var title: String? = nil // source title (podcast episode) — wins over a generated one
 }
 
 actor JobQueue {

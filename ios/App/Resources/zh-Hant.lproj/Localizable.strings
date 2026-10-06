@@ -41,3 +41,8 @@
 "threads_n" = "%d 個執行緒";
 "threads_note" = "使用 %d / %d 個核心。執行緒越多不一定越快。";
 "queue_n" = "佇列中有 %d 個錄音";
+"podcast" = "Podcast";
+"from_files" = "音訊檔";
+"podcast_search" = "搜尋 Podcast";
+"podcast_downloading" = "下載單集 %d %%";
+"back" = "返回";

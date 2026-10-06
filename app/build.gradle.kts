@@ -1,12 +1,11 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
 }
 
 android {
     namespace = "studio.voxsum"
-    compileSdk = 35
+    compileSdk = 37
 
     // Pin the NDK so F-Droid's build server uses the same toolchain we test with.
     ndkVersion = "27.2.12479018"
@@ -103,7 +102,7 @@ android {
 
     // Only libLiteRt.so is taken from the LiteRT AAR (no Java API, no GPU accelerator): the
     // mobile reader's engine links it, so it is packaged as a jniLib next to libvoxsum-mfa.so.
-    sourceSets["main"].jniLibs.srcDir(layout.buildDirectory.dir("litert/jni"))
+    sourceSets["main"].jniLibs.srcDir(layout.buildDirectory.dir("litert/jni").get().asFile)
 
     packaging {
         // c++_shared is provided once; avoid duplicate libc++_shared.so clashes.

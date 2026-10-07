@@ -303,3 +303,5 @@
 "summary_settings_changed" = "Summary settings changed — tap Re-summarize to apply.";
 "export_share_transcript" = "Share transcript…";
 "card_summary" = "Summary";
+"export_heading_summary" = "Summary";
+"export_heading_transcript" = "Transcript";

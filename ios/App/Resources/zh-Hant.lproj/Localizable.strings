@@ -303,3 +303,5 @@
 "summary_settings_changed" = "摘要設定已變更，請點「重新摘要」以套用。";
 "export_share_transcript" = "分享逐字稿…";
 "card_summary" = "摘要";
+"export_heading_summary" = "摘要";
+"export_heading_transcript" = "逐字稿";

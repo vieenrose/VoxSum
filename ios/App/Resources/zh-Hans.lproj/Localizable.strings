@@ -311,3 +311,5 @@
 "exporting_hint" = "将在后台继续完成，您可以继续使用应用程序";
 "session_share_failed" = "无法分享场次";
 "retry" = "重试";
+"status_importing" = "正在导入分享的音频…";
+"export_share_failed" = "无法准备要分享的文件";

@@ -387,10 +387,20 @@ final class Model: ObservableObject {
     }
 
     func importAudio(_ url: URL) {
-        let scoped = url.startAccessingSecurityScopedResource()
-        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         let j = Job(audio: UUID().uuidString + "." + (url.pathExtension.isEmpty ? "m4a" : url.pathExtension))
-        do { try FileManager.default.copyItem(at: url, to: JobQueue.url(j)) } catch { status = L("import_failed"); return }
+        let before = status; status = L("status_importing")   // Android: a long share (big file, cloud provider) shows progress
+        Task {
+            let ok = await Task.detached {
+                let scoped = url.startAccessingSecurityScopedResource()
+                defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+                return (try? FileManager.default.copyItem(at: url, to: JobQueue.url(j))) != nil
+            }.value
+            if status == L("status_importing") { status = before }
+            guard ok else { status = L("import_failed"); return }
+            imported(url, j)
+        }
+    }
+    private func imported(_ url: URL, _ j: Job) {
         if let man = SessionFile.read(JobQueue.url(j)) {   // a VoxSum session: restore it instead of re-transcribing
             var s = SessionFile.session(man, audio: j.audio)
             if s.title.isEmpty { s.title = url.deletingPathExtension().lastPathComponent }

@@ -11,6 +11,9 @@ struct LibraryView: View {
     @State private var renaming: Session?
     @State private var deleting: Session?
     @State private var draft = ""
+    @State private var selected = Set<UUID>()
+    @State private var deletingMany = false
+    @State private var sharing: URL?
     @AppStorage("seenSessions") private var seenRaw = ""
 
     enum Filter: String, CaseIterable { case all, new, done }
@@ -56,17 +59,26 @@ struct LibraryView: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
-            Menu {
+            if !selected.isEmpty {
+                Image(systemName: selected.contains(s.id) ? "checkmark.circle.fill" : "circle").font(.title3).foregroundStyle(selected.contains(s.id) ? Color.accentColor : Color.secondary)
+            } else { Menu {
+                if let a = s.audio, FileManager.default.fileExists(atPath: JobQueue.audioDir.appendingPathComponent(a).path) {
+                    Button(L("action_share_audio"), systemImage: "square.and.arrow.up") { sharing = JobQueue.audioDir.appendingPathComponent(a) }
+                }
                 Button(L("rename"), systemImage: "pencil") { draft = s.title; renaming = s }
                 Button(L("delete"), systemImage: "trash", role: .destructive) { deleting = s }
             } label: { Image(systemName: "ellipsis").padding(10).contentShape(Rectangle()) }
-                .accessibilityLabel(L("more"))
+                .accessibilityLabel(L("more")) }
         }
         .padding(12)
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.accentColor, lineWidth: selected.contains(s.id) ? 2 : 0))
         .contentShape(Rectangle())
-        .onTapGesture { Self.markSeen(s.id); seenRaw = UserDefaults.standard.string(forKey: "seenSessions") ?? ""; path.append(s) }
+        .onLongPressGesture { toggle(s) }
+        .onTapGesture { if !selected.isEmpty { toggle(s); return }; Self.markSeen(s.id); seenRaw = UserDefaults.standard.string(forKey: "seenSessions") ?? ""; path.append(s) }
     }
+
+    private func toggle(_ s: Session) { if selected.contains(s.id) { selected.remove(s.id) } else { selected.insert(s.id) } }
 
     private func pillar(_ icon: String, _ key: String) -> some View {
         HStack(spacing: 12) {
@@ -79,6 +91,15 @@ struct LibraryView: View {
     }
     var body: some View {
         VStack(spacing: 0) {
+            if !selected.isEmpty {
+                HStack(spacing: 16) {
+                    Button { selected = [] } label: { Image(systemName: "xmark").font(.title3) }.accessibilityLabel(L("cd_exit_selection"))
+                    Text(L("selection_count", selected.count)).font(.title3.bold())
+                    Spacer()
+                    Button(L("select_all")) { selected = Set(shown.map(\.id)) }
+                    Button(role: .destructive) { deletingMany = true } label: { Image(systemName: "trash").font(.title3) }
+                }.padding(.horizontal, 16).padding(.vertical, 8)
+            } else {
             HStack {
                 Image(systemName: "waveform").font(.headline).foregroundStyle(.white)
                     .frame(width: 34, height: 34).background(Color.accentColor, in: RoundedRectangle(cornerRadius: 9))
@@ -87,6 +108,7 @@ struct LibraryView: View {
                 Button(action: onAdd) { Image(systemName: "plus").font(.title3) }.accessibilityLabel(L("import_audio"))
                 Button(action: onSettings) { Image(systemName: "slider.horizontal.3").font(.title3) }.accessibilityLabel(L("settings")).padding(.leading, 12)
             }.padding(.horizontal, 16).padding(.vertical, 8)
+            }
             HStack {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
                 TextField(L("search_sessions"), text: $query)
@@ -133,6 +155,10 @@ struct LibraryView: View {
             Button(L("done")) { if var s = renaming, !draft.trimmingCharacters(in: .whitespaces).isEmpty { s.title = draft; m.update(s) } }
             Button(L("cancel"), role: .cancel) {}
         }
+        .confirmationDialog(L("delete_confirm_many", selected.count), isPresented: $deletingMany, titleVisibility: .visible) {
+            Button(L("delete"), role: .destructive) { for s in m.sessions where selected.contains(s.id) { m.remove(s) }; selected = [] }
+        }
+        .sheet(isPresented: Binding(get: { sharing != nil }, set: { if !$0 { sharing = nil } })) { if let sharing { ShareSheet(url: sharing) } }
         .confirmationDialog(L("delete_confirm", deleting?.title ?? ""), isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
             Button(L("delete"), role: .destructive) { if let s = deleting { m.remove(s) } }
         }

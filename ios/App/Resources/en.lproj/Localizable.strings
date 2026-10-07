@@ -151,3 +151,8 @@
 "re_summarize" = "Re-summarize";
 "studio_no_match" = "No session matches your search.";
 "status_processing" = "Processing…";
+"action_share_audio" = "Share audio";
+"delete_confirm_many" = "Delete %d sessions permanently? Their audio and transcripts are removed.";
+"selection_count" = "%d selected";
+"select_all" = "Select all";
+"cd_exit_selection" = "Exit selection";

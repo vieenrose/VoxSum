@@ -151,3 +151,8 @@
 "re_summarize" = "重新摘要";
 "studio_no_match" = "沒有符合搜尋的場次。";
 "status_processing" = "處理中…";
+"action_share_audio" = "分享音訊";
+"delete_confirm_many" = "確定要永久刪除 %d 個場次嗎？音訊與逐字稿都會被移除。";
+"selection_count" = "已選取 %d 個";
+"select_all" = "全選";
+"cd_exit_selection" = "結束選取";

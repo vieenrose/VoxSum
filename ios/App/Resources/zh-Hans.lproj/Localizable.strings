@@ -151,3 +151,8 @@
 "re_summarize" = "重新摘要";
 "studio_no_match" = "没有符合搜索的场次。";
 "status_processing" = "处理中…";
+"action_share_audio" = "分享音频";
+"delete_confirm_many" = "确定要永久删除 %d 个场次吗？音频与转写文本都会被移除。";
+"selection_count" = "已选择 %d 个";
+"select_all" = "全选";
+"cd_exit_selection" = "结束选择";

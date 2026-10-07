@@ -25,12 +25,12 @@ final class NemoEngine: @unchecked Sendable {
         guard let c = nemo_live(h) else { return ([], []) }
         defer { nemo_string_free(c) }
         let parts = String(cString: c).split(separator: "\u{1d}", maxSplits: 1, omittingEmptySubsequences: false)
-        return (Self.decode(parts.first.map(String.init) ?? ""), Self.decode(parts.count > 1 ? String(parts[1]) : ""))
+        return (LongUtteranceSplitter.split(Self.decode(parts.first.map(String.init) ?? "")), LongUtteranceSplitter.split(Self.decode(parts.count > 1 ? String(parts[1]) : "")))
     }
     func finish() -> [Utterance]? {
         guard let c = nemo_finish(h) else { return nil }
         defer { nemo_string_free(c) }
-        return Self.decode(String(cString: c))
+        return LongUtteranceSplitter.split(Self.decode(String(cString: c)))
     }
     static func decode(_ s: String) -> [Utterance] {
         s.split(separator: "\u{1e}").compactMap { rec in

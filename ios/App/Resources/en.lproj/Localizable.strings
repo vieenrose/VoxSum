@@ -305,3 +305,8 @@
 "card_summary" = "Summary";
 "export_heading_summary" = "Summary";
 "export_heading_transcript" = "Transcript";
+"resummary_done" = "New summary ready.";
+"undo" = "Undo";
+"exporting" = "Exporting session…";
+"exporting_hint" = "Continues in the background — you can keep using the app";
+"session_share_failed" = "Couldn't share session";

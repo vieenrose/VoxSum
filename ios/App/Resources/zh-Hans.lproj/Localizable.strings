@@ -305,3 +305,8 @@
 "card_summary" = "摘要";
 "export_heading_summary" = "摘要";
 "export_heading_transcript" = "转写文本";
+"resummary_done" = "新摘要已完成。";
+"undo" = "撤销";
+"exporting" = "正在导出场次…";
+"exporting_hint" = "将在后台继续完成，您可以继续使用应用程序";
+"session_share_failed" = "无法分享场次";

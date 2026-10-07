@@ -305,3 +305,8 @@
 "card_summary" = "摘要";
 "export_heading_summary" = "摘要";
 "export_heading_transcript" = "逐字稿";
+"resummary_done" = "新摘要已完成。";
+"undo" = "復原";
+"exporting" = "正在匯出場次…";
+"exporting_hint" = "將在背景繼續完成，您可以繼續使用應用程式";
+"session_share_failed" = "無法分享場次";

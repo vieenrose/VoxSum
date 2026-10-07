@@ -51,6 +51,8 @@ struct SessionView: View {
     @State private var toast: String?
     @State private var editingSummary = false
     @State private var summaryStale = false
+    @State private var undoable: Session?
+    @State private var exporting = false
     @State private var exportFile: URL?
     @State private var showExport = Dev.env["VOX_EXPORT"] != nil
 
@@ -225,7 +227,7 @@ struct SessionView: View {
             }
         }
         .sheet(isPresented: $showExport) {
-            ExportSheet(s: s) { f in showExport = false; DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { exportFile = Export.file(s, f) } } onSession: { showExport = false; Task { let u = await SessionFile.export(s); try? await Task.sleep(nanoseconds: 400_000_000); exportFile = u } }
+            ExportSheet(s: s) { f in showExport = false; DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { exportFile = Export.file(s, f) } } onSession: { showExport = false; exporting = true; Task { let u = await SessionFile.export(s); exporting = false; try? await Task.sleep(nanoseconds: 400_000_000); if let u { exportFile = u } else { toast = L("session_share_failed") } } }
                 .presentationDetents([.medium, .large])
         }
         .sheet(isPresented: Binding(get: { exportFile != nil }, set: { if !$0 { exportFile = nil } })) { if let exportFile { ShareSheet(url: exportFile) } }
@@ -276,7 +278,29 @@ struct SessionView: View {
             Button(L("re_summarize")) { rerun(s, false) }
             Button(L("cancel"), role: .cancel) {}
         }
+        .task { if Dev.env["VOX_RESUM"] != nil { rerun(s, false) } }
         .task { if let r = s.reader, r != Prefs.readerId, !s.summary.isEmpty, s.audio != nil { summaryStale = true } }
+        .onReceive(NotificationCenter.default.publisher(for: .voxSessionSaved)) { n in
+            guard let new = n.object as? Session, new.id == s.id else { return }
+            s = new
+            if let old = n.userInfo?["undo"] as? Session, !old.summary.isEmpty { withAnimation { undoable = old } }
+            if Dev.env["VOX_RESUM"] != nil { try? "undo=\(n.userInfo?["undo"] != nil) names=\(new.speakerNames ?? [:]) reader=\(new.reader ?? "-") summary=\(new.summary.prefix(80))".write(to: FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("resum.txt"), atomically: true, encoding: .utf8) }
+        }
+        .overlay {
+            if exporting {
+                VStack(spacing: 8) { ProgressView(); Text(L("exporting")).font(.headline); Text(L("exporting_hint")).font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center) }
+                    .padding(20).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16)).padding(40)
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if let old = undoable {
+                HStack {
+                    Text(L("resummary_done")).font(.subheadline); Spacer()
+                    Button(L("undo")) { s.summary = old.summary; s.title = old.title; s.notes = old.notes; s.reader = old.reader; save(s); withAnimation { undoable = nil } }.bold()
+                }.padding(14).background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12)).padding(.horizontal, 16).padding(.bottom, 110)
+                    .task { try? await Task.sleep(nanoseconds: 8_000_000_000); withAnimation { undoable = nil } }
+            }
+        }
         .onDisappear { player.stop() }
     }
 

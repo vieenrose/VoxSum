@@ -17,6 +17,6 @@ for f in files:
         total += 1
         if norm(vals[k]) not in ios_vals: miss += 1; rep[f.split("/")[-1]].append(f"{k} = {vals[k][:40]}")
 for f, ks in sorted(rep.items(), key=lambda x: -len(x[1])):
-    print(f"{f}: {len(ks)} missing"); [print("   ", k) for k in ks[:6]]
+    print(f"{f}: {len(ks)} missing"); [print("   ", k) for k in ks[:int(__import__("os").environ.get("N","6"))]]
 print(f"parity: {total-miss}/{total} Android UI strings present on iOS ({100*(total-miss)//max(total,1)}%)")
 sys.exit(1 if miss else 0)

@@ -19,7 +19,8 @@ struct LibraryView: View {
         var s = Set((UserDefaults.standard.string(forKey: "seenSessions") ?? "").split(separator: ",").map(String.init))
         s.insert(id.uuidString); UserDefaults.standard.set(s.joined(separator: ","), forKey: "seenSessions")
     }
-    private func isNew(_ s: Session) -> Bool { !seen.contains(s.id.uuidString) }
+    /// Android: NEW = recorded but not yet processed. Archived sessions are all processed (waiting jobs show in the queue line), so they are Done.
+    private func isNew(_ s: Session) -> Bool { false }
     private var shown: [Session] {
         m.sessions.filter { s in
             switch filter { case .all: true; case .new: isNew(s); case .done: !isNew(s) }
@@ -37,7 +38,7 @@ struct LibraryView: View {
     private func chip(_ f: Filter) -> some View {
         let n = f == .all ? m.sessions.count : m.sessions.filter { f == .new ? isNew($0) : !isNew($0) }.count
         return Button { filter = f } label: {
-            Text("\(L("filter_" + f.rawValue)) (\(n))").font(.subheadline.weight(.semibold))
+            Text(L("filter_" + f.rawValue, n)).font(.subheadline.weight(.semibold))
                 .padding(.horizontal, 14).padding(.vertical, 7)
                 .background(filter == f ? Color.accentColor : Color(.secondarySystemGroupedBackground), in: Capsule())
                 .foregroundStyle(filter == f ? Color.white : Color.primary)
@@ -91,7 +92,7 @@ struct LibraryView: View {
                 TextField(L("search_sessions"), text: $query)
             }.padding(12).background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12)).padding(.horizontal, 16)
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack { ForEach(Filter.allCases, id: \.self) { chip($0) } }.padding(.horizontal, 16)
+                HStack { ForEach(Filter.allCases.filter { $0 == .all || !m.sessions.isEmpty && ($0 == .done || m.sessions.contains { isNew($0) }) }, id: \.self) { chip($0) } }.padding(.horizontal, 16)
             }.padding(.vertical, 10)
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 10) {
@@ -108,6 +109,7 @@ struct LibraryView: View {
                             }.padding(.top, 6)
                         }.frame(maxWidth: .infinity).padding(.top, 40)
                     }
+                    if !m.sessions.isEmpty && days.isEmpty { Text(L("studio_no_match")).font(.subheadline).foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(.top, 40) }
                     ForEach(days, id: \.0) { day, items in
                         Text(label(day)).font(.footnote.weight(.semibold)).foregroundStyle(.secondary).padding(.top, 6)
                         ForEach(items) { card($0) }
@@ -131,7 +133,7 @@ struct LibraryView: View {
             Button(L("done")) { if var s = renaming, !draft.trimmingCharacters(in: .whitespaces).isEmpty { s.title = draft; m.update(s) } }
             Button(L("cancel"), role: .cancel) {}
         }
-        .confirmationDialog(L("delete_confirm"), isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
+        .confirmationDialog(L("delete_confirm", deleting?.title ?? ""), isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
             Button(L("delete"), role: .destructive) { if let s = deleting { m.remove(s) } }
         }
     }

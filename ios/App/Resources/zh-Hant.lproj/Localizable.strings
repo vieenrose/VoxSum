@@ -75,13 +75,13 @@
 "more" = "更多";
 "today" = "今天";
 "yesterday" = "昨天";
-"filter_all" = "全部";
-"filter_new" = "新";
-"filter_done" = "已完成";
+"filter_all" = "全部（%d）";
+"filter_new" = "新（%d）";
+"filter_done" = "已完成（%d）";
 "search_sessions" = "搜尋場次…";
 "empty_title" = "尚無場次";
 "empty_hint" = "錄音或用 + 加入音訊。";
-"delete_confirm" = "刪除此場次？";
+"delete_confirm" = "確定要永久刪除「%@」嗎？音訊與逐字稿都會被移除。";
 "tab_summary" = "摘要";
 "tab_transcript" = "逐字稿";
 "ai_notes" = "AI 筆記";
@@ -149,3 +149,5 @@
 "pillar_cost_desc" = "一次擁有，無雲端費用";
 "re_transcribe" = "重新轉錄";
 "re_summarize" = "重新摘要";
+"studio_no_match" = "沒有符合搜尋的場次。";
+"status_processing" = "處理中…";

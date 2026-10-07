@@ -75,13 +75,13 @@
 "more" = "More";
 "today" = "Today";
 "yesterday" = "Yesterday";
-"filter_all" = "All";
-"filter_new" = "New";
-"filter_done" = "Done";
+"filter_all" = "All (%d)";
+"filter_new" = "New (%d)";
+"filter_done" = "Done (%d)";
 "search_sessions" = "Search sessions…";
 "empty_title" = "No sessions yet";
 "empty_hint" = "Record a meeting or add audio with +.";
-"delete_confirm" = "Delete this session?";
+"delete_confirm" = "Delete “%@” permanently? The audio and its transcript are removed.";
 "tab_summary" = "Summary";
 "tab_transcript" = "Transcript";
 "ai_notes" = "AI notes";
@@ -149,3 +149,5 @@
 "pillar_cost_desc" = "Yours to keep, no cloud fees";
 "re_transcribe" = "Re-transcribe";
 "re_summarize" = "Re-summarize";
+"studio_no_match" = "No session matches your search.";
+"status_processing" = "Processing…";

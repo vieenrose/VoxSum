@@ -99,3 +99,17 @@
 "status_recording" = "录音中…";
 "capture_live_waiting" = "聆听中…";
 "capture_stop" = "停止并保存";
+"settings_appearance" = "外观主题";
+"settings_recording" = "录音";
+"settings_language" = "语言";
+"settings_storage" = "存储空间";
+"storage_total" = "设备上的模型：%@";
+"storage_none" = "尚未下载任何模型";
+"storage_delete" = "删除模型";
+"storage_delete_title" = "删除这个模型？";
+"storage_delete_body" = "%@（%@）下次使用时会重新下载。";
+"settings_about" = "关于";
+"about_license" = "自由开源 · GPL-3.0";
+"about_components" = "开源组件";
+"settings_reader_model" = "AI 笔记模型";
+"settings_inference" = "推理";

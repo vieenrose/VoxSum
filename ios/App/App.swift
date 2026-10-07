@@ -341,7 +341,7 @@ struct ContentView: View {
             LibraryView(m: m, path: $path, onAdd: { showAdd = true }, onSettings: { showSettings = true })
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: Session.self) { x in SessionView(session: m.sessions.first { $0.id == x.id } ?? x) { m.update($0) } }
-            .onAppear { BackgroundWork.model = m; m.reload(); if Dev.env["VOX_OPEN"] != nil { Task { path = await m.library.all().prefix(1).map { $0 } } }; if let d = Dev.env["VOX_DOWNLOAD"] { if d == "speech" { Task { _ = await m.downloadSpeech() } } else { m.downloadReader() } }; if Dev.env["VOX_AUTORUN"] != nil { m.run() }; if Dev.env["VOX_RECORD"] != nil { m.toggleRecord() }; m.drain(); if let f = Dev.env["VOX_IMPORT"] { m.importAudio(URL(fileURLWithPath: f.hasPrefix("/") ? f : NSHomeDirectory() + "/" + f)) }; if let q = Dev.env["VOX_PODCAST"] { Task { if let sr = try? await Podcast.search(q).first, let ep = try? await Podcast.episodes(sr.feedUrl, limit: 3).last { m.addEpisode(ep) } else { m.status = "podcast: no result" } } } }
+            .onAppear { BackgroundWork.model = m; m.reload(); if Dev.env["VOX_OPEN"] != nil { Task { path = await m.library.all().prefix(1).map { $0 } } }; if let d = Dev.env["VOX_DOWNLOAD"] { if d == "speech" { Task { _ = await m.downloadSpeech() } } else { m.downloadReader() } }; if Dev.env["VOX_AUTORUN"] != nil { m.run() }; if Dev.env["VOX_RECORD"] != nil { m.toggleRecord() }; if Dev.env["VOX_SETTINGS"] != nil { showSettings = true }; m.drain(); if let f = Dev.env["VOX_IMPORT"] { m.importAudio(URL(fileURLWithPath: f.hasPrefix("/") ? f : NSHomeDirectory() + "/" + f)) }; if let q = Dev.env["VOX_PODCAST"] { Task { if let sr = try? await Podcast.search(q).first, let ep = try? await Podcast.episodes(sr.feedUrl, limit: 3).last { m.addEpisode(ep) } else { m.status = "podcast: no result" } } } }
             .confirmationDialog(L("import_audio"), isPresented: $showAdd) {
                 Button(L("from_files")) { picking = true }
                 Button(L("podcast")) { showPodcast = true }
@@ -361,6 +361,7 @@ struct SettingsView: View {
     @Binding var language: String
     @Binding var theme: String
     @State private var models = Storage.models()
+    @State private var toDelete: Storage.Item?
     @State private var threads = Prefs.threads
     @State private var reader = Prefs.readerId
     @State private var delay = Prefs.speakerDelay
@@ -369,16 +370,17 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section { Picker(L("language"), selection: $language) { ForEach(AppLanguage.allCases) { Text($0.autonym).tag($0.rawValue) } } }
-                footer: { Text(L("settings_language_note")) }
-                Section(L("theme")) { Picker(L("theme"), selection: $theme) { ForEach(Theme.allCases) { Text($0.label).tag($0.rawValue) } }.pickerStyle(.segmented) }
+                Section {
+                    Picker(L("language"), selection: $language) { ForEach(AppLanguage.allCases) { Text($0.autonym).tag($0.rawValue) } }
+                } header: { Text(L("settings_language")) } footer: { Text(L("settings_language_note")) }
+                Section(L("settings_appearance")) { Picker(L("theme"), selection: $theme) { ForEach(Theme.allCases) { Text($0.label).tag($0.rawValue) } }.pickerStyle(.segmented) }
                 Section(L("text_size")) {
                     Picker(L("text_size"), selection: $textSize) { ForEach(0..<Prefs.textSizeLabels.count, id: \.self) { Text(L(Prefs.textSizeLabels[$0])).tag($0) } }
                 }
                 Section {
                     Stepper(L("seconds_n", delay), value: $delay, in: 5...30, step: 5).onChange(of: delay) { Prefs.speakerDelay = delay }
-                } header: { Text(L("recording")) } footer: { Text(L("speaker_delay_hint")) }
-                Section(L("notes_model")) {
+                } header: { Text(L("settings_recording")) } footer: { Text(L("speaker_delay_hint")) }
+                Section(L("settings_reader_model")) {
                     Picker(L("notes_model"), selection: $reader) {
                         Text("Gemma 4 E2B · 2.2 GB").tag("E2B")
                         if Prefs.e4bAllowed { Text("Gemma 4 E4B · 3.3 GB").tag("E4B") }
@@ -390,16 +392,25 @@ struct SettingsView: View {
                     if threads > 0 {
                         Stepper(L("threads_n", threads), value: Binding(get: { threads }, set: { threads = $0; Prefs.threads = $0 }), in: 2...max(2, Prefs.cores))
                     }
-                } header: { Text(L("threads")) } footer: { Text(L("threads_note", Prefs.effectiveThreads, Prefs.cores)) }
-                if !models.isEmpty {
-                    Section(L("storage")) {
-                        ForEach(models) { i in
-                            HStack { Text(i.name); Spacer(); Text(ByteCountFormatter.string(fromByteCount: i.bytes, countStyle: .file)).foregroundStyle(.secondary) }
-                                .swipeActions { Button(L("delete"), role: .destructive) { Storage.delete(i); models = Storage.models() } }
-                        }
+                } header: { Text(L("settings_inference")) } footer: { Text(L("threads_note", Prefs.effectiveThreads, Prefs.cores)) }
+                Section {
+                    if models.isEmpty { Text(L("storage_none")).foregroundStyle(.secondary) }
+                    ForEach(models) { i in
+                        HStack { Text(i.name); Spacer(); Text(ByteCountFormatter.string(fromByteCount: i.bytes, countStyle: .file)).foregroundStyle(.secondary) }
+                            .swipeActions { Button(L("storage_delete"), role: .destructive) { toDelete = i } }
+                    }
+                } header: { Text(L("settings_storage")) } footer: { if !models.isEmpty { Text(L("storage_total", ByteCountFormatter.string(fromByteCount: models.reduce(0) { $0 + $1.bytes }, countStyle: .file))) } }
+                Section(L("settings_about")) {
+                    HStack { Text("VoxSum"); Spacer(); Text(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "").foregroundStyle(.secondary) }
+                    Text(L("about_license"))
+                    DisclosureGroup(L("about_components")) {
+                        ForEach(["CrispASR / ggml", "audio.cpp (diarization)", "LiteRT-LM", "SentencePiece", "OpenCC"], id: \.self) { Text($0).font(.footnote) }
                     }
                 }
             }
+            .confirmationDialog(L("storage_delete_title"), isPresented: Binding(get: { toDelete != nil }, set: { if !$0 { toDelete = nil } }), titleVisibility: .visible) {
+                Button(L("storage_delete"), role: .destructive) { if let i = toDelete { Storage.delete(i); models = Storage.models() } }
+            } message: { if let i = toDelete { Text(L("storage_delete_body", i.name, ByteCountFormatter.string(fromByteCount: i.bytes, countStyle: .file))) } }
             .navigationTitle(L("settings"))
             .toolbar { Button(L("done")) { dismiss() } }
         }

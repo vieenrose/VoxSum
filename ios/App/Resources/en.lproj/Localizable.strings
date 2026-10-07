@@ -99,3 +99,17 @@
 "status_recording" = "Recording…";
 "capture_live_waiting" = "Listening…";
 "capture_stop" = "Stop and save";
+"settings_appearance" = "Appearance";
+"settings_recording" = "Recording";
+"settings_language" = "Language";
+"settings_storage" = "Storage";
+"storage_total" = "Models on device: %@";
+"storage_none" = "No models downloaded yet";
+"storage_delete" = "Delete model";
+"storage_delete_title" = "Delete this model?";
+"storage_delete_body" = "%@ (%@) will be downloaded again the next time it is needed.";
+"settings_about" = "About";
+"about_license" = "Free & open source · GPL-3.0";
+"about_components" = "Open-source components";
+"settings_reader_model" = "AI notes model";
+"settings_inference" = "Inference";

@@ -168,3 +168,5 @@
 "model_kind_asr" = "转录模型";
 "model_kind_llm" = "摘要模型";
 "model_kind_other" = "其他";
+"studio_processing_banner" = "%@（点按即时查看）";
+"source_process_all" = "处理待办（%d）";

@@ -156,7 +156,16 @@ struct LibraryView: View {
                     }
                 }.padding(.horizontal, 16)
             }
-            Text(m.status).font(.caption).foregroundStyle(.secondary).lineLimit(1).padding(.horizontal, 16)
+            if m.activeJob != nil {
+                HStack(spacing: 8) { ProgressView().controlSize(.small); Text(L("studio_processing_banner", m.status)).font(.caption).lineLimit(1); Spacer() }
+                    .padding(10).background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 12)).padding(.horizontal, 16)
+            } else {
+                Text(m.status).font(.caption).foregroundStyle(.secondary).lineLimit(1).padding(.horizontal, 16)
+            }
+            if m.activeJob == nil && !m.recording && !m.waiting.isEmpty {
+                Button { m.drain() } label: { Label(L("source_process_all", m.waiting.count), systemImage: "play.fill").font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity).padding(.vertical, 10) }
+                    .buttonStyle(.bordered).padding(.horizontal, 16)
+            }
             Button { m.toggleRecord() } label: {
                 Label(m.recording ? L("stop") : L("record"), systemImage: m.recording ? "stop.fill" : "mic.fill")
                     .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 16)

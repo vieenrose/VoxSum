@@ -168,3 +168,5 @@
 "model_kind_asr" = "Transcription model";
 "model_kind_llm" = "Summary model";
 "model_kind_other" = "Other";
+"studio_processing_banner" = "%@ (tap to watch live)";
+"source_process_all" = "Process pending (%d)";

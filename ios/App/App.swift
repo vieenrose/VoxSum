@@ -24,8 +24,14 @@ enum Notifier {
 enum StatusLog {
     static let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("status.log")
     private static let lock = NSLock()
+    private static var lastKey = "", lastAt = Date.distantPast
     static func add(_ s: String) {
         lock.lock(); defer { lock.unlock() }
+        // progress lines ("轉錄中 12 / 300 秒") differ only by digits: keep one every 15 s
+        let key = String(s.filter { !$0.isNumber })
+        if key == lastKey && Date().timeIntervalSince(lastAt) < 15 { return }
+        lastKey = key; lastAt = Date()
+        if let n = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.size] as? Int, n > 1_000_000 { try? FileManager.default.removeItem(at: url) }
         guard let d = (ISO8601DateFormatter().string(from: Date()) + " " + s + "\n").data(using: .utf8) else { return }
         if let h = try? FileHandle(forWritingTo: url) { defer { try? h.close() }; _ = try? h.seekToEnd(); try? h.write(contentsOf: d) } else { try? d.write(to: url) }
     }
@@ -37,6 +43,36 @@ enum Stage {
     static func set(_ n: String) { name = n; since = Date() }
     static let watchdog: Void = { Thread.detachNewThread { while true { Thread.sleep(forTimeInterval: 60)
         let d = Int(Date().timeIntervalSince(since)); if name != "idle" && d >= 60 { StatusLog.add("trace stage \(name) stuck \(d) s, \(os_proc_available_memory() / 1_048_576) MB free") } } } }()
+}
+
+/// Runs the reader on its own thread: on slow CPUs (A12: ~12 tok/s prefill) a reader call takes 1-2 min, and inline it
+/// would throttle the transcription. Lines queue up; the reader catches up behind the ASR and after it.
+final class ReaderWorker: @unchecked Sendable {
+    private let reader: MeetingReader, lock = NSCondition()
+    private var queue: [Line] = [], busy = false, paused = false, snapshot: [Note] = [], total = 0, done = 0
+    /// `paused`: hold the lines until `resume()` (low-RAM devices read after the transcription, not during it).
+    init(_ r: MeetingReader, paused: Bool = false) {
+        reader = r; self.paused = paused
+        Thread.detachNewThread { [self] in
+            while true {
+                lock.lock(); while queue.isEmpty || paused { busy = false; lock.broadcast(); lock.wait() }
+                let l = queue.removeFirst(); busy = true; lock.unlock()
+                Stage.set("offer")
+                do { try reader.offer(l) } catch { StatusLog.add("trace reader.offer error: \(error)") }
+                lock.lock(); snapshot = reader.journal; done += 1; lock.unlock()
+            }
+        }
+    }
+    func offer(_ l: Line) { lock.lock(); queue.append(l); total += 1; lock.broadcast(); lock.unlock() }
+    func resume() { lock.lock(); paused = false; lock.broadcast(); lock.unlock() }
+    var journal: [Note] { lock.lock(); defer { lock.unlock() }; return snapshot }
+    var progress: (done: Int, total: Int) { lock.lock(); defer { lock.unlock() }; return (done, total) }
+    /// Blocks until every queued line has been read.
+    func drain(_ tick: (Int, Int) -> Void) {
+        lock.lock()
+        while !queue.isEmpty || busy { lock.broadcast(); lock.wait(until: Date().addingTimeInterval(2)); let p = (done, total); lock.unlock(); tick(p.0, p.1); lock.lock() }
+        lock.unlock()
+    }
 }
 
 @MainActor final class Model: ObservableObject {
@@ -135,24 +171,16 @@ enum Stage {
             let r = ReaderFactory.make(dir: ProcessInfo.processInfo.environment["VOX_READER_DIR"] ?? stored)
             let reader = MeetingReader(llm: r.llm, systemPrompt: r.systemPrompt, budget: .mobile)
             do { try reader.start() } catch { await MainActor.run { self.status = L("reader_error", "\(error)") }; return }
-            var seenFrozen = 0; let conv = TextConv()
+            var seenFrozen = 0; let conv = TextConv(); let lowRam = ProcessInfo.processInfo.physicalMemory < 4_500_000_000   // 3 GB phones cannot hold ASR + diarizer + E2B at once
+            let worker = ReaderWorker(reader, paused: lowRam)
             do {
                 try feed { chunk in
                     _ = Stage.watchdog; Stage.set("push")
                     if !eng.push(chunk) { StatusLog.add("trace push failed at \(Int(eng.fedSeconds)) s") }
-                    Stage.set("live")
                     let (frozen, tail) = eng.live()
-                    for u in frozen.dropFirst(seenFrozen) {
-                        Stage.set("offer")
-                        guard let l = ReaderSummarizer.toLine(u) else { continue }
-                        let t0 = Date()
-                        do { try reader.offer(l) } catch { StatusLog.add("trace reader.offer error at \(Int(eng.fedSeconds)) s: \(error)") }
-                        let dt = Date().timeIntervalSince(t0)
-                        if dt > 20 { StatusLog.add("trace reader.offer took \(Int(dt)) s at \(Int(eng.fedSeconds)) s, footprint \(os_proc_available_memory() / 1_048_576) MB free") }
-                    }
+                    for u in frozen.dropFirst(seenFrozen) { if let l = ReaderSummarizer.toLine(u) { worker.offer(l) } }
                     seenFrozen = frozen.count
-                    Stage.set("journal")
-                    let j = reader.journal, fed = eng.fedSeconds
+                    let j = worker.journal, fed = eng.fedSeconds
                     Task { @MainActor in
                         self.lines = conv.utterances(frozen + tail); self.notes = conv.notes(j)
                         self.status = L("transcribing_s", Int(fed), Int(seconds))
@@ -163,6 +191,8 @@ enum Stage {
             } catch { await MainActor.run { self.status = L("audio_error", error.localizedDescription) }; return }
             Stage.set("finish")
             let final = eng.finish() ?? []
+            if lowRam { eng.close(); StatusLog.add("trace models freed, reader starts (\(os_proc_available_memory() / 1_048_576) MB free)"); worker.resume() }
+            worker.drain { d, t in Task { @MainActor in self.status = L("reading_s", d, t) } }
             _ = try? reader.finish(); let journal = reader.journal
             let sum = ReaderSummarizer(llm: r.llm)
             let t = sum.title(journal), prose = sum.prose(journal) ?? ReaderProtocol.minutes(journal)

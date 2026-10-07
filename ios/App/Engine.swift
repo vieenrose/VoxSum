@@ -13,7 +13,10 @@ final class NemoEngine: @unchecked Sendable {
         guard let p = nemo_create(xasr, diar, Int32(threads), settle) else { return nil }
         h = p
     }
-    deinit { nemo_free(h) }
+    private var closed = false
+    /// Frees the models now (the reader needs their memory on 3 GB devices).
+    func close() { if !closed { closed = true; nemo_free(h) } }
+    deinit { close() }
 
     func push(_ pcm: [Float]) -> Bool { pcm.withUnsafeBufferPointer { nemo_push(h, $0.baseAddress, Int32($0.count)) == 1 } }
     var fedSeconds: Double { nemo_fed_seconds(h) }

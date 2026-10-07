@@ -62,3 +62,4 @@
 "theme_dark" = "深色";
 "storage" = "存储空间";
 "notif_ready" = "会议纪要已完成";
+"reading_s" = "整理笔记中 %d / %d";

@@ -62,3 +62,4 @@
 "theme_dark" = "深色";
 "storage" = "儲存空間";
 "notif_ready" = "會議紀錄已完成";
+"reading_s" = "整理筆記中 %d / %d";

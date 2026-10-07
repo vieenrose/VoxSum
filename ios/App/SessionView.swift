@@ -298,10 +298,11 @@ struct SessionView: View {
     /// "[1:06]" markers in the summary become links that seek the recording.
     static func linked(_ text: String) -> AttributedString {
         var out = AttributedString(), last = text.startIndex
-        guard let re = try? NSRegularExpression(pattern: #"\[(\d+):(\d{2})\]"#) else { return AttributedString(text) }
+        guard let re = try? NSRegularExpression(pattern: #"\[(\d+):(\d{2})(?::(\d{2}))?\]"#) else { return AttributedString(text) }
         for m in re.matches(in: text, range: NSRange(text.startIndex..., in: text)) {
             guard let r = Range(m.range, in: text), let a = Range(m.range(at: 1), in: text), let b = Range(m.range(at: 2), in: text),
-                  let mm = Double(text[a]), let ss = Double(text[b]) else { continue }
+                  var mm = Double(text[a]), var ss = Double(text[b]) else { continue }
+            if let c = Range(m.range(at: 3), in: text), let x = Double(text[c]) { mm = mm * 60 + ss; ss = x }   // [h:mm:ss] as Android ANCHOR_RE
             out += AttributedString(text[last..<r.lowerBound])
             var link = AttributedString(text[r]); link.link = URL(string: "vox://\(Int(mm * 60 + ss))"); out += link
             last = r.upperBound

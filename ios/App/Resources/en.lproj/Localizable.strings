@@ -113,3 +113,8 @@
 "about_components" = "Open-source components";
 "settings_reader_model" = "AI notes model";
 "settings_inference" = "Inference";
+"add_audio" = "Add audio";
+"source_audio_file" = "Audio file";
+"source_audio_file_desc" = "Pick a file from your device";
+"source_podcast" = "Podcast";
+"source_podcast_desc" = "Search & download an episode";

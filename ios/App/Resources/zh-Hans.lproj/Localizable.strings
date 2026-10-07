@@ -113,3 +113,8 @@
 "about_components" = "开源组件";
 "settings_reader_model" = "AI 笔记模型";
 "settings_inference" = "推理";
+"add_audio" = "添加音频";
+"source_audio_file" = "音频文件";
+"source_audio_file_desc" = "从设备选择文件";
+"source_podcast" = "Podcast";
+"source_podcast_desc" = "搜索并下载单集";

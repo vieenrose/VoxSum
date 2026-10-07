@@ -121,3 +121,30 @@ struct LibraryView: View {
         }
     }
 }
+
+/// "Add audio" bottom sheet (Android AddSourceSheet). YouTube and "open session" rows are added when those features exist.
+struct AddSourceSheet: View {
+    let onFile: () -> Void
+    let onPodcast: () -> Void
+    @Environment(\.dismiss) private var dismiss
+    private func row(_ icon: String, _ title: String, _ desc: String, _ action: @escaping () -> Void) -> some View {
+        Button { dismiss(); action() } label: {
+            HStack(spacing: 16) {
+                Image(systemName: icon).font(.title2).foregroundStyle(Color.accentColor).frame(width: 32)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(.body).foregroundStyle(.primary)
+                    Text(desc).font(.subheadline).foregroundStyle(.secondary)
+                }
+                Spacer()
+            }.padding(.vertical, 10).contentShape(Rectangle())
+        }.buttonStyle(.plain)
+    }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(L("add_audio")).font(.title3.bold()).padding(.bottom, 8)
+            row("folder", L("source_audio_file"), L("source_audio_file_desc"), onFile)
+            row("dot.radiowaves.left.and.right", L("source_podcast"), L("source_podcast_desc"), onPodcast)
+            Spacer(minLength: 0)
+        }.padding(.horizontal, 20).padding(.top, 24).presentationDetents([.height(280)])
+    }
+}

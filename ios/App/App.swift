@@ -172,7 +172,7 @@ final class ReaderWorker: @unchecked Sendable {
     }
 
     /// Transcribe + read a source of 16 kHz mono chunks (a file, the bundled sample). `feed` pushes chunks until done or false.
-    func process(seconds: Double, job: Job? = nil, feed: @escaping @Sendable (([Float]) -> Bool) throws -> Void) async {
+    func process(seconds: Double, job: Job? = nil, skipper: SilenceSkipper? = nil, feed: @escaping @Sendable (([Float]) -> Bool) throws -> Void) async {
         status = L("loading_models"); lines = []; notes = []; title = ""; summary = ""
         let b = base
         await Task.detached {
@@ -209,7 +209,8 @@ final class ReaderWorker: @unchecked Sendable {
             _ = try? reader.finish(); let journal = reader.journal
             let sum = ReaderSummarizer(llm: r.llm)
             let t = sum.title(journal), prose = sum.prose(journal) ?? ReaderProtocol.minutes(journal)
-            let (fl, fn, ft, fp) = (conv.utterances(final), conv.notes(journal), conv.text(t ?? ""), conv.text(prose))
+            let sk = skipper ?? SilenceSkipper()   // nothing skipped → identity
+            let (fl, fn, ft, fp) = (sk.restore(conv.utterances(final)), sk.restore(conv.notes(journal)), sk.restore(text: conv.text(t ?? "")), sk.restore(text: conv.text(prose)))
             await MainActor.run { self.lines = fl; self.notes = fn; self.title = ft; self.summary = fp; self.status = L("finished") }
             await self.archive(lines: fl, notes: fn, title: ft, summary: fp, seconds: seconds, job: job)
             if let job { await self.queue.remove(job.id) }
@@ -240,7 +241,8 @@ final class ReaderWorker: @unchecked Sendable {
                 guard let secs = AudioDecode.duration(url), secs > 0 else { await queue.remove(job.id); continue }
                 let left = await queue.count
                 if left > 1 { status = L("queue_n", left) }
-                await process(seconds: secs, job: job) { sink in try AudioDecode.stream(url, onChunk: sink) }
+                let skipper = SilenceSkipper()
+                await process(seconds: secs, job: job, skipper: skipper) { sink in try AudioPrep.stream(url, skipper: skipper, onChunk: sink) }
                 if await queue.first(skipping: recordingJob)?.id == job.id { await queue.remove(job.id) }   // failed run: never loop on it
             }
             draining = false

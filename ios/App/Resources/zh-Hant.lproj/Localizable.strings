@@ -266,3 +266,10 @@
 "storage_model_pending" = "摘要模型尚未下載（%1$d MB），首次使用時自動下載。";
 "theme_eink" = "電子紙";
 "theme_eink_hint" = "電子紙為專為電子閱讀器設計的高對比扁平主題，請手動選用。";
+"app_name" = "VoxSum";
+"action_open" = "開啟";
+"library_empty" = "尚無錄音——每段錄音都會自動儲存在這裡。";
+"recent_untitled" = "未命名場次";
+"import_download_title" = "匯入音訊";
+"search_match_count" = "%1$d / %2$d";
+"status_error" = "錯誤：%@";

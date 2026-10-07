@@ -7,8 +7,8 @@ def git(*a): return subprocess.check_output(["git", *a], text=True)
 xml = git("show", f"{ref}:app/src/main/res/values-zh-rTW/strings.xml")
 vals = {m[0]: re.sub(r"\\(.)", r"\1", m[1]) for m in re.findall(r'<string name="(\w+)"[^>]*>(.*?)</string>', xml, re.S)}
 ios = open("ios/App/Resources/zh-Hant.lproj/Localizable.strings").read()
-ios_vals = {re.sub(r"%\d*\$?[ds@]|%[ds@]", "%", v) for v in re.findall(r'=\s*"((?:[^"\\]|\\.)*)";', ios)}
-norm = lambda v: re.sub(r"%\d*\$?[ds@]", "%", v)
+ios_vals = {re.sub(r"%\d*\$?[,.\d]*[dsf@]", "%", v) for v in re.findall(r'=\s*"((?:[^"\\]|\\.)*)";', ios)}
+norm = lambda v: re.sub(r"%\d*\$?[,.\d]*[dsf@]", "%", v)
 files = [f for f in git("ls-tree", "-r", "--name-only", ref).split() if "/ui/" in f and f.endswith(".kt") and "/test/" not in f]
 total = miss = 0; rep = collections.defaultdict(list)
 for f in files:

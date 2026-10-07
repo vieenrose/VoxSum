@@ -96,12 +96,15 @@ final class Chunked: NSObject, URLSessionDataDelegate, @unchecked Sendable {
         let d = Chunked(file: file, resumeFrom: resumeFrom, onProgress: onProgress)
         let session = URLSession(configuration: .default, delegate: d, delegateQueue: nil)
         defer { session.finishTasksAndInvalidate() }
-        try await withCheckedThrowingContinuation { (c: CheckedContinuation<Void, Error>) in
-            d.cont = c
-            var r = req
-            if resumeFrom > 0 { r.setValue("bytes=\(resumeFrom)-", forHTTPHeaderField: "Range") }
-            session.dataTask(with: r).resume()
-        }
+        // Cancelling the calling task stops the transfer; the partial file stays for a later resume.
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (c: CheckedContinuation<Void, Error>) in
+                d.cont = c
+                var r = req
+                if resumeFrom > 0 { r.setValue("bytes=\(resumeFrom)-", forHTTPHeaderField: "Range") }
+                session.dataTask(with: r).resume()
+            }
+        } onCancel: { session.invalidateAndCancel() }
     }
 
     func urlSession(_ s: URLSession, dataTask: URLSessionDataTask, didReceive resp: URLResponse, completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {

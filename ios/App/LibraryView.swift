@@ -56,7 +56,7 @@ struct LibraryView: View {
                 .background((isNew(s) ? Color.secondary : Color.green).opacity(0.14), in: RoundedRectangle(cornerRadius: 10))
                 .accessibilityLabel(L(isNew(s) ? "cd_status_new" : "cd_status_done"))
             VStack(alignment: .leading, spacing: 2) {
-                Text(s.title).font(.headline).lineLimit(2)
+                Text(s.title.isEmpty ? L("recent_untitled") : s.title).font(.headline).lineLimit(2)
                 Text("\(s.date.formatted(date: .omitted, time: .shortened)) · \(Export.mmss(s.seconds))")
                     .font(.caption).foregroundStyle(.secondary)
             }
@@ -67,6 +67,7 @@ struct LibraryView: View {
                 if let a = s.audio, FileManager.default.fileExists(atPath: JobQueue.audioDir.appendingPathComponent(a).path) {
                     Button(L("action_share_audio"), systemImage: "square.and.arrow.up") { sharing = JobQueue.audioDir.appendingPathComponent(a) }
                 }
+                Button(L("action_open"), systemImage: "play.fill") { Self.markSeen(s.id); seenRaw = UserDefaults.standard.string(forKey: "seenSessions") ?? ""; path.append(s) }
                 Button(L("rename"), systemImage: "pencil") { draft = s.title; renaming = s }
                 Button(L("delete"), systemImage: "trash", role: .destructive) { deleting = s }
             } label: { Image(systemName: "ellipsis").padding(10).contentShape(Rectangle()).accessibilityLabel(L("cd_manage")) }
@@ -130,7 +131,7 @@ struct LibraryView: View {
             HStack {
                 Image(systemName: "waveform").font(.headline).foregroundStyle(.white)
                     .frame(width: 34, height: 34).background(Color.accentColor, in: RoundedRectangle(cornerRadius: 9))
-                Text("VoxSum").font(.title2.bold())
+                Text(L("app_name")).font(.title2.bold())
                 Spacer()
                 Button(action: onAdd) { Image(systemName: "plus").font(.title3) }.accessibilityLabel(L("import_audio"))
                 Button(action: onSettings) { Image(systemName: "slider.horizontal.3").font(.title3) }.accessibilityLabel(L("settings")).padding(.leading, 12)
@@ -156,6 +157,7 @@ struct LibraryView: View {
                                 pillar("icloud.slash.fill", "pillar_offline")
                                 pillar("banknote.fill", "pillar_cost")
                             }.padding(.top, 6)
+                            Text(L("library_empty")).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center).padding(.top, 4)
                         }.frame(maxWidth: .infinity).padding(.top, 40)
                     }
                     if !m.sessions.isEmpty && days.isEmpty { Text(L("studio_no_match")).font(.subheadline).foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(.top, 40) }
@@ -165,6 +167,17 @@ struct LibraryView: View {
                         ForEach(items) { card($0) }
                     }
                 }.padding(.horizontal, 16)
+            }
+            if let d = m.downloading {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text(d.isEmpty ? L("import_download_title") : d).font(.subheadline.weight(.semibold)).lineLimit(1)
+                        Spacer()
+                        Button(L("cancel")) { m.cancelDownload() }.font(.subheadline)
+                    }
+                    if let f = m.downloadFraction { ProgressView(value: f) } else { ProgressView().progressViewStyle(.linear) }
+                    Text(L("podcast_downloading", Int((m.downloadFraction ?? 0) * 100))).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                }.padding(12).background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12)).padding(.horizontal, 16).padding(.bottom, 6)
             }
             if m.activeJob != nil {
                 HwStatusLine()

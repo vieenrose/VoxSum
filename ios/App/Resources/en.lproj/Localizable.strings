@@ -266,3 +266,10 @@
 "storage_model_pending" = "Summary model not downloaded yet (%1$d MB) — it downloads on first use.";
 "theme_eink" = "E-ink";
 "theme_eink_hint" = "E-ink is a flat high-contrast theme for e-paper devices; select it manually.";
+"app_name" = "VoxSum";
+"action_open" = "Open";
+"library_empty" = "No saved recordings yet — every recording is saved here automatically.";
+"recent_untitled" = "Untitled session";
+"import_download_title" = "Importing audio";
+"search_match_count" = "%1$d / %2$d";
+"status_error" = "Error: %@";

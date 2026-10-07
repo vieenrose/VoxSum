@@ -150,7 +150,7 @@ struct SessionView: View {
                     TextField(L("search_transcript_hint"), text: $query).focused($searchFocus).submitLabel(.search)
                         .onChange(of: query) { _, _ in match = 0 }
                     if !query.isEmpty {
-                        Text(hits.isEmpty ? L("search_no_matches") : "\(match + 1) / \(hits.count)").font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                        Text(hits.isEmpty ? L("search_no_matches") : L("search_match_count", match + 1, hits.count)).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
                         Button { stepMatch(-1) } label: { Image(systemName: "chevron.up") }.accessibilityLabel(L("search_prev"))
                         Button { stepMatch(1) } label: { Image(systemName: "chevron.down") }.accessibilityLabel(L("search_next"))
                     }

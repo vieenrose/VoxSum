@@ -29,3 +29,21 @@ final class Recorder {
 
     func stop() { engine.inputNode.removeTap(onBus: 0); engine.stop(); try? AVAudioSession.sharedInstance().setActive(false) }
 }
+
+/// Android LiveAgc: gentle boost-only gain for the live mic (far speaker → audible to VAD/ASR), applied before the
+/// WAV writer and the recognizer so every consumer hears the same signal. Envelope rises instantly, decays ~5 s;
+/// gain moves slowly (~2 s) toward targetPeak/envelope, capped at maxGain, and holds during silence.
+final class LiveAgc {
+    private let targetPeak: Float, maxGain: Float
+    private var envelope: Float = 0
+    private(set) var gain: Float = 1
+    init(targetPeak: Float = 0.35, maxGain: Float = 8) { self.targetPeak = targetPeak; self.maxGain = maxGain }
+    @discardableResult func process(_ block: inout [Float]) -> Float {
+        var pk: Float = 0
+        for v in block { let a = abs(v); if a > pk { pk = a } }
+        envelope = pk > envelope ? pk : max(envelope * 0.985, pk)
+        if envelope > 0.004 { gain += (min(max(targetPeak / envelope, 1), maxGain) - gain) * 0.06 }
+        if gain > 1.001 { for i in block.indices { block[i] = min(max(block[i] * gain, -1), 1) } }
+        return gain
+    }
+}

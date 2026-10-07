@@ -189,7 +189,8 @@ final class Model: ObservableObject {
             Task.detached { [weak self] in
                 guard let self, let eng = NemoEngine(xasr: self.modelPath("x-asr-zh-en-q8_0.gguf", b), diar: self.modelPath("nemotron-3-diarization-q8_0.gguf", b), threads: Prefs.effectiveThreads, settle: Double(Prefs.speakerDelay)) else {
                     await MainActor.run { self?.status = L("models_missing"); self?.recording = false }; return }
-                do { try r.start { [buffer = self.buffer] c in wav.append(c); buffer.add(c) } }
+                let agc = LiveAgc()
+                do { try r.start { [buffer = self.buffer] c in var c = c; agc.process(&c); wav.append(c); buffer.add(c) } }
                 catch { await MainActor.run { self.status = L("mic_error", "\(error)"); self.recording = false }; return }
                 var seen = 0; let conv = TextConv()
                 while await MainActor.run(body: { self.recording }) {

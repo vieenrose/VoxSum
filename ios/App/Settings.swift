@@ -40,6 +40,14 @@ enum Prefs {
         set { UserDefaults.standard.set(newValue, forKey: "threads") }
     }
     static var effectiveThreads: Int { threads > 0 ? min(max(2, threads), cores) : min(4, max(2, cores - 2)) }
+    /// Live speaker delay (Android speakerDelaySec): how long a line waits before the live view freezes it with its speaker.
+    static var speakerDelay: Int {
+        get { let v = UserDefaults.standard.integer(forKey: "speakerDelay"); return v == 0 ? 15 : min(30, max(5, v)) }
+        set { UserDefaults.standard.set(newValue, forKey: "speakerDelay") }
+    }
+    /// Text size: 0 follows the system, else a fixed Dynamic Type step.
+    static let textSizeLabels = ["text_size_system", "text_size_small", "text_size_normal", "text_size_large", "text_size_xlarge"]
+    static func typeSize(_ i: Int) -> DynamicTypeSize? { [nil, .small, .large, .xxLarge, .accessibility1][min(max(i, 0), 4)] }
     /// E4B needs the 8 GB class of phone, as on Android.
     static var e4bAllowed: Bool { ProcessInfo.processInfo.physicalMemory >= 7 << 30 }
     static var readerId: String {

@@ -63,3 +63,12 @@
 "storage" = "儲存空間";
 "notif_ready" = "會議紀錄已完成";
 "reading_s" = "整理筆記中 %d / %d";
+"text_size" = "文字大小";
+"text_size_system" = "跟隨系統";
+"text_size_small" = "小";
+"text_size_normal" = "標準";
+"text_size_large" = "大";
+"text_size_xlarge" = "特大";
+"recording" = "錄音";
+"seconds_n" = "即時講者延遲：%d 秒";
+"speaker_delay_hint" = "錄音時文字會立即出現；講者名稱至少延後這麼久才標示。越長越準確。儲存的逐字稿不受影響。";

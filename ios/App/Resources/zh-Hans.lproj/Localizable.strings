@@ -63,3 +63,12 @@
 "storage" = "存储空间";
 "notif_ready" = "会议纪要已完成";
 "reading_s" = "整理笔记中 %d / %d";
+"text_size" = "文字大小";
+"text_size_system" = "跟随系统";
+"text_size_small" = "小";
+"text_size_normal" = "标准";
+"text_size_large" = "大";
+"text_size_xlarge" = "特大";
+"recording" = "录音";
+"seconds_n" = "实时讲者延迟：%d 秒";
+"speaker_delay_hint" = "录音时文字会立即出现；讲者名称至少延后这么久才标注。越长越准确。保存的逐字稿不受影响。";

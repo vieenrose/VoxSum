@@ -2,7 +2,16 @@ import SwiftUI
 import UserNotifications
 import os
 
-@main struct VoxSumApp: App { var body: some Scene { WindowGroup { ContentView() } } }
+@main struct VoxSumApp: App {
+    @AppStorage("textSize") private var textSize = 0
+    var body: some Scene { WindowGroup { ContentView().modifier(TextSize(size: Prefs.typeSize(textSize))) } }
+}
+
+/// Fixed Dynamic Type step from Settings; nil follows the system.
+struct TextSize: ViewModifier {
+    let size: DynamicTypeSize?
+    @ViewBuilder func body(content: Content) -> some View { if let size { content.dynamicTypeSize(size) } else { content } }
+}
 
 /// Mic chunks arrive on the audio thread, the engine loop drains them on another.
 final class ChunkBuffer: @unchecked Sendable {
@@ -130,7 +139,7 @@ final class ReaderWorker: @unchecked Sendable {
             await queue.add(job)       // on the list before the first sample: a kill mid-recording keeps the audio
             let b = base
             Task.detached { [weak self] in
-                guard let self, let eng = NemoEngine(xasr: self.modelPath("x-asr-zh-en-q8_0.gguf", b), diar: self.modelPath("nemotron-3-diarization-q8_0.gguf", b), threads: Prefs.effectiveThreads) else {
+                guard let self, let eng = NemoEngine(xasr: self.modelPath("x-asr-zh-en-q8_0.gguf", b), diar: self.modelPath("nemotron-3-diarization-q8_0.gguf", b), threads: Prefs.effectiveThreads, settle: Double(Prefs.speakerDelay)) else {
                     await MainActor.run { self?.status = L("models_missing"); self?.recording = false }; return }
                 do { try r.start { [buffer = self.buffer] c in wav.append(c); buffer.add(c) } }
                 catch { await MainActor.run { self.status = L("mic_error", "\(error)"); self.recording = false }; return }
@@ -177,7 +186,7 @@ final class ReaderWorker: @unchecked Sendable {
         let b = base
         await Task.detached {
             guard await self.downloadSpeech(),
-                  let eng = NemoEngine(xasr: self.modelPath("x-asr-zh-en-q8_0.gguf", b), diar: self.modelPath("nemotron-3-diarization-q8_0.gguf", b), threads: Prefs.effectiveThreads) else {
+                  let eng = NemoEngine(xasr: self.modelPath("x-asr-zh-en-q8_0.gguf", b), diar: self.modelPath("nemotron-3-diarization-q8_0.gguf", b), threads: Prefs.effectiveThreads, settle: Double(Prefs.speakerDelay)) else {
                 await MainActor.run { self.status = L("load_failed") }; return }
             let rm = Prefs.reader
             let stored = await self.store.isComplete(rm) ? await self.store.dir(rm).path : nil
@@ -334,6 +343,8 @@ struct SettingsView: View {
     @State private var models = Storage.models()
     @State private var threads = Prefs.threads
     @State private var reader = Prefs.readerId
+    @State private var delay = Prefs.speakerDelay
+    @AppStorage("textSize") private var textSize = 0
     @Environment(\.dismiss) private var dismiss
     var body: some View {
         NavigationStack {
@@ -341,6 +352,12 @@ struct SettingsView: View {
                 Section { Picker(L("language"), selection: $language) { ForEach(AppLanguage.allCases) { Text($0.autonym).tag($0.rawValue) } } }
                 footer: { Text(L("settings_language_note")) }
                 Section(L("theme")) { Picker(L("theme"), selection: $theme) { ForEach(Theme.allCases) { Text($0.label).tag($0.rawValue) } }.pickerStyle(.segmented) }
+                Section(L("text_size")) {
+                    Picker(L("text_size"), selection: $textSize) { ForEach(0..<Prefs.textSizeLabels.count, id: \.self) { Text(L(Prefs.textSizeLabels[$0])).tag($0) } }
+                }
+                Section {
+                    Stepper(L("seconds_n", delay), value: $delay, in: 5...30, step: 5).onChange(of: delay) { Prefs.speakerDelay = delay }
+                } header: { Text(L("recording")) } footer: { Text(L("speaker_delay_hint")) }
                 Section(L("notes_model")) {
                     Picker(L("notes_model"), selection: $reader) {
                         Text("Gemma 4 E2B · 2.2 GB").tag("E2B")

@@ -63,3 +63,12 @@
 "storage" = "Storage";
 "notif_ready" = "Meeting ready";
 "reading_s" = "Reading notes %d / %d";
+"text_size" = "Text size";
+"text_size_system" = "System";
+"text_size_small" = "Small";
+"text_size_normal" = "Normal";
+"text_size_large" = "Large";
+"text_size_xlarge" = "Extra large";
+"recording" = "Recording";
+"seconds_n" = "Live speaker delay: %d s";
+"speaker_delay_hint" = "While recording, words appear at once; speaker names follow at least this long after. Longer = more accurate names. The saved transcript is not affected.";

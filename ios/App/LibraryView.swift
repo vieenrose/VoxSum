@@ -161,6 +161,7 @@ struct LibraryView: View {
                 }.padding(.horizontal, 16)
             }
             if m.activeJob != nil {
+                HwStatusLine()
                 Button { watching = true } label: { HStack(spacing: 8) { ProgressView().controlSize(.small); VStack(alignment: .leading, spacing: 2) { Text(L("studio_processing_banner", m.status)).font(.caption).lineLimit(1); if !m.notes.isEmpty { Text(L("agent_listening", m.notes.count)).font(.caption2).foregroundStyle(.secondary) } }; Spacer() }
                     .padding(10).background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 12)) }.buttonStyle(.plain).padding(.horizontal, 16)
                 .sheet(isPresented: $watching) { WatchLive(m: m) }

@@ -14,6 +14,7 @@ struct CaptureView: View {
             }.padding(.horizontal, 20).padding(.top, 16)
             Text(Export.mmss(Double(m.elapsed))).font(.system(size: 76, weight: .bold, design: .rounded).monospacedDigit())
                 .padding(.vertical, 12)
+            HwStatusLine().padding(.bottom, 6)
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 10) {

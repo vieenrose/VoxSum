@@ -197,3 +197,7 @@
 "youtube_fetch_failed" = "無法取得此影片";
 "err_youtube_no_stream" = "此影片沒有可用的音訊串流（可能受地區或登入限制）。";
 "err_youtube_live" = "直播無法轉錄，請選擇一般影片。";
+
+"settings_hw_monitor" = "硬體狀態列";
+"settings_hw_monitor_hint" = "錄音時與 AI 閱讀時，顯示 CPU、記憶體與電池的狀態條。";
+"hw_status_cd" = "硬體狀態：CPU %1$d%%，記憶體 %2$d%%，電池 %3$d%%";

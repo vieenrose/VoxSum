@@ -197,3 +197,7 @@
 "youtube_fetch_failed" = "Couldn't fetch this video";
 "err_youtube_no_stream" = "No audio stream available for this video (it may be region- or login-gated).";
 "err_youtube_live" = "Live streams can't be transcribed; pick a regular video.";
+
+"settings_hw_monitor" = "Hardware status bar";
+"settings_hw_monitor_hint" = "Shows CPU, memory and battery gauges while recording and while the AI reads.";
+"hw_status_cd" = "Hardware status: CPU %1$d%%, memory %2$d%%, battery %3$d%%";

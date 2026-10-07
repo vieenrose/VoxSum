@@ -197,3 +197,7 @@
 "youtube_fetch_failed" = "无法获取此视频";
 "err_youtube_no_stream" = "此视频没有可用的音频流（可能受地区或登录限制）。";
 "err_youtube_live" = "直播无法转录，请选择普通视频。";
+
+"settings_hw_monitor" = "硬件状态栏";
+"settings_hw_monitor_hint" = "录音时与 AI 阅读时，显示 CPU、内存与电池的状态条。";
+"hw_status_cd" = "硬件状态：CPU %1$d%%，内存 %2$d%%，电池 %3$d%%";

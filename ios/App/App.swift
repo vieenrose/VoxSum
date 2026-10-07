@@ -388,6 +388,7 @@ struct ContentView: View {
             .sheet(isPresented: $showPodcast) { PodcastView { m.addEpisode($0) } }
             .sheet(isPresented: $showYouTube) { YouTubeSheet { m.addYouTube($0) } }
             .sheet(isPresented: $showSettings) { SettingsView(language: $language, theme: $theme) }
+            .onOpenURL { m.importAudio($0) }
             .fileImporter(isPresented: $picking, allowedContentTypes: [.audio]) { if case .success(let u) = $0 { m.importAudio(u) } }
         }
         .preferredColorScheme((Theme(rawValue: theme) ?? .auto).scheme)
@@ -400,6 +401,7 @@ struct SettingsView: View {
     @State private var models = Storage.models()
     @State private var toDelete: Storage.Item?
     @State private var threads = Prefs.threads
+    @AppStorage("hwMonitor") private var hwMonitor = true
     @State private var reader = Prefs.readerId
     @State private var delay = Prefs.speakerDelay
     @AppStorage("textSize") private var textSize = 0
@@ -426,6 +428,7 @@ struct SettingsView: View {
                 } header: { Text(L("settings_reader_model")) } footer: {
                     Text(L("reader_model_hint", 2200, 3300) + (Prefs.e4bAllowed ? "" : "\n" + L("reader_model_e4b_ram")))
                 }
+                Section { Toggle(L("settings_hw_monitor"), isOn: $hwMonitor) } footer: { Text(L("settings_hw_monitor_hint")) }
                 Section {
                     Toggle(L("threads_auto"), isOn: Binding(get: { threads == 0 }, set: { threads = $0 ? 0 : Prefs.effectiveThreads; Prefs.threads = threads }))
                     if threads > 0 {

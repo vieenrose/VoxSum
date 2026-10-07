@@ -7,7 +7,7 @@ struct LibraryView: View {
     let onAdd: () -> Void
     let onSettings: () -> Void
     @State private var query = ""
-    @State private var watching = false
+    @State private var watching = Dev.env["VOX_WATCH"] != nil
     @State private var filter = Filter.all
     @State private var renaming: Session?
     @State private var deleting: Session?
@@ -230,10 +230,10 @@ struct WatchLive: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 12) {
                     HStack(spacing: 8) { ProgressView().controlSize(.small); Text(m.status).font(.subheadline) }
-                    if m.notes.isEmpty { Text(L("watch_live_hint")).font(.footnote).foregroundStyle(.secondary) }
-                    ForEach(m.notes) { n in NoteRow(n: n) { _ in } }
+                    if m.agent.state == nil { Text(L("watch_live_hint")).font(.footnote).foregroundStyle(.secondary) }
+                    AgentPanel(agent: m.agent) { _ in }
                 }.padding(16).frame(maxWidth: .infinity, alignment: .leading)
             }
             .navigationTitle(L("action_watch_live")).navigationBarTitleDisplayMode(.inline)

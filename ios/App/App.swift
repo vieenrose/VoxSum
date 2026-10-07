@@ -131,6 +131,7 @@ final class ReaderWorker: @unchecked Sendable {
 @MainActor final class Model: ObservableObject {
     @Published var lines: [Utterance] = []
     @Published var notes: [Note] = []
+    let agent = AgentUi()
     @Published var title = ""
     @Published var summary = ""
     @Published var status = L("app_ready") { didSet { StatusLog.add(status) } }
@@ -241,7 +242,8 @@ final class ReaderWorker: @unchecked Sendable {
             }
             let stored = await self.store.isComplete(rm) ? await self.store.dir(rm).path : nil
             let r = ReaderFactory.make(dir: Dev.env["VOX_READER_DIR"] ?? stored)
-            let reader = MeetingReader(llm: r.llm, systemPrompt: r.systemPrompt, budget: .mobile)
+            let agentUi = self.agent
+            let reader = MeetingReader(llm: r.llm, systemPrompt: r.systemPrompt, events: { e in Task { @MainActor in agentUi.apply(e) } }, budget: .mobile)
             do { try reader.start() } catch { await MainActor.run { self.status = L("reader_error", "\(error)") }; return }
             var seenFrozen = 0; let conv = TextConv(); let lowRam = ProcessInfo.processInfo.physicalMemory < 4_500_000_000   // 3 GB phones cannot hold ASR + diarizer + E2B at once
             let worker = ReaderWorker(reader, paused: lowRam && cached == nil)
@@ -277,7 +279,7 @@ final class ReaderWorker: @unchecked Sendable {
             let sum = ReaderSummarizer(llm: r.llm)
             let t = sum.title(journal), prose = sum.prose(journal) ?? ReaderProtocol.minutes(journal)
             let (fl, fn, ft, fp) = (conv.utterances(cached == nil ? sk.restore(final) : final), sk.restore(conv.notes(journal)), sk.restore(text: conv.text(t ?? "")), sk.restore(text: conv.text(prose)))
-            await MainActor.run { self.lines = fl; self.notes = fn; self.title = ft; self.summary = fp; self.status = L("finished") }
+            await MainActor.run { self.lines = fl; self.notes = fn; self.title = ft; self.summary = fp; self.status = L("finished"); self.agent.apply(.state(.done, notes: fn.count)) }
             await self.archive(lines: fl, notes: fn, title: ft, summary: fp, seconds: seconds, job: job)
             if let job { Checkpoint.remove(job.id); await self.queue.remove(job.id) }
         }.value

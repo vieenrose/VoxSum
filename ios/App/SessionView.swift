@@ -58,41 +58,89 @@ struct SessionView: View {
         return s.lines.last(where: { (l: Utterance) -> Bool in l.start <= player.time })?.id
     }
 
-    var body: some View {
-        ScrollViewReader { proxy in
-            List {
-                if player.available {
-                    Section {
-                        HStack {
-                            Button { player.toggle() } label: { Image(systemName: player.playing ? "pause.circle.fill" : "play.circle.fill").font(.largeTitle) }
-                                .buttonStyle(.borderless).accessibilityLabel(L(player.playing ? "pause" : "play"))
-                            Slider(value: Binding(get: { player.time }, set: { player.seek($0) }), in: 0...max(1, player.duration))
-                            Text(Export.mmss(player.time)).font(.caption.monospacedDigit())
-                        }
-                        Toggle(L("follow"), isOn: $follow)
+    @State private var tab = 0
+    @State private var showProcess = false
+
+    private func card<C: View>(@ViewBuilder _ c: () -> C) -> some View {
+        c().padding(14).frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
+    }
+    private var playerBar: some View {
+        VStack(spacing: 6) {
+            Slider(value: Binding(get: { player.time }, set: { player.seek($0) }), in: 0...max(1, player.duration))
+            HStack {
+                Text(Export.mmss(player.time)).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                Spacer()
+                Button { player.seek(player.time - 5) } label: { Image(systemName: "gobackward.5").font(.title2) }
+                Button { player.toggle() } label: {
+                    Image(systemName: player.playing ? "pause.fill" : "play.fill").font(.title2).foregroundStyle(.white)
+                        .frame(width: 56, height: 56).background(Color.accentColor, in: Circle())
+                }.accessibilityLabel(L(player.playing ? "pause" : "play"))
+                Button { player.seek(player.time + 5) } label: { Image(systemName: "goforward.5").font(.title2) }
+                Spacer()
+                Text(Export.mmss(player.duration)).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+            }
+        }.padding(.horizontal, 20).padding(.vertical, 8).background(.bar)
+    }
+    private var summaryTab: some View {
+        VStack(spacing: 12) {
+            card {
+                HStack {
+                    Circle().fill(Color.green).frame(width: 9, height: 9)
+                    VStack(alignment: .leading) {
+                        Text(L("ai_notes")).font(.headline)
+                        Text(L("notes_n", s.notes.count)).font(.caption).foregroundStyle(.secondary)
                     }
+                    Spacer()
+                    Text(L("done_pill")).font(.caption.weight(.semibold)).padding(.horizontal, 10).padding(.vertical, 4)
+                        .background(Color.green.opacity(0.15), in: Capsule()).foregroundStyle(.green)
                 }
-                if !s.summary.isEmpty { Section(L("summary")) { Text(Self.linked(s.summary)).environment(\.openURL, OpenURLAction { u in
-                    if u.scheme == "vox", let t = Double(u.host ?? "") { player.seek(t); if !player.playing { player.toggle() }; return .handled }
-                    return .systemAction }) } }
-                if !s.notes.isEmpty { Section(L("agent")) { ForEach(s.notes) { Text(ReaderProtocol.render($0)).font(.caption) } } }
-                Section(L("transcript")) {
-                    ForEach(shown) { l in
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack {
-                                Button { renamingSpeaker = l.speaker; draft = s.speakerNames?[String(l.speaker)] ?? "" } label: { Text(s.name(l.speaker)).font(.caption.bold()) }.buttonStyle(.borderless)
-                                Text(Export.mmss(l.start)).font(.caption2).foregroundStyle(.secondary)
-                            }
-                            Text(l.text)
-                        }
-                        .id(l.id).padding(.vertical, 2)
-                        .listRowBackground(highlight(l.id))
-                        .contentShape(Rectangle())
-                        .onTapGesture { if player.available { player.seek(l.start) } }
-                    }
+                if !s.notes.isEmpty {
+                    Button(L(showProcess ? "hide_process" : "show_process")) { withAnimation { showProcess.toggle() } }.font(.subheadline)
+                    if showProcess { ForEach(s.notes) { Text(ReaderProtocol.render($0)).font(.caption).padding(.top, 2) } }
                 }
             }
-            .onChange(of: current) { _, id in if follow, player.playing, let id { withAnimation { proxy.scrollTo(id, anchor: .center) } } }
+            if !s.summary.isEmpty {
+                card {
+                    HStack { Spacer(); Button { UIPasteboard.general.string = s.summary } label: { Image(systemName: "doc.on.doc") }.accessibilityLabel(L("copy")) }
+                    Text(Self.linked(s.summary)).environment(\.openURL, OpenURLAction { u in
+                        if u.scheme == "vox", let t = Double(u.host ?? "") { player.seek(t); if !player.playing { player.toggle() }; return .handled }
+                        return .systemAction })
+                    Text(L("ai_disclaimer")).font(.caption2).foregroundStyle(.secondary)
+                }
+            }
+        }.padding(.horizontal, 16)
+    }
+    private var transcriptTab: some View {
+        LazyVStack(alignment: .leading, spacing: 8) {
+            ForEach(shown) { l in
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack {
+                        Button { renamingSpeaker = l.speaker; draft = s.speakerNames?[String(l.speaker)] ?? "" } label: { Text(s.name(l.speaker)).font(.caption.bold()) }.buttonStyle(.borderless)
+                        Text(Export.mmss(l.start)).font(.caption2).foregroundStyle(.secondary)
+                    }
+                    Text(l.text)
+                }
+                .id(l.id).padding(10).frame(maxWidth: .infinity, alignment: .leading)
+                .background(l.id == current ? Color.accentColor.opacity(0.18) : Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+                .contentShape(Rectangle())
+                .onTapGesture { if player.available { player.seek(l.start) } }
+            }
+        }.padding(.horizontal, 16)
+    }
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(spacing: 12) {
+                    Picker("", selection: $tab) { Text(L("tab_summary")).tag(0); Text(L("tab_transcript")).tag(1) }
+                        .pickerStyle(.segmented).padding(.horizontal, 16)
+                    if tab == 0 { summaryTab } else { transcriptTab }
+                }.padding(.top, 8)
+            }
+            .background(Color(.systemGroupedBackground))
+            .safeAreaInset(edge: .bottom) { if player.available { playerBar } }
+            .onChange(of: current) { _, id in if follow, player.playing, tab == 1, let id { withAnimation { proxy.scrollTo(id, anchor: .center) } } }
         }
         .searchable(text: $query)
         .navigationTitle(s.title).navigationBarTitleDisplayMode(.inline)

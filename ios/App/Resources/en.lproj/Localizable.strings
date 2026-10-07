@@ -82,3 +82,12 @@
 "empty_title" = "No sessions yet";
 "empty_hint" = "Record a meeting or add audio with +.";
 "delete_confirm" = "Delete this session?";
+"tab_summary" = "Summary";
+"tab_transcript" = "Transcript";
+"ai_notes" = "AI notes";
+"notes_n" = "%d notes";
+"done_pill" = "Done";
+"show_process" = "Show process";
+"hide_process" = "Hide process";
+"copy" = "Copy";
+"ai_disclaimer" = "AI summary, may contain errors — check against the transcript.";

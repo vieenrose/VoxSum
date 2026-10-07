@@ -82,3 +82,12 @@
 "empty_title" = "暂无场次";
 "empty_hint" = "录音或用 + 添加音频。";
 "delete_confirm" = "删除此场次？";
+"tab_summary" = "摘要";
+"tab_transcript" = "逐字稿";
+"ai_notes" = "AI 笔记";
+"notes_n" = "%d 条笔记";
+"done_pill" = "完成";
+"show_process" = "显示过程";
+"hide_process" = "隐藏过程";
+"copy" = "复制";
+"ai_disclaimer" = "AI 摘要，可能有误，请对照逐字稿确认。";

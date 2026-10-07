@@ -291,3 +291,5 @@
 "summary_copied" = "Summary copied";
 "transcript_copied" = "Transcript copied";
 "action_items_copied" = "Action items copied";
+"show_more" = "Show more";
+"show_less" = "Show less";

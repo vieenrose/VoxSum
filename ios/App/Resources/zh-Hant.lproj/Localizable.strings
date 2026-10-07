@@ -291,3 +291,5 @@
 "summary_copied" = "已複製摘要";
 "transcript_copied" = "已複製逐字稿";
 "action_items_copied" = "已複製行動項目";
+"show_more" = "顯示更多";
+"show_less" = "顯示較少";

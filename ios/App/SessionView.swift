@@ -49,6 +49,7 @@ struct SessionView: View {
     @State private var editingLine: UUID?
     @State private var transcriptDirty = false
     @State private var toast: String?
+    @State private var editingSummary = false
     @State private var exportFile: URL?
     @State private var showExport = Dev.env["VOX_EXPORT"] != nil
 
@@ -122,8 +123,10 @@ struct SessionView: View {
             }
             if !s.summary.isEmpty {
                 card {
-                    HStack { Spacer(); Button { UIPasteboard.general.string = s.summary; toast = L("summary_copied") } label: { Image(systemName: "doc.on.doc") }.accessibilityLabel(L("cd_copy_summary")) }
-                    Text(Self.linked(s.summary)).environment(\.openURL, OpenURLAction { u in
+                    HStack { Spacer()
+                        Button { draft = s.summary; editingSummary = true } label: { Image(systemName: "pencil") }.accessibilityLabel(L("cd_edit"))
+                        Button { UIPasteboard.general.string = s.summary; toast = L("summary_copied") } label: { Image(systemName: "doc.on.doc") }.accessibilityLabel(L("cd_copy_summary")) }
+                    Collapsible(lines: 12) { Text(Self.linked(s.summary)) }.environment(\.openURL, OpenURLAction { u in
                         if u.scheme == "vox", let t = Double(u.host ?? "") { player.seek(t); if !player.playing { player.toggle() }; return .handled }
                         return .systemAction })
                     Text(L("ai_disclaimer")).font(.caption2).foregroundStyle(.secondary)
@@ -135,7 +138,7 @@ struct SessionView: View {
                         Text(L("card_action_items")).font(.headline); Spacer()
                         Button { UIPasteboard.general.string = a; toast = L("action_items_copied") } label: { Image(systemName: "doc.on.doc") }.accessibilityLabel(L("cd_copy_actions"))
                     }
-                    Text(Self.linked(a)).environment(\.openURL, OpenURLAction { u in
+                    Collapsible(lines: 8) { Text(Self.linked(a)) }.environment(\.openURL, OpenURLAction { u in
                         if u.scheme == "vox", let t = Double(u.host ?? "") { player.seek(t); if !player.playing { player.toggle() }; return .handled }
                         return .systemAction })
                     Text(L("actions_verify_hint")).font(.caption2).foregroundStyle(.secondary)
@@ -254,6 +257,17 @@ struct SessionView: View {
         .overlay(alignment: .bottom) {
             if let toast { Text(toast).font(.subheadline).padding(.horizontal, 16).padding(.vertical, 10).background(.thinMaterial, in: Capsule()).padding(.bottom, 110)
                 .transition(.opacity).task { try? await Task.sleep(nanoseconds: 1_800_000_000); withAnimation { self.toast = nil } } }
+        }
+        .sheet(isPresented: $editingSummary) {
+            NavigationStack {
+                TextEditor(text: $draft).padding(.horizontal, 12)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) { Button(L("cancel")) { editingSummary = false } }
+                        ToolbarItem(placement: .confirmationAction) { Button(L("done")) {
+                            let t = draft.trimmingCharacters(in: .whitespacesAndNewlines); editingSummary = false
+                            if t != s.summary { s.summary = t; save(s) } } }
+                    }.navigationTitle(L("tab_summary")).navigationBarTitleDisplayMode(.inline)
+            }
         }
         .onDisappear { player.stop() }
     }
@@ -425,6 +439,26 @@ struct SpeakerStats: View {
                 }
             }
             .padding(.horizontal, 4).contentShape(Rectangle()).onTapGesture { withAnimation { legend.toggle() } }
+        }
+    }
+}
+
+/// Android CollapsibleMarkdown: folded past `lines` behind Show more / Show less; a new text starts collapsed.
+struct Collapsible<C: View>: View {
+    let lines: Int
+    @ViewBuilder let content: () -> C
+    @State private var expanded = false
+    @State private var full: CGFloat = 0
+    @State private var folded: CGFloat = 0
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            content().lineLimit(expanded ? nil : lines)
+                .background(GeometryReader { g in Color.clear.onAppear { folded = g.size.height }.onChange(of: g.size.height) { _, h in if !expanded { folded = h } } })
+                .background(content().fixedSize(horizontal: false, vertical: true).hidden()
+                    .background(GeometryReader { g in Color.clear.onAppear { full = g.size.height }.onChange(of: g.size.height) { _, h in full = h } }))
+            if expanded || full > folded + 1 {
+                Button(L(expanded ? "show_less" : "show_more")) { withAnimation { expanded.toggle() } }.font(.caption.weight(.medium)).foregroundStyle(.secondary)
+            }
         }
     }
 }

@@ -291,3 +291,5 @@
 "summary_copied" = "已复制摘要";
 "transcript_copied" = "已复制转写文本";
 "action_items_copied" = "已复制待办事项";
+"show_more" = "显示更多";
+"show_less" = "显示较少";

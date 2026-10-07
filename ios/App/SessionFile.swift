@@ -22,6 +22,7 @@ enum SessionFile {
     static func manifest(_ s: Session) -> Manifest {
         var m = Manifest(); m.title = s.title; m.summary = s.summary
         m.notes = s.notes.isEmpty ? nil : s.notes.map { ReaderProtocol.render($0) }.joined(separator: "\n")
+        m.action_items = s.actionItems ?? "-"
         m.asr_backend = "ios"
         m.speaker_names = (s.speakerNames ?? [:]).filter { !$0.value.isEmpty }.mapValues { Manifest.SN(name: $0, confidence: "user", reason: "") }
         m.utterances = s.lines.enumerated().map { Manifest.U(index: $0.offset, start: $0.element.start, end: $0.element.end, text: $0.element.text, speaker: $0.element.speaker) }

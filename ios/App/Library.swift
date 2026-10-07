@@ -1,6 +1,15 @@
 import Foundation
 
 /// One finished (or stopped) meeting, saved as `<id>.json`.
+/// Action items (Android ReaderLane.actions): the reader's ACTION notes after proposal reclassification,
+/// one "- text [m:ss]" line each; nil when there are none.
+extension Session {
+    var actionItems: String? {
+        let a = notes.map(ReaderProtocol.reclassify).filter { $0.tag?.uppercased() == "ACTION" }
+        return a.isEmpty ? nil : a.map { "- \($0.text.trimmingCharacters(in: CharacterSet(charactersIn: "。"))) [\($0.ts)]" }.joined(separator: "\n")
+    }
+}
+
 struct Session: Identifiable, Codable, Hashable {
     var id = UUID()
     var date = Date()

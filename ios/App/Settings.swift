@@ -34,6 +34,8 @@ func L(_ key: String, _ args: CVarArg...) -> String {
 
 /// Persisted tuning (Android ConfigStore subset). Threads: 0 = Auto, else the slider value (2…cores).
 enum Prefs {
+    /// Experimental, off by default (Android showActionItems).
+    static var showActions: Bool { UserDefaults.standard.bool(forKey: "showActions") }
     static var cores: Int { ProcessInfo.processInfo.activeProcessorCount }
     static var threads: Int {
         get { UserDefaults.standard.integer(forKey: "threads") }

@@ -249,3 +249,10 @@
 "cd_more_options" = "更多选项";
 "cd_next_talk" = "下一场（保存并开始下一段录音）";
 "search_transcript" = "搜索转写文本";
+"settings_experimental" = "实验功能";
+"settings_show_actions" = "显示行动项目";
+"settings_show_actions_hint" = "在摘要下方列出模型提取的行动项目。约五分之一可能与转写文本不符，点时间即可核对。";
+"card_action_items" = "待办事项";
+"cd_copy_actions" = "复制行动项目";
+"actions_verify_hint" = "约五分之一的项目可能与转写文本不符——点时间即可听原话核对。";
+"export_heading_actions" = "待办事项";

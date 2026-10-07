@@ -21,11 +21,13 @@ enum Export {
         case .txt, .pdf:
             var o = s.title + "\n\n"
             if !s.summary.isEmpty { o += s.summary + "\n\n" }
+            if Prefs.showActions, let a = s.actionItems { o += L("export_heading_actions") + "\n" + a + "\n\n" }
             if !s.notes.isEmpty { o += s.notes.map { ReaderProtocol.render($0) }.joined(separator: "\n") + "\n\n" }
             return o + s.lines.map { "[\(mmss($0.start))] \(s.name($0.speaker)): \($0.text)" }.joined(separator: "\n")
         case .md:
             var o = "# \(s.title)\n\n"
             if !s.summary.isEmpty { o += s.summary + "\n\n" }
+            if Prefs.showActions, let a = s.actionItems { o += "## " + L("export_heading_actions") + "\n\n" + a + "\n\n" }
             if !s.notes.isEmpty { o += "## " + L("agent") + "\n\n" + s.notes.map { "- " + ReaderProtocol.render($0) }.joined(separator: "\n") + "\n\n" }
             return o + "## " + L("transcript") + "\n\n" + s.lines.map { "**\(s.name($0.speaker))** [\(mmss($0.start))] \($0.text)\n" }.joined(separator: "\n")
         }

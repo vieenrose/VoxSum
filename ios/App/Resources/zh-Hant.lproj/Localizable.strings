@@ -249,3 +249,10 @@
 "cd_more_options" = "更多選項";
 "cd_next_talk" = "下一場（儲存並開始下一段錄音）";
 "search_transcript" = "搜尋逐字稿";
+"settings_experimental" = "實驗功能";
+"settings_show_actions" = "顯示行動項目";
+"settings_show_actions_hint" = "在摘要下方列出模型擷取的行動項目。約五分之一可能與逐字稿不符，點時間即可核對。";
+"card_action_items" = "行動項目";
+"cd_copy_actions" = "複製行動項目";
+"actions_verify_hint" = "約五分之一的項目可能與逐字稿不符——點時間即可聽原話核對。";
+"export_heading_actions" = "行動項目";

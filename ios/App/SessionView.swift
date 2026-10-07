@@ -37,6 +37,7 @@ struct SessionView: View {
     let save: (Session) -> Void
     let rerun: (Session, Bool) -> Void
     @StateObject private var player: Player
+    @AppStorage("showActions") private var showActions = false
     @State private var query = ""
     @State private var follow = true
     @State private var renamingTitle = false
@@ -115,6 +116,18 @@ struct SessionView: View {
                         if u.scheme == "vox", let t = Double(u.host ?? "") { player.seek(t); if !player.playing { player.toggle() }; return .handled }
                         return .systemAction })
                     Text(L("ai_disclaimer")).font(.caption2).foregroundStyle(.secondary)
+                }
+            }
+            if showActions, let a = s.actionItems {
+                card {
+                    HStack {
+                        Text(L("card_action_items")).font(.headline); Spacer()
+                        Button { UIPasteboard.general.string = a } label: { Image(systemName: "doc.on.doc") }.accessibilityLabel(L("cd_copy_actions"))
+                    }
+                    Text(Self.linked(a)).environment(\.openURL, OpenURLAction { u in
+                        if u.scheme == "vox", let t = Double(u.host ?? "") { player.seek(t); if !player.playing { player.toggle() }; return .handled }
+                        return .systemAction })
+                    Text(L("actions_verify_hint")).font(.caption2).foregroundStyle(.secondary)
                 }
             }
             if !s.lines.isEmpty { SpeakerStats(s: s, palette: Self.palette).id("stats") }

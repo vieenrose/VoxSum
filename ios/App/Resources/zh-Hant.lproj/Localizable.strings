@@ -118,3 +118,12 @@
 "source_audio_file_desc" = "從裝置選擇檔案";
 "source_podcast" = "Podcast";
 "source_podcast_desc" = "搜尋並下載單集";
+
+"export_sheet_title" = "匯出";
+"export_menu_entry" = "匯出與分享…";
+"export_group_document" = "文件";
+"export_group_document_desc" = "標題、摘要、行動項目與含時間戳的逐字稿。";
+"export_group_subtitles" = "字幕";
+"export_group_subtitles_desc" = "含語者標籤的時間軸字幕，適用於影音播放器。";
+"export_action_share" = "分享";
+"export_copy_transcript" = "複製逐字稿";

@@ -2,7 +2,7 @@ import UIKit
 
 /// Session export (Android ExportSheet subset): MD, TXT, SRT, VTT, PDF. Files are written to the temp dir for the share sheet.
 enum Export {
-    enum Format: String, CaseIterable, Identifiable { case md, txt, srt, vtt, pdf; var id: String { rawValue } }
+    enum Format: String, CaseIterable, Identifiable { case md, txt, srt, vtt, lrc, pdf; var id: String { rawValue } }
 
     static func clock(_ t: Double, comma: Bool = false) -> String {
         let ms = Int((t * 1000).rounded()); let h = ms / 3_600_000, m = ms / 60_000 % 60, s = ms / 1000 % 60
@@ -16,6 +16,8 @@ enum Export {
             return s.lines.enumerated().map { i, l in "\(i + 1)\n\(clock(l.start, comma: true)) --> \(clock(l.end, comma: true))\n\(s.name(l.speaker)): \(l.text)\n" }.joined(separator: "\n")
         case .vtt:
             return "WEBVTT\n\n" + s.lines.map { "\(clock($0.start)) --> \(clock($0.end))\n<v \(s.name($0.speaker))>\($0.text)\n" }.joined(separator: "\n")
+        case .lrc:
+            return s.lines.map { l in let m = Int(l.start) / 60, sec = l.start - Double(m * 60); return String(format: "[%02d:%05.2f]", m, sec) + "\(s.name(l.speaker)): \(l.text)" }.joined(separator: "\n")
         case .txt, .pdf:
             var o = s.title + "\n\n"
             if !s.summary.isEmpty { o += s.summary + "\n\n" }

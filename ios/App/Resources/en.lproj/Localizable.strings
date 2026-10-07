@@ -118,3 +118,12 @@
 "source_audio_file_desc" = "Pick a file from your device";
 "source_podcast" = "Podcast";
 "source_podcast_desc" = "Search & download an episode";
+
+"export_sheet_title" = "Export";
+"export_menu_entry" = "Export & share…";
+"export_group_document" = "Document";
+"export_group_document_desc" = "Title, summary, action items and the timestamped transcript.";
+"export_group_subtitles" = "Subtitles";
+"export_group_subtitles_desc" = "Timed lines with speaker labels, for video and audio players.";
+"export_action_share" = "Share";
+"export_copy_transcript" = "Copy transcript";

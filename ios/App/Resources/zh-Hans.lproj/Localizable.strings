@@ -118,3 +118,12 @@
 "source_audio_file_desc" = "从设备选择文件";
 "source_podcast" = "Podcast";
 "source_podcast_desc" = "搜索并下载单集";
+
+"export_sheet_title" = "导出";
+"export_menu_entry" = "导出与分享…";
+"export_group_document" = "文件";
+"export_group_document_desc" = "标题、摘要、待办事项与含时间戳的转写文本。";
+"export_group_subtitles" = "字幕";
+"export_group_subtitles_desc" = "含说话人标签的时间轴字幕，适用于影音播放器。";
+"export_action_share" = "分享";
+"export_copy_transcript" = "复制转写文本";

@@ -42,6 +42,7 @@ struct SessionView: View {
     @State private var draft = ""
     @State private var renamingSpeaker: Int?
     @State private var exportFile: URL?
+    @State private var showExport = false
 
     init(session: Session, save: @escaping (Session) -> Void) {
         _s = State(initialValue: session); self.save = save
@@ -176,9 +177,13 @@ struct SessionView: View {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
                     Button(L("rename")) { draft = s.title; renamingTitle = true }
-                    Menu(L("export")) { ForEach(Export.Format.allCases) { f in Button(f.rawValue.uppercased()) { exportFile = Export.file(s, f) } } }
+                    Button(L("export_menu_entry")) { showExport = true }
                 } label: { Image(systemName: "ellipsis.circle").accessibilityLabel(L("more")) }
             }
+        }
+        .sheet(isPresented: $showExport) {
+            ExportSheet(s: s) { f in showExport = false; DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { exportFile = Export.file(s, f) } }
+                .presentationDetents([.medium, .large])
         }
         .sheet(isPresented: Binding(get: { exportFile != nil }, set: { if !$0 { exportFile = nil } })) { if let exportFile { ShareSheet(url: exportFile) } }
         .alert(L("rename"), isPresented: $renamingTitle) {
@@ -233,4 +238,29 @@ struct ShareSheet: UIViewControllerRepresentable {
     let url: URL
     func makeUIViewController(context: Context) -> UIActivityViewController { UIActivityViewController(activityItems: [url], applicationActivities: nil) }
     func updateUIViewController(_ c: UIActivityViewController, context: Context) {}
+}
+
+
+/// Android ExportSheet: grouped formats (document / subtitles) plus copy transcript; sharing goes through the system sheet (which also offers Save to Files).
+struct ExportSheet: View {
+    let s: Session
+    let onPick: (Export.Format) -> Void
+    @State private var copied = false
+
+    private func group(_ title: String, _ desc: String, _ fs: [Export.Format]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title).font(.headline)
+            Text(desc).font(.footnote).foregroundStyle(.secondary)
+            HStack { ForEach(fs) { f in Button(f.rawValue.uppercased()) { onPick(f) }.buttonStyle(.bordered) } }
+        }
+    }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text(L("export_sheet_title")).font(.title2.bold())
+            group(L("export_group_document"), L("export_group_document_desc"), [.pdf, .md, .txt])
+            group(L("export_group_subtitles"), L("export_group_subtitles_desc"), [.srt, .vtt, .lrc])
+            Button { UIPasteboard.general.string = Export.text(s, .txt); copied = true } label: { Label(L("export_copy_transcript"), systemImage: copied ? "checkmark" : "doc.on.doc") }
+            Spacer()
+        }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
+    }
 }

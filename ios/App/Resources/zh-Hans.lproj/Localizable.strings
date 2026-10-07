@@ -139,3 +139,11 @@
 "dl_downloading" = "下载中…";
 "import_busy" = "已有下载正在进行";
 "podcast_transcribe" = "转录";
+"empty_headline" = "完全离线转录与摘要";
+"empty_subtitle" = "添加音频文件或录制会议以开始。";
+"pillar_private_title" = "隐私至上";
+"pillar_private_desc" = "音频永不离开您的设备";
+"pillar_offline_title" = "离线运行";
+"pillar_offline_desc" = "在飞机、高铁或任何无网络环境皆可使用";
+"pillar_cost_title" = "无需订阅";
+"pillar_cost_desc" = "一次拥有，无云端费用";

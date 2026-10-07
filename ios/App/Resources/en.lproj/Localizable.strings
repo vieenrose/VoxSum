@@ -139,3 +139,11 @@
 "dl_downloading" = "Downloading…";
 "import_busy" = "A download is already running";
 "podcast_transcribe" = "Transcribe";
+"empty_headline" = "Transcribe & summarize, fully offline";
+"empty_subtitle" = "Add an audio file or record a meeting to begin.";
+"pillar_private_title" = "Private by design";
+"pillar_private_desc" = "Audio never leaves your device";
+"pillar_offline_title" = "Works offline";
+"pillar_offline_desc" = "On a plane, a train, anywhere — no network";
+"pillar_cost_title" = "No subscription";
+"pillar_cost_desc" = "Yours to keep, no cloud fees";

@@ -67,6 +67,15 @@ struct LibraryView: View {
         .onTapGesture { Self.markSeen(s.id); seenRaw = UserDefaults.standard.string(forKey: "seenSessions") ?? ""; path.append(s) }
     }
 
+    private func pillar(_ icon: String, _ key: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon).foregroundStyle(.blue).frame(width: 32, height: 32).background(Color.blue.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(L(key + "_title")).font(.subheadline.weight(.semibold))
+                Text(L(key + "_desc")).font(.caption).foregroundStyle(.secondary)
+            }
+        }
+    }
     var body: some View {
         VStack(spacing: 0) {
             HStack {
@@ -87,11 +96,17 @@ struct LibraryView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 10) {
                     if m.sessions.isEmpty {
-                        VStack(spacing: 8) {
-                            Image(systemName: "waveform").font(.largeTitle).foregroundStyle(.secondary)
-                            Text(L("empty_title")).font(.headline)
-                            Text(L("empty_hint")).font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
-                        }.frame(maxWidth: .infinity).padding(.top, 60)
+                        VStack(spacing: 18) {
+                            Image(systemName: "waveform").font(.system(size: 34)).foregroundStyle(.white)
+                                .frame(width: 72, height: 72).background(Color.blue.gradient, in: RoundedRectangle(cornerRadius: 20))
+                            Text(L("empty_headline")).font(.title3.bold()).multilineTextAlignment(.center)
+                            Text(L("empty_subtitle")).font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                            VStack(alignment: .leading, spacing: 12) {
+                                pillar("lock.fill", "pillar_private")
+                                pillar("icloud.slash.fill", "pillar_offline")
+                                pillar("banknote.fill", "pillar_cost")
+                            }.padding(.top, 6)
+                        }.frame(maxWidth: .infinity).padding(.top, 40)
                     }
                     ForEach(days, id: \.0) { day, items in
                         Text(label(day)).font(.footnote.weight(.semibold)).foregroundStyle(.secondary).padding(.top, 6)

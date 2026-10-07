@@ -139,3 +139,11 @@
 "dl_downloading" = "下載中…";
 "import_busy" = "已有下載進行中";
 "podcast_transcribe" = "轉錄";
+"empty_headline" = "完全離線轉錄與摘要";
+"empty_subtitle" = "加入音訊檔案或錄製會議以開始。";
+"pillar_private_title" = "隱私至上";
+"pillar_private_desc" = "音訊永不離開您的裝置";
+"pillar_offline_title" = "離線運作";
+"pillar_offline_desc" = "在飛機、高鐵或任何無網路環境皆可使用";
+"pillar_cost_title" = "無需訂閱";
+"pillar_cost_desc" = "一次擁有，無雲端費用";

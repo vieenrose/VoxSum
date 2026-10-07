@@ -1,5 +1,6 @@
 #!/bin/bash
 # VoxSum.app for the iOS simulator without an Xcode project (swiftc + hand-made bundle).
+# DEV=1 keeps the VOX_* test hooks and the Sample button (off in release builds).
 #   build_app.sh [iphonesimulator x86_64]   after build_ios.sh + build_nemo_lib.sh
 set -e
 SDK=${1:-iphonesimulator}; ARCH=${2:-x86_64}
@@ -14,7 +15,7 @@ if [ $ARCH = arm64 ]; then
   [ $SDK = iphonesimulator ] && FW=$HOME/work/cl/CLiteRTLM.xcframework/ios-arm64-simulator
   MFA="$B/libvoxsum-mfa.a $(find $B -name 'libsentencepiece*.a' | head -1) -F$FW -framework CLiteRTLM"
 fi
-xcrun --sdk $SDK swiftc -parse-as-library -O $([ -n "$MFA" ] && echo -DVOX_REAL_READER) -target $T -import-objc-header $A/Bridging.h -Xcc -I$ROOT/ios/native -Xcc -I$ROOT/ios/native/mfa \
+xcrun --sdk $SDK swiftc -parse-as-library -O $([ -n "$MFA" ] && echo -DVOX_REAL_READER) $([ -n "$DEV" ] && echo -DVOX_DEV) -target $T -import-objc-header $A/Bridging.h -Xcc -I$ROOT/ios/native -Xcc -I$ROOT/ios/native/mfa \
   $A/App.swift $A/Engine.swift $A/Library.swift $A/AudioDecode.swift $A/OpenCC.swift $A/Queue.swift $A/Podcast.swift $A/Export.swift $A/SessionView.swift $A/Settings.swift $A/Recorder.swift $A/ModelStore.swift $A/Reader/*.swift -o $APP/VoxSum \
   $B/libvoxsum-nemo.a $MFA $C/src/libxasr.a $C/src/libcrispasr-core.a $C/ggml/src/libggml.a $C/ggml/src/libggml-cpu.a $C/ggml/src/libggml-base.a \
   -L$B/audiocpp/bin -laudiocpp -lc++ -Xlinker -rpath -Xlinker @executable_path/Frameworks

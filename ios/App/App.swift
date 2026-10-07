@@ -49,6 +49,17 @@ enum Stage {
 
 /// Runs the reader on its own thread: on slow CPUs (A12: ~12 tok/s prefill) a reader call takes 1-2 min, and inline it
 /// would throttle the transcription. Lines queue up; the reader catches up behind the ASR and after it.
+/// Test hooks (VOX_* environment variables, the Sample button) exist only in builds made with DEV=1.
+enum Dev {
+    #if VOX_DEV
+    static let on = true
+    static let env = ProcessInfo.processInfo.environment
+    #else
+    static let on = false
+    static let env: [String: String] = [:]
+    #endif
+}
+
 final class ReaderWorker: @unchecked Sendable {
     private let reader: MeetingReader, lock = NSCondition()
     private var queue: [Line] = [], busy = false, paused = false, snapshot: [Note] = [], total = 0, done = 0
@@ -84,7 +95,7 @@ final class ReaderWorker: @unchecked Sendable {
     @Published var summary = ""
     @Published var status = L("app_ready") { didSet { StatusLog.add(status) } }
     // Dev paths on the Mac (the simulator shares its filesystem).
-    let base = ProcessInfo.processInfo.environment["VOX_BASE"] ?? "/Users/Pesi/work"
+    let base = Dev.env["VOX_BASE"] ?? ""
 
     let store = ModelStore()
     let library = LibraryStore()
@@ -139,11 +150,11 @@ final class ReaderWorker: @unchecked Sendable {
     }
     /// Dev override (VOX_BASE, simulator only) else the downloaded copy in Application Support.
     nonisolated func modelPath(_ n: String, _ b: String) -> String {
-        if ProcessInfo.processInfo.environment["VOX_BASE"] != nil { return "\(b)/models/\(n)" }
+        if Dev.env["VOX_BASE"] != nil { return "\(b)/models/\(n)" }
         return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("models/nemo/\(n)").path
     }
     func downloadSpeech() async -> Bool {
-        if ProcessInfo.processInfo.environment["VOX_BASE"] != nil { return true }
+        if Dev.env["VOX_BASE"] != nil { return true }
         if await store.isComplete(.speech) { return true }
         do {
             try await store.download(.speech) { d, t in Task { @MainActor in self.status = L("download_speech", Int(d / 1_000_000), Int(t / 1_000_000)) } }
@@ -170,7 +181,7 @@ final class ReaderWorker: @unchecked Sendable {
                 await MainActor.run { self.status = L("load_failed") }; return }
             let rm = Prefs.reader
             let stored = await self.store.isComplete(rm) ? await self.store.dir(rm).path : nil
-            let r = ReaderFactory.make(dir: ProcessInfo.processInfo.environment["VOX_READER_DIR"] ?? stored)
+            let r = ReaderFactory.make(dir: Dev.env["VOX_READER_DIR"] ?? stored)
             let reader = MeetingReader(llm: r.llm, systemPrompt: r.systemPrompt, budget: .mobile)
             do { try reader.start() } catch { await MainActor.run { self.status = L("reader_error", "\(error)") }; return }
             var seenFrozen = 0; let conv = TextConv(); let lowRam = ProcessInfo.processInfo.physicalMemory < 4_500_000_000   // 3 GB phones cannot hold ASR + diarizer + E2B at once
@@ -298,10 +309,10 @@ struct ContentView: View {
             }
             .navigationTitle("VoxSum")
             .navigationDestination(for: Session.self) { x in SessionView(session: m.sessions.first { $0.id == x.id } ?? x) { m.update($0) } }
-            .onAppear { m.reload(); if ProcessInfo.processInfo.environment["VOX_OPEN"] != nil { Task { path = await m.library.all().prefix(1).map { $0 } } }; if let d = ProcessInfo.processInfo.environment["VOX_DOWNLOAD"] { if d == "speech" { Task { _ = await m.downloadSpeech() } } else { m.downloadReader() } }; if ProcessInfo.processInfo.environment["VOX_AUTORUN"] != nil { m.run() }; m.drain(); if let f = ProcessInfo.processInfo.environment["VOX_IMPORT"] { m.importAudio(URL(fileURLWithPath: f.hasPrefix("/") ? f : NSHomeDirectory() + "/" + f)) }; if let q = ProcessInfo.processInfo.environment["VOX_PODCAST"] { Task { if let sr = try? await Podcast.search(q).first, let ep = try? await Podcast.episodes(sr.feedUrl, limit: 3).last { m.addEpisode(ep) } else { m.status = "podcast: no result" } } } }
+            .onAppear { m.reload(); if Dev.env["VOX_OPEN"] != nil { Task { path = await m.library.all().prefix(1).map { $0 } } }; if let d = Dev.env["VOX_DOWNLOAD"] { if d == "speech" { Task { _ = await m.downloadSpeech() } } else { m.downloadReader() } }; if Dev.env["VOX_AUTORUN"] != nil { m.run() }; m.drain(); if let f = Dev.env["VOX_IMPORT"] { m.importAudio(URL(fileURLWithPath: f.hasPrefix("/") ? f : NSHomeDirectory() + "/" + f)) }; if let q = Dev.env["VOX_PODCAST"] { Task { if let sr = try? await Podcast.search(q).first, let ep = try? await Podcast.episodes(sr.feedUrl, limit: 3).last { m.addEpisode(ep) } else { m.status = "podcast: no result" } } } }
             .toolbar {
                 ToolbarItem(placement: .bottomBar) { Button(L("settings")) { showSettings = true } }
-                ToolbarItem(placement: .bottomBar) { Button(L("sample")) { m.run() } }
+                if Dev.on { ToolbarItem(placement: .bottomBar) { Button(L("sample")) { m.run() } } }
                 ToolbarItem(placement: .bottomBar) { Menu(L("import_audio")) { Button(L("from_files")) { picking = true }; Button(L("podcast")) { showPodcast = true } } }
                 ToolbarItem(placement: .bottomBar) { Button(L("download_reader")) { m.downloadReader() } }
                 ToolbarItem(placement: .bottomBar) { Button(m.recording ? L("stop") : L("record")) { m.toggleRecord() } }

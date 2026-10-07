@@ -141,7 +141,11 @@ final class ReaderWorker: @unchecked Sendable {
     let library = LibraryStore()
     @Published var sessions: [Session] = []
     @Published var pending = 0
-    func reload() { Task { sessions = await library.all(); pending = await queue.count } }
+    @Published var waiting: [Job] = []
+    @Published var activeJob: UUID?
+    func syncQueue() async { waiting = await queue.all; pending = waiting.count }
+    func unqueue(_ j: Job) { guard j.id != activeJob else { return }; Task { await queue.remove(j.id); Checkpoint.remove(j.id); await syncQueue() } }
+    func reload() { Task { sessions = await library.all(); await syncQueue() } }
     func update(_ s: Session) { Task { try? await library.save(s); sessions = await library.all() } }
     func remove(_ s: Session) { Task { await library.delete(s.id); sessions = await library.all() } }
     func open(_ s: Session) { lines = s.lines; notes = s.notes; title = s.title; summary = s.summary; status = L("archive_of", s.date.formatted(date: .abbreviated, time: .shortened)) }
@@ -151,7 +155,7 @@ final class ReaderWorker: @unchecked Sendable {
         var s = Session(title: title.isEmpty ? fallback : title, summary: summary, seconds: seconds, lines: lines, notes: notes)
         if let job { s.id = job.id; s.date = job.date; s.audio = job.audio; if let t = job.title, !t.isEmpty { s.title = t } }
         try? await library.save(s)
-        sessions = await library.all(); pending = await queue.count
+        sessions = await library.all(); await syncQueue()
         Notifier.done(s.title)
     }
     @Published var recording = false
@@ -284,6 +288,7 @@ final class ReaderWorker: @unchecked Sendable {
     let queue = JobQueue()
     private var draining = false
     var drainTask: Task<Void, Never>?
+    var recordingJobId: UUID? { recordingJob }
     private var recordingJob: UUID?   // being recorded: not for the queue yet
     /// Processes every queued job in order (also at launch: recordings cut short by a kill are picked up here).
     /// Android re-transcribe / re-summarize: re-queues the session's saved audio under the same id (summarize reuses the stored transcript, so only the reader runs).
@@ -292,7 +297,7 @@ final class ReaderWorker: @unchecked Sendable {
         let j = Job(id: s.id, date: s.date, audio: a, title: s.title)
         guard FileManager.default.fileExists(atPath: JobQueue.url(j).path) else { return }
         if transcribe { Checkpoint.remove(s.id) } else { Checkpoint.save(s.lines, s.id) }
-        Task { await queue.add(j); pending = await queue.count; drain() }
+        Task { await queue.add(j); await syncQueue(); drain() }
     }
     func drain() {
         guard !draining else { return }
@@ -304,11 +309,12 @@ final class ReaderWorker: @unchecked Sendable {
                 let url = JobQueue.url(job)
                 WavWriter.repair(url)
                 guard let secs = AudioDecode.duration(url), secs > 0 else { await queue.remove(job.id); continue }
-                let left = await queue.count; pending = left
+                let left = await queue.count; pending = left; activeJob = job.id; await syncQueue()
                 if left > 1 { status = L("queue_n", left) }
                 let skipper = SilenceSkipper()
                 await process(seconds: secs, job: job, skipper: skipper) { sink in try AudioPrep.stream(url, skipper: skipper, onChunk: sink) }
                 if await queue.first(skipping: recordingJob)?.id == job.id { await queue.remove(job.id) }   // failed run: never loop on it
+                activeJob = nil; await syncQueue()
             }
             draining = false
             UIApplication.shared.isIdleTimerDisabled = false

@@ -156,3 +156,5 @@
 "selection_count" = "已選取 %d 個";
 "select_all" = "全選";
 "cd_exit_selection" = "結束選取";
+"cd_status_queued" = "排入佇列";
+"action_remove_from_queue" = "從佇列移除";

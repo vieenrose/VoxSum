@@ -156,3 +156,5 @@
 "selection_count" = "%d selected";
 "select_all" = "Select all";
 "cd_exit_selection" = "Exit selection";
+"cd_status_queued" = "Queued";
+"action_remove_from_queue" = "Remove from queue";

@@ -78,6 +78,23 @@ struct LibraryView: View {
         .onTapGesture { if !selected.isEmpty { toggle(s); return }; Self.markSeen(s.id); seenRaw = UserDefaults.standard.string(forKey: "seenSessions") ?? ""; path.append(s) }
     }
 
+    private func jobCard(_ j: Job) -> some View {
+        let active = j.id == m.activeJob
+        return HStack(spacing: 12) {
+            Group { if active { ProgressView() } else { Image(systemName: "clock").font(.title3.weight(.semibold)).foregroundStyle(.orange) } }
+                .frame(width: 40, height: 40).background(Color.orange.opacity(0.14), in: RoundedRectangle(cornerRadius: 10))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(j.title ?? L("meeting")).font(.headline).lineLimit(2)
+                Text(active ? m.status : L("cd_status_queued")).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+            }
+            Spacer(minLength: 0)
+            if !active && j.id != m.recordingJobId {
+                Menu { Button(L("action_remove_from_queue"), systemImage: "xmark.circle", role: .destructive) { m.unqueue(j) } }
+                    label: { Image(systemName: "ellipsis").padding(10).contentShape(Rectangle()) }
+            }
+        }
+        .padding(12).background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
+    }
     private func toggle(_ s: Session) { if selected.contains(s.id) { selected.remove(s.id) } else { selected.insert(s.id) } }
 
     private func pillar(_ icon: String, _ key: String) -> some View {
@@ -118,7 +135,7 @@ struct LibraryView: View {
             }.padding(.vertical, 10)
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 10) {
-                    if m.sessions.isEmpty {
+                    if m.sessions.isEmpty && m.waiting.isEmpty {
                         VStack(spacing: 18) {
                             Image(systemName: "waveform").font(.system(size: 34)).foregroundStyle(.white)
                                 .frame(width: 72, height: 72).background(Color.blue.gradient, in: RoundedRectangle(cornerRadius: 20))
@@ -132,15 +149,12 @@ struct LibraryView: View {
                         }.frame(maxWidth: .infinity).padding(.top, 40)
                     }
                     if !m.sessions.isEmpty && days.isEmpty { Text(L("studio_no_match")).font(.subheadline).foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(.top, 40) }
+                    ForEach(m.waiting) { jobCard($0) }
                     ForEach(days, id: \.0) { day, items in
                         Text(label(day)).font(.footnote.weight(.semibold)).foregroundStyle(.secondary).padding(.top, 6)
                         ForEach(items) { card($0) }
                     }
                 }.padding(.horizontal, 16)
-            }
-            if m.pending > 0 {
-                HStack { Image(systemName: "list.bullet.below.rectangle"); Text(L("queue_n", m.pending)).font(.subheadline.weight(.semibold)); Spacer() }
-                    .foregroundStyle(Color.accentColor).padding(.horizontal, 20).padding(.vertical, 8)
             }
             Text(m.status).font(.caption).foregroundStyle(.secondary).lineLimit(1).padding(.horizontal, 16)
             Button { m.toggleRecord() } label: {

@@ -342,6 +342,22 @@ final class ReaderWorker: @unchecked Sendable {
         }
     }
 
+    /// YouTube video: resolve the audio stream, download it, then queue it like any import.
+    func addYouTube(_ v: YouTubeVideo) {
+        guard downloading == nil else { status = L("import_busy"); return }
+        downloading = v.title; status = L("dl_resolving")
+        Task {
+            defer { downloading = nil }
+            do {
+                let a = try await YouTube.resolve(v.url)
+                let j = Job(audio: UUID().uuidString + "." + a.ext, title: a.title)
+                status = L("podcast_downloading", 0)
+                _ = try await YouTube.download(a, name: j.audio) { f in Task { @MainActor in self.status = L("podcast_downloading", Int(f * 100)) } }
+                await queue.add(j); drain()
+            } catch { status = L("download_failed", error.localizedDescription) }
+        }
+    }
+
     func importAudio(_ url: URL) {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
@@ -356,6 +372,7 @@ struct ContentView: View {
     @State private var picking = false
     @State private var showSettings = false
     @State private var showPodcast = false
+    @State private var showYouTube = false
     @State private var showAdd = false
     @State private var path: [Session] = []
     @AppStorage("language") private var language = "system"
@@ -365,10 +382,11 @@ struct ContentView: View {
             LibraryView(m: m, path: $path, onAdd: { showAdd = true }, onSettings: { showSettings = true })
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: Session.self) { x in SessionView(session: m.sessions.first { $0.id == x.id } ?? x, save: { m.update($0) }, rerun: { m.rerun($0, transcribe: $1) }) }
-            .onAppear { BackgroundWork.model = m; m.reload(); if Dev.env["VOX_OPEN"] != nil { Task { path = await m.library.all().prefix(1).map { $0 } } }; if let d = Dev.env["VOX_DOWNLOAD"] { if d == "speech" { Task { _ = await m.downloadSpeech() } } else { m.downloadReader() } }; if Dev.env["VOX_AUTORUN"] != nil { m.run() }; if Dev.env["VOX_RECORD"] != nil { m.toggleRecord() }; if Dev.env["VOX_SETTINGS"] != nil { showSettings = true }; if Dev.env["VOX_ADD"] != nil { showAdd = true }; m.drain(); if let f = Dev.env["VOX_IMPORT"] { m.importAudio(URL(fileURLWithPath: f.hasPrefix("/") ? f : NSHomeDirectory() + "/" + f)) }; if let q = Dev.env["VOX_PODCAST"] { Task { if let sr = try? await Podcast.search(q).first, let ep = try? await Podcast.episodes(sr.feedUrl, limit: 3).last { m.addEpisode(ep) } else { m.status = "podcast: no result" } } } }
-            .sheet(isPresented: $showAdd) { AddSourceSheet(onFile: { picking = true }, onPodcast: { showPodcast = true }) }
+            .onAppear { BackgroundWork.model = m; m.reload(); if Dev.env["VOX_OPEN"] != nil { Task { path = await m.library.all().prefix(1).map { $0 } } }; if let d = Dev.env["VOX_DOWNLOAD"] { if d == "speech" { Task { _ = await m.downloadSpeech() } } else { m.downloadReader() } }; if Dev.env["VOX_AUTORUN"] != nil { m.run() }; if Dev.env["VOX_RECORD"] != nil { m.toggleRecord() }; if Dev.env["VOX_SETTINGS"] != nil { showSettings = true }; if Dev.env["VOX_ADD"] != nil { showAdd = true }; if Dev.env["VOX_YOUTUBE"] != nil { showYouTube = true }; m.drain(); if let f = Dev.env["VOX_IMPORT"] { m.importAudio(URL(fileURLWithPath: f.hasPrefix("/") ? f : NSHomeDirectory() + "/" + f)) }; if let q = Dev.env["VOX_PODCAST"] { Task { if let sr = try? await Podcast.search(q).first, let ep = try? await Podcast.episodes(sr.feedUrl, limit: 3).last { m.addEpisode(ep) } else { m.status = "podcast: no result" } } } }
+            .sheet(isPresented: $showAdd) { AddSourceSheet(onFile: { picking = true }, onPodcast: { showPodcast = true }, onYouTube: { showYouTube = true }) }
             .fullScreenCover(isPresented: Binding(get: { m.recording }, set: { _ in })) { CaptureView(m: m) }
             .sheet(isPresented: $showPodcast) { PodcastView { m.addEpisode($0) } }
+            .sheet(isPresented: $showYouTube) { YouTubeSheet { m.addYouTube($0) } }
             .sheet(isPresented: $showSettings) { SettingsView(language: $language, theme: $theme) }
             .fileImporter(isPresented: $picking, allowedContentTypes: [.audio]) { if case .success(let u) = $0 { m.importAudio(u) } }
         }
@@ -487,5 +505,46 @@ struct PodcastView: View {
     private func open(_ s: PodcastSeries) {
         busy = true; busyLabel = "dl_loading_episodes"; error = nil; current = s
         Task { defer { busy = false }; do { episodes = try await Podcast.episodes(s.feedUrl) } catch { self.error = error.localizedDescription } }
+    }
+}
+
+struct YouTubeSheet: View {
+    let pick: (YouTubeVideo) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var query = Dev.env["VOX_YOUTUBE"].flatMap { $0 == "1" ? nil : $0 } ?? ""
+    @State private var results: [YouTubeVideo] = []
+    @State private var busy = false
+    @State private var error: String?
+    var body: some View {
+        NavigationStack {
+            List {
+                if let error { Text(error).foregroundStyle(.red) }
+                ForEach(results) { v in
+                    Button { pick(v); dismiss() } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(v.title).lineLimit(2)
+                            Text([v.uploader, v.durationText].filter { !$0.isEmpty }.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                if busy { HStack(spacing: 8) { ProgressView(); Text(L("dl_searching")).font(.footnote).foregroundStyle(.secondary) } }
+            }
+            .navigationTitle(L("source_youtube"))
+            .searchable(text: $query, prompt: L("youtube_search_hint"))
+            .onSubmit(of: .search) { go() }
+            .onAppear { if !query.isEmpty { go() } }
+            .toolbar { ToolbarItem { Button(L("done")) { dismiss() } } }
+        }
+    }
+    private func go() {
+        let q = query.trimmingCharacters(in: .whitespaces)
+        guard !q.isEmpty else { return }
+        if YouTube.looksLikeUrl(q) { pick(YouTubeVideo(title: q, url: q, uploader: "", durationSec: 0)); dismiss(); return }
+        busy = true; error = nil; results = []
+        Task {
+            defer { busy = false }
+            do { results = try await YouTube.search(q); if results.isEmpty { error = L("youtube_no_videos") } }
+            catch { self.error = L("youtube_search_failed") }
+        }
     }
 }

@@ -197,6 +197,7 @@ struct LibraryView: View {
 struct AddSourceSheet: View {
     let onFile: () -> Void
     let onPodcast: () -> Void
+    let onYouTube: () -> Void
     @Environment(\.dismiss) private var dismiss
     private func row(_ icon: String, _ title: String, _ desc: String, _ action: @escaping () -> Void) -> some View {
         Button { dismiss(); action() } label: {
@@ -215,8 +216,9 @@ struct AddSourceSheet: View {
             Text(L("add_audio")).font(.title3.bold()).padding(.bottom, 8)
             row("folder", L("source_audio_file"), L("source_audio_file_desc"), onFile)
             row("dot.radiowaves.left.and.right", L("source_podcast"), L("source_podcast_desc"), onPodcast)
+            row("play.rectangle.fill", L("source_youtube"), L("source_youtube_desc"), onYouTube)
             Spacer(minLength: 0)
-        }.padding(.horizontal, 20).padding(.top, 24).presentationDetents([.height(280)])
+        }.padding(.horizontal, 20).padding(.top, 24).presentationDetents([.height(360)])
     }
 }
 

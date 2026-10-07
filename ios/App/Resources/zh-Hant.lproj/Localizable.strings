@@ -186,3 +186,14 @@
 "studio_return_capture" = "錄音中…（返回）";
 "action_watch_live" = "即時查看";
 "watch_live_hint" = "閱讀器寫下的筆記會即時顯示在這裡。";
+"source_youtube" = "YouTube";
+"source_youtube_desc" = "以關鍵字搜尋或貼上影片連結";
+"youtube_search_hint" = "搜尋影片或貼上連結";
+"youtube_go" = "前往";
+"youtube_search" = "搜尋";
+"dl_resolving" = "解析影片中…";
+"youtube_no_videos" = "找不到影片";
+"youtube_search_failed" = "搜尋失敗";
+"youtube_fetch_failed" = "無法取得此影片";
+"err_youtube_no_stream" = "此影片沒有可用的音訊串流（可能受地區或登入限制）。";
+"err_youtube_live" = "直播無法轉錄，請選擇一般影片。";

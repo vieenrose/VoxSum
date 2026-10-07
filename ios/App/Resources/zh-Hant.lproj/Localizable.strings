@@ -310,3 +310,4 @@
 "exporting" = "正在匯出場次…";
 "exporting_hint" = "將在背景繼續完成，您可以繼續使用應用程式";
 "session_share_failed" = "無法分享場次";
+"retry" = "重試";

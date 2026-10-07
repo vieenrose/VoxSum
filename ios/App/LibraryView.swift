@@ -89,14 +89,14 @@ struct LibraryView: View {
                 .accessibilityLabel(L(active ? "cd_status_processing" : "cd_status_queued"))
             VStack(alignment: .leading, spacing: 2) {
                 Text(j.title ?? L("meeting")).font(.headline).lineLimit(2)
-                Text(active ? m.status : L(m.parked.contains(j.id) ? "stop_resumable" : "cd_status_queued")).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                Text(active ? m.status : m.failed[j.id] ?? L(m.parked.contains(j.id) ? "stop_resumable" : "cd_status_queued")).font(.caption).foregroundStyle(.secondary).lineLimit(2)
             }
             Spacer(minLength: 0)
             if active {
                 Menu { Button(L("action_stop_processing"), systemImage: "stop.circle", role: .destructive) { m.stopProcessing() } }
                     label: { Image(systemName: "ellipsis").padding(10).contentShape(Rectangle()).accessibilityLabel(L("cd_manage")) }
             } else if m.parked.contains(j.id) {
-                Menu { Button(L("action_resume"), systemImage: "play.circle") { m.resume(j) }; Button(L("action_remove_from_queue"), systemImage: "xmark.circle", role: .destructive) { m.unqueue(j) } }
+                Menu { Button(L(m.failed[j.id] != nil ? "retry" : "action_resume"), systemImage: m.failed[j.id] != nil ? "arrow.clockwise" : "play.circle") { m.resume(j) }; Button(L("action_remove_from_queue"), systemImage: "xmark.circle", role: .destructive) { m.unqueue(j) } }
                     label: { Image(systemName: "ellipsis").padding(10).contentShape(Rectangle()).accessibilityLabel(L("cd_manage")) }
             } else if j.id != m.recordingJobId {
                 Menu { Button(L("action_process_now"), systemImage: "text.line.first.and.arrowtriangle.forward") { m.processNext(j) }; Button(L("action_remove_from_queue"), systemImage: "xmark.circle", role: .destructive) { m.unqueue(j) } }

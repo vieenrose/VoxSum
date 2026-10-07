@@ -152,9 +152,11 @@ final class Model: ObservableObject {
     /// Android "stop (resumable)": the running job stops at the next chunk and stays queued, parked until resumed.
     @Published var parked: Set<UUID> = []
     func stopProcessing() { guard activeJob != nil else { return }; StopFlag.on = true; status = L("stopping") }
-    func resume(_ j: Job) { parked.remove(j.id); drain() }
+    func resume(_ j: Job) { parked.remove(j.id); failed[j.id] = nil; drain() }
+    /// Jobs whose last run failed → their error, shown on the queue row with Retry.
+    @Published var failed: [UUID: String] = [:]
     func processNext(_ j: Job) { guard j.id != activeJob else { return }; Task { await queue.promote(j.id); await syncQueue() } }
-    func unqueue(_ j: Job) { guard j.id != activeJob else { return }; Task { await queue.remove(j.id); Checkpoint.remove(j.id); await syncQueue() } }
+    func unqueue(_ j: Job) { guard j.id != activeJob else { return }; failed[j.id] = nil; Task { await queue.remove(j.id); Checkpoint.remove(j.id); await syncQueue() } }
     func reload() { Task { sessions = await library.all(); await syncQueue() } }
     func update(_ s: Session) { Task { try? await library.save(s); sessions = await library.all() } }
     func remove(_ s: Session) { Task { await library.delete(s.id); sessions = await library.all() } }
@@ -340,7 +342,7 @@ final class Model: ObservableObject {
                 let skipper = SilenceSkipper()
                 await process(seconds: secs, job: job, skipper: skipper) { sink in try AudioPrep.stream(url, skipper: skipper, onChunk: sink) }
                 if StopFlag.on { StopFlag.on = false; parked.insert(job.id); status = L("status_stopped") }
-                else if await queue.first(skipping: recordingJob)?.id == job.id { await queue.remove(job.id) }   // failed run: never loop on it
+                else if await queue.first(skipping: recordingJob)?.id == job.id { parked.insert(job.id); failed[job.id] = status }   // failed run: parked with its error and a Retry (Android), never looped on
                 activeJob = nil; await syncQueue()
             }
             draining = false

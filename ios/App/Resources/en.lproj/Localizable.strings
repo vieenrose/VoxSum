@@ -310,3 +310,4 @@
 "exporting" = "Exporting session…";
 "exporting_hint" = "Continues in the background — you can keep using the app";
 "session_share_failed" = "Couldn't share session";
+"retry" = "Retry";

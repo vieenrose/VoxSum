@@ -159,3 +159,4 @@
 "cd_status_queued" = "Queued";
 "action_remove_from_queue" = "Remove from queue";
 "capture_next_talk" = "Next talk";
+"speaker_count" = "%d speakers";

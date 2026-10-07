@@ -117,6 +117,7 @@ struct SessionView: View {
                     Text(L("ai_disclaimer")).font(.caption2).foregroundStyle(.secondary)
                 }
             }
+            if !s.lines.isEmpty { SpeakerStats(s: s, palette: Self.palette) }
         }.padding(.horizontal, 16)
     }
     private var transcriptTab: some View {
@@ -309,5 +310,45 @@ struct NoteRow: View {
                 }.buttonStyle(.plain)
             }
         }.padding(.vertical, 3)
+    }
+}
+
+
+/// Android SpeakerStatsPanel: speaker count beside one stacked talk-time bar in the speakers' colours; tap for the per-speaker legend.
+struct SpeakerStats: View {
+    let s: Session
+    let palette: [Color]
+    @State private var legend = false
+    private var shares: [(spk: Int, pct: Double)] {
+        var d = [Int: Double]()
+        for l in s.lines { d[max(0, l.speaker), default: 0] += max(0, l.end - l.start) }
+        let total = d.values.reduce(0, +)
+        return total > 0 ? d.map { ($0.key, $0.value / total * 100) }.sorted { $0.1 > $1.1 } : []
+    }
+    var body: some View {
+        let sh = shares
+        if !sh.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 12) {
+                    Text(L("speaker_count", sh.count)).font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
+                    GeometryReader { g in
+                        HStack(spacing: 0) { ForEach(sh, id: \.spk) { x in palette[x.spk % palette.count].frame(width: g.size.width * x.pct / 100) } }
+                            .clipShape(Capsule())
+                    }.frame(height: 8)
+                    Image(systemName: legend ? "chevron.up" : "chevron.down").font(.caption).foregroundStyle(.secondary)
+                }
+                if legend {
+                    HStack(spacing: 14) {
+                        ForEach(sh, id: \.spk) { x in
+                            HStack(spacing: 6) {
+                                RoundedRectangle(cornerRadius: 2).fill(palette[x.spk % palette.count]).frame(width: 8, height: 8)
+                                Text("\(s.name(x.spk)) · \(Int(x.pct.rounded()))%").font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 4).contentShape(Rectangle()).onTapGesture { withAnimation { legend.toggle() } }
+        }
     }
 }

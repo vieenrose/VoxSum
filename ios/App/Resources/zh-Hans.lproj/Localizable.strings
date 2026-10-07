@@ -159,3 +159,4 @@
 "cd_status_queued" = "排入队列";
 "action_remove_from_queue" = "从队列移除";
 "capture_next_talk" = "下一场";
+"speaker_count" = "%d 位说话人";

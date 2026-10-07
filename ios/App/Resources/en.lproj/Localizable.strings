@@ -134,3 +134,8 @@
 "agent_tag_open" = "Open issue";
 "agent_tag_number" = "Figure";
 "agent_tag_proposal" = "Proposal";
+"dl_searching" = "Searching…";
+"dl_loading_episodes" = "Loading episodes…";
+"dl_downloading" = "Downloading…";
+"import_busy" = "A download is already running";
+"podcast_transcribe" = "Transcribe";

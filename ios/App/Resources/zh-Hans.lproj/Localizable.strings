@@ -134,3 +134,8 @@
 "agent_tag_open" = "未决";
 "agent_tag_number" = "数字";
 "agent_tag_proposal" = "提议";
+"dl_searching" = "搜索中…";
+"dl_loading_episodes" = "加载单集中…";
+"dl_downloading" = "下载中…";
+"import_busy" = "已有下载正在进行";
+"podcast_transcribe" = "转录";

@@ -298,3 +298,8 @@
 "status_transcript_lines_speakers" = "转写文本：%1$d 行，%2$d 位说话人";
 "import_failed" = "无法导入该文件";
 "mic_permission_required" = "录音需要麦克风权限";
+"pipeline_transcript_via" = "使用 %@ · %@";
+"pipeline_diar_nemotron" = "说话人由 Nemotron-3 实时分离";
+"summary_settings_changed" = "摘要设置已变更，请点“重新摘要”以应用。";
+"export_share_transcript" = "分享转写文本…";
+"card_summary" = "摘要";

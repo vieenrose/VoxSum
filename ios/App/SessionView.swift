@@ -50,6 +50,7 @@ struct SessionView: View {
     @State private var transcriptDirty = false
     @State private var toast: String?
     @State private var editingSummary = false
+    @State private var summaryStale = false
     @State private var exportFile: URL?
     @State private var showExport = Dev.env["VOX_EXPORT"] != nil
 
@@ -123,7 +124,7 @@ struct SessionView: View {
             }
             if !s.summary.isEmpty {
                 card {
-                    HStack { Spacer()
+                    HStack { Text(L("card_summary")).font(.headline); Spacer()
                         Button { draft = s.summary; editingSummary = true } label: { Image(systemName: "pencil") }.accessibilityLabel(L("cd_edit"))
                         Button { UIPasteboard.general.string = s.summary; toast = L("summary_copied") } label: { Image(systemName: "doc.on.doc") }.accessibilityLabel(L("cd_copy_summary")) }
                     Collapsible(lines: 12) { Text(Self.linked(s.summary)) }.environment(\.openURL, OpenURLAction { u in
@@ -172,6 +173,7 @@ struct SessionView: View {
                     Button { searching = false; query = "" } label: { Image(systemName: "xmark.circle.fill") }.accessibilityLabel(L("search_close"))
                 }.padding(10).background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
             }
+            if !s.lines.isEmpty { Text(L("pipeline_transcript_via", "X-ASR", L("pipeline_diar_nemotron"))).font(.caption2).foregroundStyle(.secondary) }
             ForEach(shown) { l in
                 VStack(alignment: .leading, spacing: 2) {
                     HStack {
@@ -214,6 +216,7 @@ struct SessionView: View {
                 Menu {
                     Button(L("rename")) { draft = s.title; renamingTitle = true }
                     Button(L("export_menu_entry")) { showExport = true }
+                    if !s.lines.isEmpty { ShareLink(item: Export.text(s, .txt), subject: Text(s.title)) { Text(L("export_share_transcript")) } }
                     if s.audio != nil {
                         Button(L("re_transcribe")) { rerun(s, true) }
                         Button(L("re_summarize")) { rerun(s, false) }
@@ -269,6 +272,11 @@ struct SessionView: View {
                     }.navigationTitle(L("tab_summary")).navigationBarTitleDisplayMode(.inline)
             }
         }
+        .alert(L("summary_settings_changed"), isPresented: $summaryStale) {
+            Button(L("re_summarize")) { rerun(s, false) }
+            Button(L("cancel"), role: .cancel) {}
+        }
+        .task { if let r = s.reader, r != Prefs.readerId, !s.summary.isEmpty, s.audio != nil { summaryStale = true } }
         .onDisappear { player.stop() }
     }
 

@@ -164,6 +164,7 @@ final class Model: ObservableObject {
         let fallback = lines.first.map { String($0.text.prefix(20)) } ?? L("meeting")
         var s = Session(title: title.isEmpty ? fallback : title, summary: summary, seconds: seconds, lines: lines, notes: notes)
         if let job { s.id = job.id; s.date = job.date; s.audio = job.audio; if let t = job.title, !t.isEmpty { s.title = t } }
+        if !summary.isEmpty { s.reader = Prefs.readerId }
         try? await library.save(s)
         sessions = await library.all(); await syncQueue()
         Notifier.done(s.title)

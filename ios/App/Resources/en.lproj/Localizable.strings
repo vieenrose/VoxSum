@@ -298,3 +298,8 @@
 "status_transcript_lines_speakers" = "Transcript: %1$d lines, %2$d speakers";
 "import_failed" = "Couldn't import that file";
 "mic_permission_required" = "Microphone permission is required to record";
+"pipeline_transcript_via" = "via %@ · %@";
+"pipeline_diar_nemotron" = "speakers via Nemotron-3 (live)";
+"summary_settings_changed" = "Summary settings changed — tap Re-summarize to apply.";
+"export_share_transcript" = "Share transcript…";
+"card_summary" = "Summary";

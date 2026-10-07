@@ -298,3 +298,8 @@
 "status_transcript_lines_speakers" = "逐字稿：%1$d 行，%2$d 位語者";
 "import_failed" = "無法匯入該檔案";
 "mic_permission_required" = "錄音需要麥克風權限";
+"pipeline_transcript_via" = "使用 %@ · %@";
+"pipeline_diar_nemotron" = "語者由 Nemotron-3 即時分離";
+"summary_settings_changed" = "摘要設定已變更，請點「重新摘要」以套用。";
+"export_share_transcript" = "分享逐字稿…";
+"card_summary" = "摘要";

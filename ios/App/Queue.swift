@@ -63,3 +63,16 @@ final class WavWriter: @unchecked Sendable {
         b += [UInt8]("data".utf8) + le(n); return Data(b)
     }
 }
+
+/// Transcript saved when the speech stage ends, so a kill while the reader works (3 GB phones) does not redo the
+/// transcription: the retry restores it and runs the reader alone. Times are already in the original audio.
+enum Checkpoint {
+    static var dir: URL { JobQueue.audioDir.deletingLastPathComponent().appendingPathComponent("checkpoints") }
+    private static func url(_ id: UUID) -> URL { dir.appendingPathComponent(id.uuidString + ".json") }
+    static func save(_ us: [Utterance], _ id: UUID) {
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        if let d = try? JSONEncoder().encode(us) { try? d.write(to: url(id), options: .atomic) }
+    }
+    static func load(_ id: UUID) -> [Utterance]? { (try? Data(contentsOf: url(id))).flatMap { try? JSONDecoder().decode([Utterance].self, from: $0) } }
+    static func remove(_ id: UUID) { try? FileManager.default.removeItem(at: url(id)) }
+}

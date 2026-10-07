@@ -16,7 +16,13 @@ enum AudioDecode {
         let inCap: AVAudioFrameCount = 16384
         while file.framePosition < file.length {
             guard let inBuf = AVAudioPCMBuffer(pcmFormat: inFmt, frameCapacity: inCap) else { break }
-            try file.read(into: inBuf, frameCount: inCap)
+            // A bad packet mid-file (seen at 2422 s of a 45 min mp3: avfaudio 560164718) cannot be skipped by AVAudioFile:
+            // keep what was decoded instead of discarding the whole recording.
+            do { try file.read(into: inBuf, frameCount: inCap) } catch {
+                if file.framePosition == 0 { throw error }
+                StatusLog.add("trace audio decode stopped at \(Int(Double(file.framePosition) / inFmt.sampleRate)) s: \(error)")
+                return
+            }
             if inBuf.frameLength == 0 { break }
             let cap = AVAudioFrameCount(Double(inBuf.frameLength) * 16000 / inFmt.sampleRate) + 32
             guard let o = AVAudioPCMBuffer(pcmFormat: out, frameCapacity: cap) else { break }

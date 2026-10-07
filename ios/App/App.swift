@@ -216,18 +216,21 @@ final class ReaderWorker: @unchecked Sendable {
         status = L("loading_models"); lines = []; notes = []; title = ""; summary = ""
         let b = base
         await Task.detached {
-            guard await self.downloadSpeech(),
-                  let eng = NemoEngine(xasr: self.modelPath("x-asr-zh-en-q8_0.gguf", b), diar: self.modelPath("nemotron-3-diarization-q8_0.gguf", b), threads: Prefs.effectiveThreads, settle: Double(Prefs.speakerDelay)) else {
-                await MainActor.run { self.status = L("load_failed") }; return }
+            let cached = job.flatMap { Checkpoint.load($0.id) }   // transcript done by an earlier attempt: only the reader is left
+            let speechReady = cached != nil ? true : await self.downloadSpeech()
+            guard speechReady else { await MainActor.run { self.status = L("load_failed") }; return }
+            let eng = cached != nil ? nil : NemoEngine(xasr: self.modelPath("x-asr-zh-en-q8_0.gguf", b), diar: self.modelPath("nemotron-3-diarization-q8_0.gguf", b), threads: Prefs.effectiveThreads, settle: Double(Prefs.speakerDelay))
+            if cached == nil && eng == nil { await MainActor.run { self.status = L("load_failed") }; return }
             let rm = Prefs.reader
             let stored = await self.store.isComplete(rm) ? await self.store.dir(rm).path : nil
             let r = ReaderFactory.make(dir: Dev.env["VOX_READER_DIR"] ?? stored)
             let reader = MeetingReader(llm: r.llm, systemPrompt: r.systemPrompt, budget: .mobile)
             do { try reader.start() } catch { await MainActor.run { self.status = L("reader_error", "\(error)") }; return }
             var seenFrozen = 0; let conv = TextConv(); let lowRam = ProcessInfo.processInfo.physicalMemory < 4_500_000_000   // 3 GB phones cannot hold ASR + diarizer + E2B at once
-            let worker = ReaderWorker(reader, paused: lowRam)
+            let worker = ReaderWorker(reader, paused: lowRam && cached == nil)
+            let sk = skipper ?? SilenceSkipper()   // nothing skipped → identity
             do {
-                try feed { chunk in
+                if cached == nil, let eng { try feed { chunk in
                     _ = Stage.watchdog; Stage.set("push")
                     if !eng.push(chunk) { StatusLog.add("trace push failed at \(Int(eng.fedSeconds)) s") }
                     let (frozen, tail) = eng.live()
@@ -240,20 +243,26 @@ final class ReaderWorker: @unchecked Sendable {
                     }
                     Stage.set("idle")
                     return true
-                }
+                } }
             } catch { await MainActor.run { self.status = L("audio_error", error.localizedDescription) }; return }
             Stage.set("finish")
-            let final = eng.finish() ?? []
-            if lowRam { eng.close(); StatusLog.add("trace models freed, reader starts (\(os_proc_available_memory() / 1_048_576) MB free)"); worker.resume() }
+            let final: [Utterance]
+            if let cached {
+                final = cached; StatusLog.add("trace transcript restored from checkpoint, \(cached.count) utterances")
+                for u in cached { if let l = ReaderSummarizer.toLine(u) { worker.offer(l) } }
+            } else {
+                final = eng?.finish() ?? []
+                if let job { Checkpoint.save(sk.restore(final), job.id) }
+                if lowRam { eng?.close(); StatusLog.add("trace models freed, reader starts (\(os_proc_available_memory() / 1_048_576) MB free)"); worker.resume() }
+            }
             worker.drain { d, t in Task { @MainActor in self.status = L("reading_s", d, t) } }
             _ = try? reader.finish(); let journal = reader.journal
             let sum = ReaderSummarizer(llm: r.llm)
             let t = sum.title(journal), prose = sum.prose(journal) ?? ReaderProtocol.minutes(journal)
-            let sk = skipper ?? SilenceSkipper()   // nothing skipped → identity
-            let (fl, fn, ft, fp) = (sk.restore(conv.utterances(final)), sk.restore(conv.notes(journal)), sk.restore(text: conv.text(t ?? "")), sk.restore(text: conv.text(prose)))
+            let (fl, fn, ft, fp) = (conv.utterances(cached == nil ? sk.restore(final) : final), sk.restore(conv.notes(journal)), sk.restore(text: conv.text(t ?? "")), sk.restore(text: conv.text(prose)))
             await MainActor.run { self.lines = fl; self.notes = fn; self.title = ft; self.summary = fp; self.status = L("finished") }
             await self.archive(lines: fl, notes: fn, title: ft, summary: fp, seconds: seconds, job: job)
-            if let job { await self.queue.remove(job.id) }
+            if let job { Checkpoint.remove(job.id); await self.queue.remove(job.id) }
         }.value
     }
 

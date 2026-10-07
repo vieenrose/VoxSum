@@ -96,3 +96,6 @@
 "search_prev" = "Previous";
 "search_next" = "Next";
 "search_close" = "Close search";
+"status_recording" = "Recording…";
+"capture_live_waiting" = "Listening…";
+"capture_stop" = "Stop and save";

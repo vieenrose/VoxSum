@@ -96,3 +96,6 @@
 "search_prev" = "上一个";
 "search_next" = "下一个";
 "search_close" = "关闭搜索";
+"status_recording" = "录音中…";
+"capture_live_waiting" = "聆听中…";
+"capture_stop" = "停止并保存";

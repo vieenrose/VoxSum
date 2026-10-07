@@ -46,7 +46,7 @@
 "podcast_search" = "搜尋 Podcast";
 "podcast_downloading" = "下載單集 %d %%";
 "back" = "返回";
-"speaker_n" = "說話者 %d";
+"speaker_n" = "語者 %d";
 "rename" = "重新命名";
 "export" = "匯出";
 "play" = "播放";
@@ -96,3 +96,6 @@
 "search_prev" = "上一個";
 "search_next" = "下一個";
 "search_close" = "關閉搜尋";
+"status_recording" = "錄音中…";
+"capture_live_waiting" = "聆聽中…";
+"capture_stop" = "停止並儲存";

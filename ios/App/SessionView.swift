@@ -60,7 +60,7 @@ struct SessionView: View {
     @State private var match = 0
     @FocusState private var searchFocus: Bool
     private static let palette: [Color] = [.blue, .orange, .green, .purple, .pink, .teal, .red, .indigo]
-    private func tint(_ spk: Int) -> Color { Self.palette[spk % Self.palette.count] }
+    private func tint(_ spk: Int) -> Color { Self.palette[max(0, spk) % Self.palette.count] }
     private var hits: [Utterance] { query.isEmpty ? [] : s.lines.filter { $0.text.localizedCaseInsensitiveContains(query) } }
     @State private var showProcess = false
 

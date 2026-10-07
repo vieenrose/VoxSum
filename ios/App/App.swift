@@ -155,6 +155,7 @@ final class ReaderWorker: @unchecked Sendable {
         Notifier.done(s.title)
     }
     @Published var recording = false
+    @Published var elapsed = 0
     private var recorder: Recorder?
     private let buffer = ChunkBuffer()
 
@@ -164,6 +165,7 @@ final class ReaderWorker: @unchecked Sendable {
             guard await Recorder.requestPermission() else { status = L("mic_denied"); return }
             guard await downloadSpeech() else { return }
             status = L("loading_models"); lines = []; notes = []; title = ""; summary = ""
+            elapsed = 0
             let r = Recorder(); recorder = r; recording = true; UIApplication.shared.isIdleTimerDisabled = true
             let job = Job(audio: UUID().uuidString + ".wav")
             guard let wav = try? WavWriter(JobQueue.url(job)) else { recording = false; return }
@@ -181,7 +183,7 @@ final class ReaderWorker: @unchecked Sendable {
                     let chunk = self.buffer.take()
                     if !chunk.isEmpty { _ = eng.push(chunk) }
                     let (frozen, tail) = eng.live(); seen = frozen.count
-                    await MainActor.run { self.lines = conv.utterances(frozen + tail); self.status = L("recording_s", Int(eng.fedSeconds)) }
+                    await MainActor.run { self.lines = conv.utterances(frozen + tail); self.elapsed = Int(eng.fedSeconds); self.status = L("recording_s", Int(eng.fedSeconds)) }
                 }
                 wav.finish()
                 await MainActor.run { self.recordingJob = nil }
@@ -339,13 +341,14 @@ struct ContentView: View {
             LibraryView(m: m, path: $path, onAdd: { showAdd = true }, onSettings: { showSettings = true })
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: Session.self) { x in SessionView(session: m.sessions.first { $0.id == x.id } ?? x) { m.update($0) } }
-            .onAppear { BackgroundWork.model = m; m.reload(); if Dev.env["VOX_OPEN"] != nil { Task { path = await m.library.all().prefix(1).map { $0 } } }; if let d = Dev.env["VOX_DOWNLOAD"] { if d == "speech" { Task { _ = await m.downloadSpeech() } } else { m.downloadReader() } }; if Dev.env["VOX_AUTORUN"] != nil { m.run() }; m.drain(); if let f = Dev.env["VOX_IMPORT"] { m.importAudio(URL(fileURLWithPath: f.hasPrefix("/") ? f : NSHomeDirectory() + "/" + f)) }; if let q = Dev.env["VOX_PODCAST"] { Task { if let sr = try? await Podcast.search(q).first, let ep = try? await Podcast.episodes(sr.feedUrl, limit: 3).last { m.addEpisode(ep) } else { m.status = "podcast: no result" } } } }
+            .onAppear { BackgroundWork.model = m; m.reload(); if Dev.env["VOX_OPEN"] != nil { Task { path = await m.library.all().prefix(1).map { $0 } } }; if let d = Dev.env["VOX_DOWNLOAD"] { if d == "speech" { Task { _ = await m.downloadSpeech() } } else { m.downloadReader() } }; if Dev.env["VOX_AUTORUN"] != nil { m.run() }; if Dev.env["VOX_RECORD"] != nil { m.toggleRecord() }; m.drain(); if let f = Dev.env["VOX_IMPORT"] { m.importAudio(URL(fileURLWithPath: f.hasPrefix("/") ? f : NSHomeDirectory() + "/" + f)) }; if let q = Dev.env["VOX_PODCAST"] { Task { if let sr = try? await Podcast.search(q).first, let ep = try? await Podcast.episodes(sr.feedUrl, limit: 3).last { m.addEpisode(ep) } else { m.status = "podcast: no result" } } } }
             .confirmationDialog(L("import_audio"), isPresented: $showAdd) {
                 Button(L("from_files")) { picking = true }
                 Button(L("podcast")) { showPodcast = true }
                 Button(L("download_reader")) { m.downloadReader() }
                 if Dev.on { Button(L("sample")) { m.run() } }
             }
+            .fullScreenCover(isPresented: Binding(get: { m.recording }, set: { _ in })) { CaptureView(m: m) }
             .sheet(isPresented: $showPodcast) { PodcastView { m.addEpisode($0) } }
             .sheet(isPresented: $showSettings) { SettingsView(language: $language, theme: $theme) }
             .fileImporter(isPresented: $picking, allowedContentTypes: [.audio]) { if case .success(let u) = $0 { m.importAudio(u) } }

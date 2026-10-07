@@ -264,3 +264,5 @@
 "settings_seconds" = "%1$d 秒";
 "settings_language_hint" = "同时决定界面语言，以及转写文本、摘要与笔记使用的字体（繁体或简体）。";
 "storage_model_pending" = "摘要模型尚未下载（%1$d MB），首次使用时自动下载。";
+"theme_eink" = "电子纸";
+"theme_eink_hint" = "电子纸为专为电子阅读器设计的高对比扁平主题，请手动选用。";

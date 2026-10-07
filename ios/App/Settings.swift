@@ -75,10 +75,20 @@ enum Prefs {
 
 /// Appearance (Android theme: Auto / Light / Dark; no e-ink on iOS).
 enum Theme: String, CaseIterable, Identifiable {
-    case auto, light, dark
+    case auto, light, dark, eink
     var id: String { rawValue }
     var label: String { L("theme_" + rawValue) }
-    var scheme: ColorScheme? { switch self { case .auto: return nil; case .light: return .light; case .dark: return .dark } }
+    var scheme: ColorScheme? { switch self { case .auto: return nil; case .light, .eink: return .light; case .dark: return .dark } }
+}
+
+/// Android EinkColors: a manual, flat, high-contrast light theme — black accent, bold legibility, no animation.
+struct ThemeStyle: ViewModifier {
+    let theme: Theme
+    func body(content: Content) -> some View {
+        if theme == .eink {
+            content.tint(.black).environment(\.legibilityWeight, .bold).transaction { $0.disablesAnimations = true; $0.animation = nil }
+        } else { content }
+    }
 }
 
 /// What the app keeps on disk (Android Storage section): each model folder with its size, deletable.

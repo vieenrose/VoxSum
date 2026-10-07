@@ -264,3 +264,5 @@
 "settings_seconds" = "%1$d s";
 "settings_language_hint" = "Sets the interface and the script of the transcript, summary and notes.";
 "storage_model_pending" = "Summary model not downloaded yet (%1$d MB) — it downloads on first use.";
+"theme_eink" = "E-ink";
+"theme_eink_hint" = "E-ink is a flat high-contrast theme for e-paper devices; select it manually.";

@@ -1,0 +1,123 @@
+import SwiftUI
+
+/// Home screen (Android library): search, filter chips, sessions grouped by day as cards, row menu, queue link, record button.
+struct LibraryView: View {
+    @ObservedObject var m: Model
+    @Binding var path: [Session]
+    let onAdd: () -> Void
+    let onSettings: () -> Void
+    @State private var query = ""
+    @State private var filter = Filter.all
+    @State private var renaming: Session?
+    @State private var deleting: Session?
+    @State private var draft = ""
+    @AppStorage("seenSessions") private var seenRaw = ""
+
+    enum Filter: String, CaseIterable { case all, new, done }
+    private var seen: Set<String> { Set(seenRaw.split(separator: ",").map(String.init)) }
+    static func markSeen(_ id: UUID) {
+        var s = Set((UserDefaults.standard.string(forKey: "seenSessions") ?? "").split(separator: ",").map(String.init))
+        s.insert(id.uuidString); UserDefaults.standard.set(s.joined(separator: ","), forKey: "seenSessions")
+    }
+    private func isNew(_ s: Session) -> Bool { !seen.contains(s.id.uuidString) }
+    private var shown: [Session] {
+        m.sessions.filter { s in
+            switch filter { case .all: true; case .new: isNew(s); case .done: !isNew(s) }
+        }.filter { query.isEmpty || $0.title.localizedCaseInsensitiveContains(query) }
+    }
+    private var days: [(Date, [Session])] {
+        let g = Dictionary(grouping: shown) { Calendar.current.startOfDay(for: $0.date) }
+        return g.keys.sorted(by: >).map { ($0, g[$0]!) }
+    }
+    private func label(_ d: Date) -> String {
+        if Calendar.current.isDateInToday(d) { return L("today") }
+        if Calendar.current.isDateInYesterday(d) { return L("yesterday") }
+        return d.formatted(date: .abbreviated, time: .omitted)
+    }
+    private func chip(_ f: Filter) -> some View {
+        let n = f == .all ? m.sessions.count : m.sessions.filter { f == .new ? isNew($0) : !isNew($0) }.count
+        return Button { filter = f } label: {
+            Text("\(L("filter_" + f.rawValue)) (\(n))").font(.subheadline.weight(.semibold))
+                .padding(.horizontal, 14).padding(.vertical, 7)
+                .background(filter == f ? Color.accentColor : Color(.secondarySystemGroupedBackground), in: Capsule())
+                .foregroundStyle(filter == f ? Color.white : Color.primary)
+        }.buttonStyle(.plain)
+    }
+    private func card(_ s: Session) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: isNew(s) ? "waveform" : "checkmark")
+                .font(.title3.weight(.semibold)).frame(width: 40, height: 40)
+                .foregroundStyle(isNew(s) ? Color.secondary : Color.green)
+                .background((isNew(s) ? Color.secondary : Color.green).opacity(0.14), in: RoundedRectangle(cornerRadius: 10))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(s.title).font(.headline).lineLimit(2)
+                Text("\(s.date.formatted(date: .omitted, time: .shortened)) · \(Export.mmss(s.seconds))")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+            Menu {
+                Button(L("rename"), systemImage: "pencil") { draft = s.title; renaming = s }
+                Button(L("delete"), systemImage: "trash", role: .destructive) { deleting = s }
+            } label: { Image(systemName: "ellipsis").padding(10).contentShape(Rectangle()) }
+                .accessibilityLabel(L("more"))
+        }
+        .padding(12)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
+        .contentShape(Rectangle())
+        .onTapGesture { Self.markSeen(s.id); seenRaw = UserDefaults.standard.string(forKey: "seenSessions") ?? ""; path.append(s) }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Image(systemName: "waveform").font(.headline).foregroundStyle(.white)
+                    .frame(width: 34, height: 34).background(Color.accentColor, in: RoundedRectangle(cornerRadius: 9))
+                Text("VoxSum").font(.title2.bold())
+                Spacer()
+                Button(action: onAdd) { Image(systemName: "plus").font(.title3) }.accessibilityLabel(L("import_audio"))
+                Button(action: onSettings) { Image(systemName: "slider.horizontal.3").font(.title3) }.accessibilityLabel(L("settings")).padding(.leading, 12)
+            }.padding(.horizontal, 16).padding(.vertical, 8)
+            HStack {
+                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                TextField(L("search_sessions"), text: $query)
+            }.padding(12).background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12)).padding(.horizontal, 16)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack { ForEach(Filter.allCases, id: \.self) { chip($0) } }.padding(.horizontal, 16)
+            }.padding(.vertical, 10)
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 10) {
+                    if m.sessions.isEmpty {
+                        VStack(spacing: 8) {
+                            Image(systemName: "waveform").font(.largeTitle).foregroundStyle(.secondary)
+                            Text(L("empty_title")).font(.headline)
+                            Text(L("empty_hint")).font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                        }.frame(maxWidth: .infinity).padding(.top, 60)
+                    }
+                    ForEach(days, id: \.0) { day, items in
+                        Text(label(day)).font(.footnote.weight(.semibold)).foregroundStyle(.secondary).padding(.top, 6)
+                        ForEach(items) { card($0) }
+                    }
+                }.padding(.horizontal, 16)
+            }
+            if m.pending > 0 {
+                HStack { Image(systemName: "list.bullet.below.rectangle"); Text(L("queue_n", m.pending)).font(.subheadline.weight(.semibold)); Spacer() }
+                    .foregroundStyle(Color.accentColor).padding(.horizontal, 20).padding(.vertical, 8)
+            }
+            Text(m.status).font(.caption).foregroundStyle(.secondary).lineLimit(1).padding(.horizontal, 16)
+            Button { m.toggleRecord() } label: {
+                Label(m.recording ? L("stop") : L("record"), systemImage: m.recording ? "stop.fill" : "mic.fill")
+                    .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 16)
+                    .background(m.recording ? Color.red : Color.accentColor, in: RoundedRectangle(cornerRadius: 16)).foregroundStyle(.white)
+            }.padding(.horizontal, 16).padding(.vertical, 8)
+        }
+        .background(Color(.systemGroupedBackground))
+        .alert(L("rename"), isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
+            TextField(L("title"), text: $draft)
+            Button(L("done")) { if var s = renaming, !draft.trimmingCharacters(in: .whitespaces).isEmpty { s.title = draft; m.update(s) } }
+            Button(L("cancel"), role: .cancel) {}
+        }
+        .confirmationDialog(L("delete_confirm"), isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
+            Button(L("delete"), role: .destructive) { if let s = deleting { m.remove(s) } }
+        }
+    }
+}

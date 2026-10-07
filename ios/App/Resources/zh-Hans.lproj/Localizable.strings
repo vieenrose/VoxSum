@@ -73,3 +73,12 @@
 "seconds_n" = "实时讲者延迟：%d 秒";
 "speaker_delay_hint" = "录音时文字会立即出现；讲者名称至少延后这么久才标注。越长越准确。保存的逐字稿不受影响。";
 "more" = "更多";
+"today" = "今天";
+"yesterday" = "昨天";
+"filter_all" = "全部";
+"filter_new" = "新";
+"filter_done" = "已完成";
+"search_sessions" = "搜索场次…";
+"empty_title" = "暂无场次";
+"empty_hint" = "录音或用 + 添加音频。";
+"delete_confirm" = "删除此场次？";

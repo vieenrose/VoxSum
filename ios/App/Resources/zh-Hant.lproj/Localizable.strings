@@ -73,3 +73,12 @@
 "seconds_n" = "即時講者延遲：%d 秒";
 "speaker_delay_hint" = "錄音時文字會立即出現；講者名稱至少延後這麼久才標示。越長越準確。儲存的逐字稿不受影響。";
 "more" = "更多";
+"today" = "今天";
+"yesterday" = "昨天";
+"filter_all" = "全部";
+"filter_new" = "新";
+"filter_done" = "已完成";
+"search_sessions" = "搜尋場次…";
+"empty_title" = "尚無場次";
+"empty_hint" = "錄音或用 + 加入音訊。";
+"delete_confirm" = "刪除此場次？";

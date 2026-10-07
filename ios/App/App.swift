@@ -140,7 +140,8 @@ final class ReaderWorker: @unchecked Sendable {
     let store = ModelStore()
     let library = LibraryStore()
     @Published var sessions: [Session] = []
-    func reload() { Task { sessions = await library.all() } }
+    @Published var pending = 0
+    func reload() { Task { sessions = await library.all(); pending = await queue.count } }
     func update(_ s: Session) { Task { try? await library.save(s); sessions = await library.all() } }
     func remove(_ s: Session) { Task { await library.delete(s.id); sessions = await library.all() } }
     func open(_ s: Session) { lines = s.lines; notes = s.notes; title = s.title; summary = s.summary; status = L("archive_of", s.date.formatted(date: .abbreviated, time: .shortened)) }
@@ -150,7 +151,7 @@ final class ReaderWorker: @unchecked Sendable {
         var s = Session(title: title.isEmpty ? fallback : title, summary: summary, seconds: seconds, lines: lines, notes: notes)
         if let job { s.id = job.id; s.date = job.date; s.audio = job.audio; if let t = job.title, !t.isEmpty { s.title = t } }
         try? await library.save(s)
-        sessions = await library.all()
+        sessions = await library.all(); pending = await queue.count
         Notifier.done(s.title)
     }
     @Published var recording = false
@@ -289,7 +290,7 @@ final class ReaderWorker: @unchecked Sendable {
                 let url = JobQueue.url(job)
                 WavWriter.repair(url)
                 guard let secs = AudioDecode.duration(url), secs > 0 else { await queue.remove(job.id); continue }
-                let left = await queue.count
+                let left = await queue.count; pending = left
                 if left > 1 { status = L("queue_n", left) }
                 let skipper = SilenceSkipper()
                 await process(seconds: secs, job: job, skipper: skipper) { sink in try AudioPrep.stream(url, skipper: skipper, onChunk: sink) }
@@ -329,50 +330,25 @@ struct ContentView: View {
     @State private var picking = false
     @State private var showSettings = false
     @State private var showPodcast = false
+    @State private var showAdd = false
     @State private var path: [Session] = []
     @AppStorage("language") private var language = "system"
     @AppStorage("theme") private var theme = "auto"
     var body: some View {
         NavigationStack(path: $path) {
-            List {
-                if !m.sessions.isEmpty {
-                    Section(L("library")) {
-                        ForEach(m.sessions) { x in
-                            NavigationLink(value: x) {
-                                VStack(alignment: .leading) {
-                                    Text(x.title).font(.headline)
-                                    Text(L("session_meta", x.date.formatted(date: .abbreviated, time: .shortened), Int(x.seconds))).font(.caption).foregroundStyle(.secondary)
-                                }
-                            }
-                            .swipeActions { Button(L("delete"), role: .destructive) { m.remove(x) } }
-                        }
-                    }
-                }
-                if !m.summary.isEmpty { Section(m.title.isEmpty ? L("summary") : m.title) { Text(m.summary) } }
-                if !m.notes.isEmpty { Section(L("agent")) { ForEach(m.notes) { Text(ReaderProtocol.render($0)).font(.caption) } } }
-                Section(L("transcript")) {
-                    ForEach(m.lines) { l in
-                        VStack(alignment: .leading) {
-                            Text(L("speaker_at", l.speaker + 1, Int(l.start))).font(.caption2).foregroundStyle(.secondary)
-                            Text(l.text)
-                        }
-                    }
-                }
-            }
-            .navigationTitle("VoxSum")
+            LibraryView(m: m, path: $path, onAdd: { showAdd = true }, onSettings: { showSettings = true })
+            .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: Session.self) { x in SessionView(session: m.sessions.first { $0.id == x.id } ?? x) { m.update($0) } }
             .onAppear { BackgroundWork.model = m; m.reload(); if Dev.env["VOX_OPEN"] != nil { Task { path = await m.library.all().prefix(1).map { $0 } } }; if let d = Dev.env["VOX_DOWNLOAD"] { if d == "speech" { Task { _ = await m.downloadSpeech() } } else { m.downloadReader() } }; if Dev.env["VOX_AUTORUN"] != nil { m.run() }; m.drain(); if let f = Dev.env["VOX_IMPORT"] { m.importAudio(URL(fileURLWithPath: f.hasPrefix("/") ? f : NSHomeDirectory() + "/" + f)) }; if let q = Dev.env["VOX_PODCAST"] { Task { if let sr = try? await Podcast.search(q).first, let ep = try? await Podcast.episodes(sr.feedUrl, limit: 3).last { m.addEpisode(ep) } else { m.status = "podcast: no result" } } } }
-            .toolbar {
-                ToolbarItem(placement: .bottomBar) { Button(L("settings")) { showSettings = true } }
-                if Dev.on { ToolbarItem(placement: .bottomBar) { Button(L("sample")) { m.run() } } }
-                ToolbarItem(placement: .bottomBar) { Menu(L("import_audio")) { Button(L("from_files")) { picking = true }; Button(L("podcast")) { showPodcast = true } } }
-                ToolbarItem(placement: .bottomBar) { Button(L("download_reader")) { m.downloadReader() } }
-                ToolbarItem(placement: .bottomBar) { Button(m.recording ? L("stop") : L("record")) { m.toggleRecord() } }
+            .confirmationDialog(L("import_audio"), isPresented: $showAdd) {
+                Button(L("from_files")) { picking = true }
+                Button(L("podcast")) { showPodcast = true }
+                Button(L("download_reader")) { m.downloadReader() }
+                if Dev.on { Button(L("sample")) { m.run() } }
             }
             .sheet(isPresented: $showPodcast) { PodcastView { m.addEpisode($0) } }
             .sheet(isPresented: $showSettings) { SettingsView(language: $language, theme: $theme) }
             .fileImporter(isPresented: $picking, allowedContentTypes: [.audio]) { if case .success(let u) = $0 { m.importAudio(u) } }
-            .safeAreaInset(edge: .bottom) { Text(m.status).font(.footnote).padding(4) }
         }
         .preferredColorScheme((Theme(rawValue: theme) ?? .auto).scheme)
     }

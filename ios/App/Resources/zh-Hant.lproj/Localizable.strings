@@ -273,3 +273,5 @@
 "import_download_title" = "匯入音訊";
 "search_match_count" = "%1$d / %2$d";
 "status_error" = "錯誤：%@";
+"settings_inference_capped" = "曾有一次閱讀在較多執行緒下失敗，因此在下次測試前改用 2 個。";
+"storage_compile_cache" = "%@（編譯快取）";

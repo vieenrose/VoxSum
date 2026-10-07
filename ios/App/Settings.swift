@@ -42,7 +42,17 @@ enum Prefs {
         set { UserDefaults.standard.set(newValue, forKey: "threads") }
     }
     /// Auto: the benchmark's pick for this phone + app version (Android HwInfo), else the topology heuristic.
-    static var effectiveThreads: Int { threads > 0 ? min(max(2, threads), cores) : (benchThreads ?? min(4, max(2, cores - 2))) }
+    static var effectiveThreads: Int {
+        if threads > 0 { return min(max(2, threads), cores) }
+        let base = benchThreads ?? min(4, max(2, cores - 2))
+        return capped ? min(base, 2) : base
+    }
+    /// A reading failed with more threads: Auto stays at 2 on this phone until the next benchmark (Android reportReadFailure).
+    static var capped: Bool { UserDefaults.standard.string(forKey: "benchKey") == benchKey && UserDefaults.standard.bool(forKey: "capped") }
+    static func reportReadFailure() {
+        guard threads == 0, effectiveThreads > 2 else { return }
+        UserDefaults.standard.set(benchKey, forKey: "benchKey"); UserDefaults.standard.set(true, forKey: "capped")
+    }
     private static var benchKey: String { "\(cores)|" + (Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "") }
     static var benchThreads: Int? {
         let d = UserDefaults.standard
@@ -53,7 +63,7 @@ enum Prefs {
     static func runBench() async -> Int? {
         let scores = await Task.detached(priority: .userInitiated) { ThreadBench.run(Array(2...max(2, cores))) }.value
         guard let n = ThreadBench.pick(scores) else { return nil }
-        UserDefaults.standard.set(benchKey, forKey: "benchKey"); UserDefaults.standard.set(n, forKey: "benchThreads")
+        UserDefaults.standard.set(benchKey, forKey: "benchKey"); UserDefaults.standard.set(n, forKey: "benchThreads"); UserDefaults.standard.set(false, forKey: "capped")
         return n
     }
     /// Live speaker delay (Android speakerDelaySec): how long a line waits before the live view freezes it with its speaker.
@@ -94,6 +104,13 @@ struct ThemeStyle: ViewModifier {
 /// What the app keeps on disk (Android Storage section): each model folder with its size, deletable.
 enum Storage {
     struct Item: Identifiable { let url: URL; let bytes: Int64; var id: String { url.path }; var name: String { url.lastPathComponent }
+        /// Android prettyModelName: the reader's chip name, the speech pair's model names, caches as "(compile cache)".
+        var label: String {
+            if let r = name.range(of: ".xnnpack_cache") { return L("storage_compile_cache", String(name[..<r.lowerBound])) }
+            switch name { case "nemo": return "X-ASR + Nemotron-3"; case "E2B": return L("reader_model_e2b"); case "E4B": return L("reader_model_e4b"); default: return name }
+        }
+        /// The XNNPACK weight cache inside a reader folder (rebuilt on next load when deleted with it).
+        var cacheBytes: Int64 { (try? FileManager.default.attributesOfItem(atPath: url.appendingPathComponent("weights.xnnpack_cache").path)[.size] as? Int64) ?? 0 }
         var kind: String { let n = name.lowercased(); return n.contains("asr") || n.contains("diariz") || n.contains("nemotron") ? "model_kind_asr" : (n.contains("gemma") || n.contains("mfa") || n.contains("litert") || n.contains("reader") || n.hasSuffix(".litertlm") ? "model_kind_llm" : "model_kind_other") } }
     static var modelsRoot: URL { FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("models") }
     static func size(_ u: URL) -> Int64 {

@@ -273,3 +273,5 @@
 "import_download_title" = "Importing audio";
 "search_match_count" = "%1$d / %2$d";
 "status_error" = "Error: %@";
+"settings_inference_capped" = "A reading failed with more threads, so 2 are used until the next benchmark.";
+"storage_compile_cache" = "%@ (compile cache)";

@@ -16,6 +16,7 @@ enum ReaderFactory {
             eng = try MfaEngine(dir: dir, ctx: ReaderBudget.mobile.ctxBudget, threads: threads, weightCache: dir + "/weights.xnnpack_cache")
         } catch {
             FileHandle.standardError.write(Data("voxsum-reader: load failed, using the stub: \(error)\n".utf8))
+            Prefs.reportReadFailure()
             return (StubLlm(), fallback, false)
         }
         let prompt = (try? String(contentsOfFile: dir + "/system_prompt.txt", encoding: .utf8)) ?? fallback

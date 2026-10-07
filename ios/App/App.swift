@@ -253,7 +253,7 @@ final class Model: ObservableObject {
             let r = ReaderFactory.make(dir: Dev.env["VOX_READER_DIR"] ?? stored)
             let agentUi = self.agent
             let reader = MeetingReader(llm: r.llm, systemPrompt: r.systemPrompt, events: { e in Task { @MainActor in agentUi.apply(e) } }, budget: .mobile)
-            do { try reader.start() } catch { await MainActor.run { self.status = L("reader_error", "\(error)") }; return }
+            do { try reader.start() } catch { Prefs.reportReadFailure(); await MainActor.run { self.status = L("reader_error", "\(error)") }; return }
             var seenFrozen = 0; let conv = TextConv(); let lowRam = ProcessInfo.processInfo.physicalMemory < 4_500_000_000   // 3 GB phones cannot hold ASR + diarizer + E2B at once
             let worker = ReaderWorker(reader, paused: lowRam && cached == nil)
             let sk = skipper ?? SilenceSkipper()   // nothing skipped → identity
@@ -469,7 +469,7 @@ struct SettingsView: View {
                         benching = true; threads = 0; Prefs.threads = 0
                         Task { _ = await Prefs.runBench(); benching = false; benchTick += 1 }
                     }.disabled(benching)
-                } header: { Text(L("settings_inference")) } footer: { Text(L("threads_note", Prefs.effectiveThreads, Prefs.cores) + "\n" + L("settings_inference_hint")).id(benchTick) }
+                } header: { Text(L("settings_inference")) } footer: { Text(L("threads_note", Prefs.effectiveThreads, Prefs.cores) + (Prefs.capped ? "\n" + L("settings_inference_capped") : "") + "\n" + L("settings_inference_hint")).id(benchTick) }
                 Section {
                     Toggle(L("settings_show_actions"), isOn: $showActions)
                 } header: { Text(L("settings_experimental")) } footer: { Text(L("settings_show_actions_hint")) }
@@ -477,7 +477,8 @@ struct SettingsView: View {
                     if !Storage.ready(Prefs.reader) { Text(L("storage_model_pending", Int(Prefs.reader.files.reduce(0) { $0 + $1.size } / 1_000_000))).font(.footnote).foregroundStyle(.secondary) }
                     if models.isEmpty { Text(L("storage_none")).foregroundStyle(.secondary) }
                     ForEach(models) { i in
-                        HStack { VStack(alignment: .leading) { Text(i.name); Text(L(i.kind)).font(.caption2).foregroundStyle(.secondary) }; Spacer(); Text(ByteCountFormatter.string(fromByteCount: i.bytes, countStyle: .file)).foregroundStyle(.secondary) }
+                        HStack { VStack(alignment: .leading) { Text(i.label); Text(L(i.kind)).font(.caption2).foregroundStyle(.secondary)
+                            if i.cacheBytes > 0 { Text(L("storage_compile_cache", ByteCountFormatter.string(fromByteCount: i.cacheBytes, countStyle: .file))).font(.caption2).foregroundStyle(.secondary) } }; Spacer(); Text(ByteCountFormatter.string(fromByteCount: i.bytes, countStyle: .file)).foregroundStyle(.secondary) }
                             .swipeActions { Button(L("storage_delete"), role: .destructive) { toDelete = i } }
                     }
                 } header: { Text(L("settings_storage")) } footer: { if !models.isEmpty { Text(L("storage_total", ByteCountFormatter.string(fromByteCount: models.reduce(0) { $0 + $1.bytes }, countStyle: .file))) } }

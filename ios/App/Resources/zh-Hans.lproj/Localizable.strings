@@ -273,3 +273,5 @@
 "import_download_title" = "导入音频";
 "search_match_count" = "%1$d / %2$d";
 "status_error" = "错误：%@";
+"settings_inference_capped" = "曾有一次阅读在较多线程下失败，因此在下次测试前改用 2 个。";
+"storage_compile_cache" = "%@（编译缓存）";

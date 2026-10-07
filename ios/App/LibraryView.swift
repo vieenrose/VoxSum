@@ -111,6 +111,7 @@ struct LibraryView: View {
     }
     var body: some View {
         VStack(spacing: 0) {
+            Color.clear.frame(height: 0).onAppear { if Dev.env["VOX_SELECT"] != nil { DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { selected = Set(m.sessions.prefix(2).map(\.id)) } } }
             if !selected.isEmpty {
                 HStack(spacing: 16) {
                     Button { selected = [] } label: { Image(systemName: "xmark").font(.title3) }.accessibilityLabel(L("cd_exit_selection"))

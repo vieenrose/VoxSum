@@ -283,3 +283,11 @@
 "summary_pending_hint" = "尚無摘要——處理完成後會顯示在這裡。";
 "summary_missing_hint" = "此場次沒有摘要——可從選單選「重新摘要」再試一次。";
 "status_no_speech" = "未偵測到語音";
+"cd_back5" = "倒退 5 秒";
+"cd_forward5" = "快進 5 秒";
+"cd_mute" = "靜音";
+"cd_unmute" = "取消靜音";
+"cd_copy_summary" = "複製摘要";
+"summary_copied" = "已複製摘要";
+"transcript_copied" = "已複製逐字稿";
+"action_items_copied" = "已複製行動項目";

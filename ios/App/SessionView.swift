@@ -27,6 +27,9 @@ import AVFoundation
             }
         }
     }
+    /// Android volume popup: mute toggle + level, applied to this player only.
+    @Published var volume: Float = 1 { didSet { p?.volume = muted ? 0 : volume } }
+    @Published var muted = false { didSet { p?.volume = muted ? 0 : volume } }
     func seek(_ t: Double) { p?.currentTime = max(0, min(t, duration)); time = p?.currentTime ?? 0 }
     func stop() { p?.stop(); timer?.invalidate(); playing = false }
 }
@@ -45,6 +48,7 @@ struct SessionView: View {
     @State private var renamingSpeaker: Int?
     @State private var editingLine: UUID?
     @State private var transcriptDirty = false
+    @State private var toast: String?
     @State private var exportFile: URL?
     @State private var showExport = Dev.env["VOX_EXPORT"] != nil
 
@@ -79,12 +83,17 @@ struct SessionView: View {
             HStack {
                 Text(Export.mmss(player.time)).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
                 Spacer()
-                Button { player.seek(player.time - 5) } label: { Image(systemName: "gobackward.5").font(.title2) }
+                Menu {
+                    Button { player.muted.toggle() } label: { Label(L(player.muted ? "cd_unmute" : "cd_mute"), systemImage: player.muted ? "speaker.wave.2" : "speaker.slash") }
+                    ForEach([0.25, 0.5, 0.75, 1.0], id: \.self) { v in Button("\(Int(v * 100)) %") { player.muted = false; player.volume = Float(v) } }
+                } label: { Image(systemName: player.muted || player.volume == 0 ? "speaker.slash" : "speaker.wave.2").font(.body).foregroundStyle(.secondary) }
+                    .accessibilityLabel(L("cd_mute"))
+                Button { player.seek(player.time - 5) } label: { Image(systemName: "gobackward.5").font(.title2) }.accessibilityLabel(L("cd_back5"))
                 Button { player.toggle() } label: {
                     Image(systemName: player.playing ? "pause.fill" : "play.fill").font(.title2).foregroundStyle(.white)
                         .frame(width: 56, height: 56).background(Color.accentColor, in: Circle())
                 }.accessibilityLabel(L(player.playing ? "pause" : "play"))
-                Button { player.seek(player.time + 5) } label: { Image(systemName: "goforward.5").font(.title2) }
+                Button { player.seek(player.time + 5) } label: { Image(systemName: "goforward.5").font(.title2) }.accessibilityLabel(L("cd_forward5"))
                 Spacer()
                 Text(Export.mmss(player.duration)).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
             }
@@ -113,7 +122,7 @@ struct SessionView: View {
             }
             if !s.summary.isEmpty {
                 card {
-                    HStack { Spacer(); Button { UIPasteboard.general.string = s.summary } label: { Image(systemName: "doc.on.doc") }.accessibilityLabel(L("copy")) }
+                    HStack { Spacer(); Button { UIPasteboard.general.string = s.summary; toast = L("summary_copied") } label: { Image(systemName: "doc.on.doc") }.accessibilityLabel(L("cd_copy_summary")) }
                     Text(Self.linked(s.summary)).environment(\.openURL, OpenURLAction { u in
                         if u.scheme == "vox", let t = Double(u.host ?? "") { player.seek(t); if !player.playing { player.toggle() }; return .handled }
                         return .systemAction })
@@ -124,7 +133,7 @@ struct SessionView: View {
                 card {
                     HStack {
                         Text(L("card_action_items")).font(.headline); Spacer()
-                        Button { UIPasteboard.general.string = a } label: { Image(systemName: "doc.on.doc") }.accessibilityLabel(L("cd_copy_actions"))
+                        Button { UIPasteboard.general.string = a; toast = L("action_items_copied") } label: { Image(systemName: "doc.on.doc") }.accessibilityLabel(L("cd_copy_actions"))
                     }
                     Text(Self.linked(a)).environment(\.openURL, OpenURLAction { u in
                         if u.scheme == "vox", let t = Double(u.host ?? "") { player.seek(t); if !player.playing { player.toggle() }; return .handled }
@@ -241,6 +250,10 @@ struct SessionView: View {
         .alert(L("transcript_changed_resummarize"), isPresented: $transcriptDirty) {
             if s.audio != nil { Button(L("re_summarize")) { rerun(s, false) } }
             Button(L("cancel"), role: .cancel) {}
+        }
+        .overlay(alignment: .bottom) {
+            if let toast { Text(toast).font(.subheadline).padding(.horizontal, 16).padding(.vertical, 10).background(.thinMaterial, in: Capsule()).padding(.bottom, 110)
+                .transition(.opacity).task { try? await Task.sleep(nanoseconds: 1_800_000_000); withAnimation { self.toast = nil } } }
         }
         .onDisappear { player.stop() }
     }

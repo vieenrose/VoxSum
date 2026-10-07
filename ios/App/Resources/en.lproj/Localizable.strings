@@ -283,3 +283,11 @@
 "summary_pending_hint" = "No summary yet — it appears here once processing finishes.";
 "summary_missing_hint" = "No summary for this session — choose Re-summarize in the ⋮ menu to try again.";
 "status_no_speech" = "No speech detected";
+"cd_back5" = "back 5 seconds";
+"cd_forward5" = "forward 5 seconds";
+"cd_mute" = "mute";
+"cd_unmute" = "unmute";
+"cd_copy_summary" = "Copy summary";
+"summary_copied" = "Summary copied";
+"transcript_copied" = "Transcript copied";
+"action_items_copied" = "Action items copied";

@@ -402,7 +402,7 @@ struct ContentView: View {
             LibraryView(m: m, path: $path, onAdd: { showAdd = true }, onSettings: { showSettings = true })
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: Session.self) { x in SessionView(session: m.sessions.first { $0.id == x.id } ?? x, save: { m.update($0) }, rerun: { m.rerun($0, transcribe: $1) }) }
-            .onAppear { BackgroundWork.model = m; m.reload(); if Dev.env["VOX_ACTIONS"] != nil { UserDefaults.standard.set(true, forKey: "showActions") }; if Dev.env["VOX_OPEN"] != nil { Task { path = await m.library.all().prefix(1).map { $0 } } }; if let d = Dev.env["VOX_DOWNLOAD"] { if d == "speech" { Task { _ = await m.downloadSpeech() } } else { m.downloadReader() } }; if Dev.env["VOX_AUTORUN"] != nil { m.run() }; if Dev.env["VOX_RECORD"] != nil { m.toggleRecord() }; if Dev.env["VOX_SETTINGS"] != nil { showSettings = true }; if let q = Dev.env["VOX_YT_ADD"] { Task { var r = "yt: no result"; if let v = try? await YouTube.search(q).first { do { let a = try await YouTube.resolve(v.url); let f = try await YouTube.download(a, name: "yt_test." + a.ext) { _ in }; r = "yt ok \(v.title) \((try? FileManager.default.attributesOfItem(atPath: f.path)[.size]) ?? 0)B" } catch { r = "yt FAIL \(error)" } }; try? r.write(to: URL(fileURLWithPath: NSHomeDirectory() + "/Documents/yt.txt"), atomically: true, encoding: .utf8) } }; if Dev.env["VOX_STOP"] != nil { Task { try? await Task.sleep(nanoseconds: 30_000_000_000); let before = m.activeJob != nil; m.stopProcessing(); try? await Task.sleep(nanoseconds: 20_000_000_000); try? "active before=\(before) parked=\(m.parked.count) active now=\(m.activeJob != nil) status=\(m.status)".write(to: URL(fileURLWithPath: NSHomeDirectory() + "/Documents/stop.txt"), atomically: true, encoding: .utf8) } }; if Dev.env["VOX_STATUSLOG"] != nil { Task { while true { try? m.status.write(to: URL(fileURLWithPath: NSHomeDirectory() + "/Documents/status.txt"), atomically: true, encoding: .utf8); try? await Task.sleep(nanoseconds: 2_000_000_000) } } }; if Dev.env["VOX_ROUNDTRIP"] != nil { Task { if let s = await m.library.all().first(where: { $0.audio != nil }), let u = await SessionFile.export(s) { let r = SessionFile.read(u); m.status = "rt \((try? FileManager.default.attributesOfItem(atPath: u.path)[.size]) ?? 0)B lines \(r?.utterances?.count ?? -1)/\(s.lines.count) title \(r?.title == s.title)"; m.importAudio(u) } else { m.status = "rt: export failed" }; try? m.status.write(to: URL(fileURLWithPath: NSHomeDirectory() + "/Documents/rt.txt"), atomically: true, encoding: .utf8) } }; if Dev.env["VOX_ADD"] != nil { showAdd = true }; if Dev.env["VOX_YOUTUBE"] != nil { showYouTube = true }; m.drain(); if let f = Dev.env["VOX_IMPORT"] { m.importAudio(URL(fileURLWithPath: f.hasPrefix("/") ? f : NSHomeDirectory() + "/" + f)) }; if let q = Dev.env["VOX_PODCAST"] { Task { if let sr = try? await Podcast.search(q).first, let ep = try? await Podcast.episodes(sr.feedUrl, limit: 3).last { m.addEpisode(ep) } else { m.status = "podcast: no result" } } } }
+            .onAppear { BackgroundWork.model = m; m.reload(); if Dev.env["VOX_BENCH"] != nil { Task { let t0 = Date(); let n = await Prefs.runBench(); try? "bench pick=\(n ?? -1) eff=\(Prefs.effectiveThreads) cores=\(Prefs.cores) \(Int(Date().timeIntervalSince(t0) * 1000))ms".write(to: URL(fileURLWithPath: NSHomeDirectory() + "/Documents/bench.txt"), atomically: true, encoding: .utf8) } }; if Dev.env["VOX_ACTIONS"] != nil { UserDefaults.standard.set(true, forKey: "showActions") }; if Dev.env["VOX_OPEN"] != nil { Task { path = await m.library.all().prefix(1).map { $0 } } }; if let d = Dev.env["VOX_DOWNLOAD"] { if d == "speech" { Task { _ = await m.downloadSpeech() } } else { m.downloadReader() } }; if Dev.env["VOX_AUTORUN"] != nil { m.run() }; if Dev.env["VOX_RECORD"] != nil { m.toggleRecord() }; if Dev.env["VOX_SETTINGS"] != nil { showSettings = true }; if let q = Dev.env["VOX_YT_ADD"] { Task { var r = "yt: no result"; if let v = try? await YouTube.search(q).first { do { let a = try await YouTube.resolve(v.url); let f = try await YouTube.download(a, name: "yt_test." + a.ext) { _ in }; r = "yt ok \(v.title) \((try? FileManager.default.attributesOfItem(atPath: f.path)[.size]) ?? 0)B" } catch { r = "yt FAIL \(error)" } }; try? r.write(to: URL(fileURLWithPath: NSHomeDirectory() + "/Documents/yt.txt"), atomically: true, encoding: .utf8) } }; if Dev.env["VOX_STOP"] != nil { Task { try? await Task.sleep(nanoseconds: 30_000_000_000); let before = m.activeJob != nil; m.stopProcessing(); try? await Task.sleep(nanoseconds: 20_000_000_000); try? "active before=\(before) parked=\(m.parked.count) active now=\(m.activeJob != nil) status=\(m.status)".write(to: URL(fileURLWithPath: NSHomeDirectory() + "/Documents/stop.txt"), atomically: true, encoding: .utf8) } }; if Dev.env["VOX_STATUSLOG"] != nil { Task { while true { try? m.status.write(to: URL(fileURLWithPath: NSHomeDirectory() + "/Documents/status.txt"), atomically: true, encoding: .utf8); try? await Task.sleep(nanoseconds: 2_000_000_000) } } }; if Dev.env["VOX_ROUNDTRIP"] != nil { Task { if let s = await m.library.all().first(where: { $0.audio != nil }), let u = await SessionFile.export(s) { let r = SessionFile.read(u); m.status = "rt \((try? FileManager.default.attributesOfItem(atPath: u.path)[.size]) ?? 0)B lines \(r?.utterances?.count ?? -1)/\(s.lines.count) title \(r?.title == s.title)"; m.importAudio(u) } else { m.status = "rt: export failed" }; try? m.status.write(to: URL(fileURLWithPath: NSHomeDirectory() + "/Documents/rt.txt"), atomically: true, encoding: .utf8) } }; if Dev.env["VOX_ADD"] != nil { showAdd = true }; if Dev.env["VOX_YOUTUBE"] != nil { showYouTube = true }; m.drain(); if let f = Dev.env["VOX_IMPORT"] { m.importAudio(URL(fileURLWithPath: f.hasPrefix("/") ? f : NSHomeDirectory() + "/" + f)) }; if let q = Dev.env["VOX_PODCAST"] { Task { if let sr = try? await Podcast.search(q).first, let ep = try? await Podcast.episodes(sr.feedUrl, limit: 3).last { m.addEpisode(ep) } else { m.status = "podcast: no result" } } } }
             .sheet(isPresented: $showAdd) { AddSourceSheet(onFile: { picking = true }, onPodcast: { showPodcast = true }, onYouTube: { showYouTube = true }, onSession: { picking = true }) }
             .fullScreenCover(isPresented: Binding(get: { m.recording }, set: { _ in })) { CaptureView(m: m) }
             .sheet(isPresented: $showPodcast) { PodcastView { m.addEpisode($0) } }
@@ -421,6 +421,8 @@ struct SettingsView: View {
     @State private var models = Storage.models()
     @State private var toDelete: Storage.Item?
     @State private var threads = Prefs.threads
+    @State private var benching = false
+    @State private var benchTick = 0
     @AppStorage("hwMonitor") private var hwMonitor = true
     @State private var reader = Prefs.readerId
     @State private var delay = Prefs.speakerDelay
@@ -432,14 +434,15 @@ struct SettingsView: View {
             Form {
                 Section {
                     Picker(L("language"), selection: $language) { ForEach(AppLanguage.allCases) { Text($0.autonym).tag($0.rawValue) } }
-                } header: { Text(L("settings_language")) } footer: { Text(L("settings_language_note")) }
+                } header: { Text(L("settings_language")) } footer: { Text(L("settings_language_hint")) }
                 Section(L("settings_appearance")) { Picker(L("theme"), selection: $theme) { ForEach(Theme.allCases) { Text($0.label).tag($0.rawValue) } }.pickerStyle(.segmented) }
                 Section {
                     Picker(L("text_size"), selection: $textSize) { ForEach(0..<Prefs.textSizeLabels.count, id: \.self) { Text(L(Prefs.textSizeLabels[$0])).tag($0) } }
                 } header: { Text(L("text_size")) } footer: { Text(L("settings_font_size_hint")) }
                 Section {
-                    Stepper(L("seconds_n", delay), value: $delay, in: 5...30, step: 5).onChange(of: delay) { Prefs.speakerDelay = delay }
-                } header: { Text(L("settings_recording")) } footer: { Text(L("speaker_delay_hint")) }
+                    Stepper(value: $delay, in: 5...30, step: 5) { HStack { Text(L("settings_speaker_delay")); Spacer(); Text(L("settings_seconds", delay)).foregroundStyle(.secondary) } }
+                        .onChange(of: delay) { Prefs.speakerDelay = delay }
+                } header: { Text(L("settings_recording")) } footer: { Text(L("settings_speaker_delay_hint")) }
                 Section {
                     Picker(L("notes_model"), selection: $reader) {
                         Text(L("reader_model_e2b") + " · 2.2 GB").tag("E2B")
@@ -455,11 +458,16 @@ struct SettingsView: View {
                     if threads > 0 {
                         Stepper(L("threads_n", threads), value: Binding(get: { threads }, set: { threads = $0; Prefs.threads = $0 }), in: 2...max(2, Prefs.cores))
                     }
-                } header: { Text(L("settings_inference")) } footer: { Text(L("threads_note", Prefs.effectiveThreads, Prefs.cores)) }
+                    Button(L(benching ? "settings_inference_running" : "settings_inference_run")) {
+                        benching = true; threads = 0; Prefs.threads = 0
+                        Task { _ = await Prefs.runBench(); benching = false; benchTick += 1 }
+                    }.disabled(benching)
+                } header: { Text(L("settings_inference")) } footer: { Text(L("threads_note", Prefs.effectiveThreads, Prefs.cores) + "\n" + L("settings_inference_hint")).id(benchTick) }
                 Section {
                     Toggle(L("settings_show_actions"), isOn: $showActions)
                 } header: { Text(L("settings_experimental")) } footer: { Text(L("settings_show_actions_hint")) }
                 Section {
+                    if !Storage.ready(Prefs.reader) { Text(L("storage_model_pending", Int(Prefs.reader.files.reduce(0) { $0 + $1.size } / 1_000_000))).font(.footnote).foregroundStyle(.secondary) }
                     if models.isEmpty { Text(L("storage_none")).foregroundStyle(.secondary) }
                     ForEach(models) { i in
                         HStack { VStack(alignment: .leading) { Text(i.name); Text(L(i.kind)).font(.caption2).foregroundStyle(.secondary) }; Spacer(); Text(ByteCountFormatter.string(fromByteCount: i.bytes, countStyle: .file)).foregroundStyle(.secondary) }

@@ -256,3 +256,11 @@
 "cd_copy_actions" = "複製行動項目";
 "actions_verify_hint" = "約五分之一的項目可能與逐字稿不符——點時間即可聽原話核對。";
 "export_heading_actions" = "行動項目";
+"settings_inference_run" = "建議";
+"settings_inference_running" = "測試中…";
+"settings_inference_hint" = "拖曳滑桿選擇執行緒數。「建議」會測完從 2 到全部核心的執行緒數，並自動選用提升不再明顯的最少執行緒數。";
+"settings_speaker_delay" = "即時語者標註延遲";
+"settings_speaker_delay_hint" = "錄音時文字會立即顯示；語者標註則至少在此延遲之後才出現。延遲越長，語者標註越準確。不影響最後儲存的逐字稿。";
+"settings_seconds" = "%1$d 秒";
+"settings_language_hint" = "同時決定介面語言，以及逐字稿、摘要與筆記使用的字體（繁體或簡體）。";
+"storage_model_pending" = "摘要模型尚未下載（%1$d MB），首次使用時自動下載。";

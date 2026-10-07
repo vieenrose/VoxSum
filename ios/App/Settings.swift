@@ -41,7 +41,21 @@ enum Prefs {
         get { UserDefaults.standard.integer(forKey: "threads") }
         set { UserDefaults.standard.set(newValue, forKey: "threads") }
     }
-    static var effectiveThreads: Int { threads > 0 ? min(max(2, threads), cores) : min(4, max(2, cores - 2)) }
+    /// Auto: the benchmark's pick for this phone + app version (Android HwInfo), else the topology heuristic.
+    static var effectiveThreads: Int { threads > 0 ? min(max(2, threads), cores) : (benchThreads ?? min(4, max(2, cores - 2))) }
+    private static var benchKey: String { "\(cores)|" + (Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "") }
+    static var benchThreads: Int? {
+        let d = UserDefaults.standard
+        guard d.string(forKey: "benchKey") == benchKey else { return nil }
+        let n = d.integer(forKey: "benchThreads"); return n > 0 ? min(max(2, n), cores) : nil
+    }
+    /// Runs ThreadBench on every count 2…cores and stores the pick (Settings → Recommended).
+    static func runBench() async -> Int? {
+        let scores = await Task.detached(priority: .userInitiated) { ThreadBench.run(Array(2...max(2, cores))) }.value
+        guard let n = ThreadBench.pick(scores) else { return nil }
+        UserDefaults.standard.set(benchKey, forKey: "benchKey"); UserDefaults.standard.set(n, forKey: "benchThreads")
+        return n
+    }
     /// Live speaker delay (Android speakerDelaySec): how long a line waits before the live view freezes it with its speaker.
     static var speakerDelay: Int {
         get { let v = UserDefaults.standard.integer(forKey: "speakerDelay"); return v == 0 ? 15 : min(30, max(5, v)) }
@@ -81,4 +95,49 @@ enum Storage {
         return d.map { Item(url: $0, bytes: size($0)) }.sorted { $0.name < $1.name }
     }
     static func delete(_ i: Item) { try? FileManager.default.removeItem(at: i.url) }
+    /// The chosen reader's files are all there (synchronous twin of ModelStore.isComplete).
+    static func ready(_ m: ReaderModel) -> Bool {
+        m.files.allSatisfy { (try? FileManager.default.attributesOfItem(atPath: modelsRoot.appendingPathComponent(m.id).appendingPathComponent($0.name).path)[.size] as? Int64) == $0.size }
+    }
+}
+
+/// Android ThreadBench: ~1 s of how well this phone scales across threads. Each worker streams its slice
+/// of a buffer larger than the caches with a multiply-add (the engines' memory-bound mat-vec shape).
+/// Scores are elements per ms, best of REPS interleaved rounds.
+enum ThreadBench {
+    private static let elements = 1 << 22, passes = 6, reps = 4
+
+    static func run(_ candidates: [Int]) -> [Int: Double] {
+        let a = UnsafeMutablePointer<Float>.allocate(capacity: elements), b = UnsafeMutablePointer<Float>.allocate(capacity: elements)
+        defer { a.deallocate(); b.deallocate() }
+        for i in 0..<elements { a[i] = Float(i & 1023) * 1e-3; b[i] = 1 - Float(i & 511) * 1e-3 }
+        _ = measure(1, a, b)
+        var best = Dictionary(uniqueKeysWithValues: candidates.map { ($0, 0.0) })
+        for _ in 0..<reps { for n in candidates { best[n] = max(best[n]!, measure(n, a, b)) } }
+        return best
+    }
+
+    /// The fewest threads within `slack` of the best throughput.
+    static func pick(_ scores: [Int: Double], slack: Double = 0.05) -> Int? {
+        guard let top = scores.values.max() else { return nil }
+        return scores.filter { $0.value >= top * (1 - slack) }.keys.min()
+    }
+
+    private static func measure(_ n: Int, _ a: UnsafeMutablePointer<Float>, _ b: UnsafeMutablePointer<Float>) -> Double {
+        let sinks = UnsafeMutablePointer<Float>.allocate(capacity: n); defer { sinks.deallocate() }
+        let group = DispatchGroup(), t0 = DispatchTime.now().uptimeNanoseconds
+        for w in 0..<n {
+            group.enter()
+            let th = Thread {
+                let from = elements * w / n, to = elements * (w + 1) / n
+                var acc: Float = 0
+                for _ in 0..<passes { for i in from..<to { acc += a[i] * b[i] } }
+                sinks[w] = acc; group.leave()
+            }
+            th.qualityOfService = .userInitiated; th.start()
+        }
+        group.wait()
+        let ms = Double(DispatchTime.now().uptimeNanoseconds - t0) / 1e6
+        return Double(elements * passes) / max(ms, 0.001)
+    }
 }

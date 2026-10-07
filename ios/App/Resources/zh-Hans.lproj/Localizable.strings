@@ -256,3 +256,11 @@
 "cd_copy_actions" = "复制行动项目";
 "actions_verify_hint" = "约五分之一的项目可能与转写文本不符——点时间即可听原话核对。";
 "export_heading_actions" = "待办事项";
+"settings_inference_run" = "推荐";
+"settings_inference_running" = "测试中…";
+"settings_inference_hint" = "拖动滑块选择线程数。“推荐”会测完从 2 到全部核心的线程数，并自动选用提升不再明显的最少线程数。";
+"settings_speaker_delay" = "实时说话人标注延迟";
+"settings_speaker_delay_hint" = "录音时文字会立即显示；说话人标注则至少在此延迟之后才出现。延迟越长，说话人标注越准确。不影响最后保存的转写文本。";
+"settings_seconds" = "%1$d 秒";
+"settings_language_hint" = "同时决定界面语言，以及转写文本、摘要与笔记使用的字体（繁体或简体）。";
+"storage_model_pending" = "摘要模型尚未下载（%1$d MB），首次使用时自动下载。";

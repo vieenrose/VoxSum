@@ -62,7 +62,7 @@ struct SessionView: View {
     @State private var showProcess = false
 
     private func card<C: View>(@ViewBuilder _ c: () -> C) -> some View {
-        c().padding(14).frame(maxWidth: .infinity, alignment: .leading)
+        VStack(alignment: .leading, spacing: 8) { c() }.padding(14).frame(maxWidth: .infinity, alignment: .leading)
             .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
     }
     private var playerBar: some View {

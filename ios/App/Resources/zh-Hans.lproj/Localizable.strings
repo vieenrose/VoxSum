@@ -313,3 +313,7 @@
 "retry" = "重试";
 "status_importing" = "正在导入分享的音频…";
 "export_share_failed" = "无法准备要分享的文件";
+"notif_session_ready" = "场次已完成";
+"svc_queue_item_failed" = "无法处理 %s——已保留在列表中";
+"svc_queue_item_failed_hint" = "点击打开 VoxSum 再试一次。";
+"summary_no_notes" = "这段录音没有需要记下的决议、待办或数字。";

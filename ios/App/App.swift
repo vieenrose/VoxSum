@@ -56,7 +56,12 @@ final class ChunkBuffer: @unchecked Sendable {
 enum Notifier {
     static func requestPermission() { UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in } }
     static func done(_ title: String) {
-        let c = UNMutableNotificationContent(); c.title = L("notif_ready"); c.body = title; c.sound = .default
+        let c = UNMutableNotificationContent(); c.title = L("notif_session_ready"); c.body = title; c.sound = .default
+        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: UUID().uuidString, content: c, trigger: nil))
+    }
+    /// Android: a queued item that could not be processed (it stays in the queue with Retry).
+    static func failed(_ title: String) {
+        let c = UNMutableNotificationContent(); c.title = L("svc_queue_item_failed", title); c.body = L("svc_queue_item_failed_hint"); c.sound = .default
         UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: UUID().uuidString, content: c, trigger: nil))
     }
 }
@@ -295,10 +300,12 @@ final class Model: ObservableObject {
             worker.drain { d, t in Task { @MainActor in self.status = L("reading_s", d, t) } }
             _ = try? reader.finish(); let journal = reader.journal
             let sum = ReaderSummarizer(llm: r.llm)
-            let t = sum.title(journal), prose = sum.prose(journal) ?? ReaderProtocol.minutes(journal)
-            let (fl, fn, ft, fp) = (conv.utterances(cached == nil ? sk.restore(final) : final), sk.restore(conv.notes(journal)), sk.restore(text: conv.text(t ?? "")), sk.restore(text: conv.text(prose)))
-            await MainActor.run { self.lines = fl; self.notes = fn; self.title = ft; self.summary = fp; let ns = Set(fl.map(\.speaker)).count; self.status = ns > 1 ? L("status_transcript_lines_speakers", fl.count, ns) : L("status_transcript_lines", fl.count); self.agent.apply(.state(.done, notes: fn.count)) }
-            await self.archive(lines: fl, notes: fn, title: ft, summary: fp, seconds: seconds, job: job)
+            // No notes at all (a short or off-topic recording): one plain line, not five empty sections (Android summary_no_notes).
+            let t = journal.isEmpty ? nil : sum.title(journal), prose = journal.isEmpty ? nil : sum.prose(journal) ?? ReaderProtocol.minutes(journal)
+            let (fl, fn, ft, fp) = (conv.utterances(cached == nil ? sk.restore(final) : final), sk.restore(conv.notes(journal)), sk.restore(text: conv.text(t ?? "")), prose.map { sk.restore(text: conv.text($0)) } ?? "")
+            let summaryText = fp.isEmpty && !fl.isEmpty ? L("summary_no_notes") : fp
+            await MainActor.run { self.lines = fl; self.notes = fn; self.title = ft; self.summary = summaryText; let ns = Set(fl.map(\.speaker)).count; self.status = ns > 1 ? L("status_transcript_lines_speakers", fl.count, ns) : L("status_transcript_lines", fl.count); self.agent.apply(.state(.done, notes: fn.count)) }
+            await self.archive(lines: fl, notes: fn, title: ft, summary: summaryText, seconds: seconds, job: job)
             if let job { Checkpoint.remove(job.id); await self.queue.remove(job.id) }
         }.value
     }
@@ -342,7 +349,7 @@ final class Model: ObservableObject {
                 let skipper = SilenceSkipper()
                 await process(seconds: secs, job: job, skipper: skipper) { sink in try AudioPrep.stream(url, skipper: skipper, onChunk: sink) }
                 if StopFlag.on { StopFlag.on = false; parked.insert(job.id); status = L("status_stopped") }
-                else if await queue.first(skipping: recordingJob)?.id == job.id { parked.insert(job.id); failed[job.id] = status }   // failed run: parked with its error and a Retry (Android), never looped on
+                else if await queue.first(skipping: recordingJob)?.id == job.id { parked.insert(job.id); failed[job.id] = status; Notifier.failed(job.title ?? L("meeting")) }   // failed run: parked with its error and a Retry (Android), never looped on
                 activeJob = nil; await syncQueue()
             }
             draining = false

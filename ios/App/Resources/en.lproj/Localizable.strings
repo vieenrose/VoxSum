@@ -313,3 +313,7 @@
 "retry" = "Retry";
 "status_importing" = "Importing shared audio…";
 "export_share_failed" = "Could not prepare the file to share";
+"notif_session_ready" = "Session ready";
+"svc_queue_item_failed" = "Could not process %s — kept in the library";
+"svc_queue_item_failed_hint" = "Tap to open VoxSum and try again.";
+"summary_no_notes" = "Nothing to note in this recording: no decisions, actions or figures.";

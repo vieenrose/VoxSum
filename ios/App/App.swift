@@ -393,18 +393,20 @@ struct SettingsView: View {
                     Picker(L("language"), selection: $language) { ForEach(AppLanguage.allCases) { Text($0.autonym).tag($0.rawValue) } }
                 } header: { Text(L("settings_language")) } footer: { Text(L("settings_language_note")) }
                 Section(L("settings_appearance")) { Picker(L("theme"), selection: $theme) { ForEach(Theme.allCases) { Text($0.label).tag($0.rawValue) } }.pickerStyle(.segmented) }
-                Section(L("text_size")) {
+                Section {
                     Picker(L("text_size"), selection: $textSize) { ForEach(0..<Prefs.textSizeLabels.count, id: \.self) { Text(L(Prefs.textSizeLabels[$0])).tag($0) } }
-                }
+                } header: { Text(L("text_size")) } footer: { Text(L("settings_font_size_hint")) }
                 Section {
                     Stepper(L("seconds_n", delay), value: $delay, in: 5...30, step: 5).onChange(of: delay) { Prefs.speakerDelay = delay }
                 } header: { Text(L("settings_recording")) } footer: { Text(L("speaker_delay_hint")) }
-                Section(L("settings_reader_model")) {
+                Section {
                     Picker(L("notes_model"), selection: $reader) {
-                        Text("Gemma 4 E2B · 2.2 GB").tag("E2B")
-                        if Prefs.e4bAllowed { Text("Gemma 4 E4B · 3.3 GB").tag("E4B") }
+                        Text(L("reader_model_e2b") + " · 2.2 GB").tag("E2B")
+                        if Prefs.e4bAllowed { Text(L("reader_model_e4b") + " · 3.3 GB").tag("E4B") }
                     }.pickerStyle(.inline).labelsHidden()
                     .onChange(of: reader) { Prefs.readerId = reader }
+                } header: { Text(L("settings_reader_model")) } footer: {
+                    Text(L("reader_model_hint", 2200, 3300) + (Prefs.e4bAllowed ? "" : "\n" + L("reader_model_e4b_ram")))
                 }
                 Section {
                     Toggle(L("threads_auto"), isOn: Binding(get: { threads == 0 }, set: { threads = $0 ? 0 : Prefs.effectiveThreads; Prefs.threads = threads }))

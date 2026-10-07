@@ -160,3 +160,8 @@
 "action_remove_from_queue" = "从队列移除";
 "capture_next_talk" = "下一场";
 "speaker_count" = "%d 位说话人";
+"settings_font_size_hint" = "调整整个 App 的文字大小，叠加于系统字体大小之上。";
+"reader_model_e2b" = "移动版 E2B";
+"reader_model_e4b" = "移动版 E4B";
+"reader_model_e4b_ram" = "E4B 需要 8 GB 内存的手机。";
+"reader_model_hint" = "移动版模型使用更快的引擎，记忆范围较短。E2B：下载 %d MB，约占 1.3 GB 内存。E4B：%d MB，约 3 GB 内存，错误较少。";

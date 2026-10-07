@@ -45,20 +45,23 @@ struct SessionView: View {
 
     init(session: Session, save: @escaping (Session) -> Void) {
         _s = State(initialValue: session); self.save = save
+        _tab = State(initialValue: Int(Dev.env["VOX_TAB"] ?? "") ?? 0)
+        if let q = Dev.env["VOX_QUERY"] { _query = State(initialValue: q); _searching = State(initialValue: true) }
         _player = StateObject(wrappedValue: Player(file: session.audio))
     }
-    private var shown: [Utterance] {
-        if query.isEmpty { return s.lines }
-        return s.lines.filter { (l: Utterance) -> Bool in
-            l.text.localizedCaseInsensitiveContains(query) || s.name(l.speaker).localizedCaseInsensitiveContains(query)
-        }
-    }
+    private var shown: [Utterance] { s.lines }
     private var current: UUID? {
         guard player.playing || player.time > 0 else { return nil }
         return s.lines.last(where: { (l: Utterance) -> Bool in l.start <= player.time })?.id
     }
 
     @State private var tab = 0
+    @State private var searching = false
+    @State private var match = 0
+    @FocusState private var searchFocus: Bool
+    private static let palette: [Color] = [.blue, .orange, .green, .purple, .pink, .teal, .red, .indigo]
+    private func tint(_ spk: Int) -> Color { Self.palette[spk % Self.palette.count] }
+    private var hits: [Utterance] { query.isEmpty ? [] : s.lines.filter { $0.text.localizedCaseInsensitiveContains(query) } }
     @State private var showProcess = false
 
     private func card<C: View>(@ViewBuilder _ c: () -> C) -> some View {
@@ -113,16 +116,39 @@ struct SessionView: View {
     }
     private var transcriptTab: some View {
         LazyVStack(alignment: .leading, spacing: 8) {
+            let speakers = Array(Set(s.lines.map(\.speaker))).sorted()
+            if speakers.count > 1 {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack { ForEach(speakers, id: \.self) { k in
+                        HStack(spacing: 5) { Circle().fill(tint(k)).frame(width: 8, height: 8); Text(s.name(k)).font(.caption.weight(.semibold)) }
+                            .padding(.horizontal, 10).padding(.vertical, 5).background(Color(.secondarySystemGroupedBackground), in: Capsule())
+                    } }
+                }
+            }
+            if searching {
+                HStack {
+                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                    TextField(L("search_transcript_hint"), text: $query).focused($searchFocus).submitLabel(.search)
+                        .onChange(of: query) { _, _ in match = 0 }
+                    if !query.isEmpty {
+                        Text(hits.isEmpty ? L("search_no_matches") : "\(match + 1) / \(hits.count)").font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                        Button { stepMatch(-1) } label: { Image(systemName: "chevron.up") }.accessibilityLabel(L("search_prev"))
+                        Button { stepMatch(1) } label: { Image(systemName: "chevron.down") }.accessibilityLabel(L("search_next"))
+                    }
+                    Button { searching = false; query = "" } label: { Image(systemName: "xmark.circle.fill") }.accessibilityLabel(L("search_close"))
+                }.padding(10).background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+            }
             ForEach(shown) { l in
                 VStack(alignment: .leading, spacing: 2) {
                     HStack {
+                        Circle().fill(tint(l.speaker)).frame(width: 8, height: 8)
                         Button { renamingSpeaker = l.speaker; draft = s.speakerNames?[String(l.speaker)] ?? "" } label: { Text(s.name(l.speaker)).font(.caption.bold()) }.buttonStyle(.borderless)
                         Text(Export.mmss(l.start)).font(.caption2).foregroundStyle(.secondary)
                     }
-                    Text(l.text)
+                    Text(Self.marked(l.text, query))
                 }
                 .id(l.id).padding(10).frame(maxWidth: .infinity, alignment: .leading)
-                .background(l.id == current ? Color.accentColor.opacity(0.18) : Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+                .background(l.id == current ? Color.accentColor.opacity(0.18) : (hits.indices.contains(match) && hits[match].id == l.id ? Color.yellow.opacity(0.22) : Color(.secondarySystemGroupedBackground)), in: RoundedRectangle(cornerRadius: 12))
                 .contentShape(Rectangle())
                 .onTapGesture { if player.available { player.seek(l.start) } }
             }
@@ -142,9 +168,11 @@ struct SessionView: View {
             .safeAreaInset(edge: .bottom) { if player.available { playerBar } }
             .onChange(of: current) { _, id in if follow, player.playing, tab == 1, let id { withAnimation { proxy.scrollTo(id, anchor: .center) } } }
         }
-        .searchable(text: $query)
         .navigationTitle(s.title).navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button { tab = 1; searching = true; searchFocus = true } label: { Image(systemName: "magnifyingglass") }.accessibilityLabel(L("search_transcript_hint"))
+            }
             ToolbarItem(placement: .primaryAction) {
                 Menu {
                     Button(L("rename")) { draft = s.title; renamingTitle = true }
@@ -172,6 +200,18 @@ struct SessionView: View {
         .onDisappear { player.stop() }
     }
 
+    private func stepMatch(_ d: Int) {
+        guard !hits.isEmpty else { return }
+        match = (match + d + hits.count) % hits.count
+        if player.available { player.seek(hits[match].start) }
+    }
+    static func marked(_ text: String, _ q: String) -> AttributedString {
+        var a = AttributedString(text)
+        guard !q.isEmpty else { return a }
+        var from = a.startIndex
+        while let r = a[from...].range(of: q, options: .caseInsensitive) { a[r].backgroundColor = .yellow.opacity(0.5); from = r.upperBound }
+        return a
+    }
     private func highlight(_ id: UUID) -> Color? { id == current ? Color.accentColor.opacity(0.18) : nil }
 
     /// "[1:06]" markers in the summary become links that seek the recording.

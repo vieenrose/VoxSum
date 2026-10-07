@@ -91,3 +91,8 @@
 "hide_process" = "隐藏过程";
 "copy" = "复制";
 "ai_disclaimer" = "AI 摘要，可能有误，请对照逐字稿确认。";
+"search_transcript_hint" = "搜索逐字稿…";
+"search_no_matches" = "没有匹配项";
+"search_prev" = "上一个";
+"search_next" = "下一个";
+"search_close" = "关闭搜索";

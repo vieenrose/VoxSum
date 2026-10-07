@@ -91,3 +91,8 @@
 "hide_process" = "Hide process";
 "copy" = "Copy";
 "ai_disclaimer" = "AI summary, may contain errors — check against the transcript.";
+"search_transcript_hint" = "Search transcript…";
+"search_no_matches" = "No matches";
+"search_prev" = "Previous";
+"search_next" = "Next";
+"search_close" = "Close search";

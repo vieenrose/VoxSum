@@ -91,3 +91,8 @@
 "hide_process" = "隱藏過程";
 "copy" = "複製";
 "ai_disclaimer" = "AI 摘要，可能有誤，請對照逐字稿確認。";
+"search_transcript_hint" = "搜尋逐字稿…";
+"search_no_matches" = "沒有符合項目";
+"search_prev" = "上一個";
+"search_next" = "下一個";
+"search_close" = "關閉搜尋";

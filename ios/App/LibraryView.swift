@@ -53,6 +53,7 @@ struct LibraryView: View {
                 .font(.title3.weight(.semibold)).frame(width: 40, height: 40)
                 .foregroundStyle(isNew(s) ? Color.secondary : Color.green)
                 .background((isNew(s) ? Color.secondary : Color.green).opacity(0.14), in: RoundedRectangle(cornerRadius: 10))
+                .accessibilityLabel(L(isNew(s) ? "cd_status_new" : "cd_status_done"))
             VStack(alignment: .leading, spacing: 2) {
                 Text(s.title).font(.headline).lineLimit(2)
                 Text("\(s.date.formatted(date: .omitted, time: .shortened)) · \(Export.mmss(s.seconds))")
@@ -83,6 +84,7 @@ struct LibraryView: View {
         return HStack(spacing: 12) {
             Group { if active { ProgressView() } else { Image(systemName: "clock").font(.title3.weight(.semibold)).foregroundStyle(.orange) } }
                 .frame(width: 40, height: 40).background(Color.orange.opacity(0.14), in: RoundedRectangle(cornerRadius: 10))
+                .accessibilityLabel(L(active ? "cd_status_processing" : "cd_status_queued"))
             VStack(alignment: .leading, spacing: 2) {
                 Text(j.title ?? L("meeting")).font(.headline).lineLimit(2)
                 Text(active ? m.status : L("cd_status_queued")).font(.caption).foregroundStyle(.secondary).lineLimit(2)

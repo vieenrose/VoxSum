@@ -178,3 +178,9 @@
 "lic_xasr" = "X-ASR zh-en model";
 "lic_nemotron" = "Nemotron-3 Diarization model";
 "lic_opencc" = "OpenCC (zh-TW / zh-CN)";
+"cd_status_new" = "New";
+"cd_status_processing" = "Processing";
+"cd_status_done" = "Done";
+"studio_empty_import" = "Add audio file";
+"studio_empty_title" = "Make sense of your meetings on your phone";
+"studio_return_capture" = "Recording… (return)";

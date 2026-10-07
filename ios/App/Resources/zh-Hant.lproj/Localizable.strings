@@ -178,3 +178,9 @@
 "lic_xasr" = "X-ASR 中英模型";
 "lic_nemotron" = "Nemotron-3 語者分離模型";
 "lic_opencc" = "OpenCC（繁體 / 簡體）";
+"cd_status_new" = "新的";
+"cd_status_processing" = "處理中";
+"cd_status_done" = "已完成";
+"studio_empty_import" = "加入音訊檔";
+"studio_empty_title" = "在手機上整理你的會議";
+"studio_return_capture" = "錄音中…（返回）";

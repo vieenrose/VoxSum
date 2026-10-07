@@ -7,6 +7,7 @@ struct LibraryView: View {
     let onAdd: () -> Void
     let onSettings: () -> Void
     @State private var query = ""
+    @State private var watching = false
     @State private var filter = Filter.all
     @State private var renaming: Session?
     @State private var deleting: Session?
@@ -159,8 +160,9 @@ struct LibraryView: View {
                 }.padding(.horizontal, 16)
             }
             if m.activeJob != nil {
-                HStack(spacing: 8) { ProgressView().controlSize(.small); VStack(alignment: .leading, spacing: 2) { Text(L("studio_processing_banner", m.status)).font(.caption).lineLimit(1); if !m.notes.isEmpty { Text(L("agent_listening", m.notes.count)).font(.caption2).foregroundStyle(.secondary) } }; Spacer() }
-                    .padding(10).background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 12)).padding(.horizontal, 16)
+                Button { watching = true } label: { HStack(spacing: 8) { ProgressView().controlSize(.small); VStack(alignment: .leading, spacing: 2) { Text(L("studio_processing_banner", m.status)).font(.caption).lineLimit(1); if !m.notes.isEmpty { Text(L("agent_listening", m.notes.count)).font(.caption2).foregroundStyle(.secondary) } }; Spacer() }
+                    .padding(10).background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 12)) }.buttonStyle(.plain).padding(.horizontal, 16)
+                .sheet(isPresented: $watching) { WatchLive(m: m) }
             } else {
                 Text(m.status).font(.caption).foregroundStyle(.secondary).lineLimit(1).padding(.horizontal, 16)
             }
@@ -214,5 +216,24 @@ struct AddSourceSheet: View {
             row("dot.radiowaves.left.and.right", L("source_podcast"), L("source_podcast_desc"), onPodcast)
             Spacer(minLength: 0)
         }.padding(.horizontal, 20).padding(.top, 24).presentationDetents([.height(280)])
+    }
+}
+
+
+struct WatchLive: View {
+    @ObservedObject var m: Model
+    @Environment(\.dismiss) private var dismiss
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 8) { ProgressView().controlSize(.small); Text(m.status).font(.subheadline) }
+                    if m.notes.isEmpty { Text(L("watch_live_hint")).font(.footnote).foregroundStyle(.secondary) }
+                    ForEach(m.notes) { n in NoteRow(n: n) { _ in } }
+                }.padding(16).frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .navigationTitle(L("action_watch_live")).navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L("done")) { dismiss() } } }
+        }.presentationDetents([.medium, .large])
     }
 }

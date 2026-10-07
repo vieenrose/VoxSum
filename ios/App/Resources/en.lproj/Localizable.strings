@@ -184,3 +184,5 @@
 "studio_empty_import" = "Add audio file";
 "studio_empty_title" = "Make sense of your meetings on your phone";
 "studio_return_capture" = "Recording… (return)";
+"action_watch_live" = "Watch live";
+"watch_live_hint" = "Notes appear here as the reader writes them.";

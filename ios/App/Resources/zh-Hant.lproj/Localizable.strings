@@ -184,3 +184,5 @@
 "studio_empty_import" = "加入音訊檔";
 "studio_empty_title" = "在手機上整理你的會議";
 "studio_return_capture" = "錄音中…（返回）";
+"action_watch_live" = "即時查看";
+"watch_live_hint" = "閱讀器寫下的筆記會即時顯示在這裡。";

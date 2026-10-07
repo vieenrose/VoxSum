@@ -184,3 +184,5 @@
 "studio_empty_import" = "添加音频文件";
 "studio_empty_title" = "在手机上整理你的会议";
 "studio_return_capture" = "录音中…（返回）";
+"action_watch_live" = "即时查看";
+"watch_live_hint" = "阅读器写下的笔记会实时显示在这里。";

@@ -101,7 +101,7 @@ struct SessionView: View {
                 Menu {
                     Button(L("rename")) { draft = s.title; renamingTitle = true }
                     Menu(L("export")) { ForEach(Export.Format.allCases) { f in Button(f.rawValue.uppercased()) { exportFile = Export.file(s, f) } } }
-                } label: { Image(systemName: "ellipsis.circle") }
+                } label: { Image(systemName: "ellipsis.circle").accessibilityLabel(L("more")) }
             }
         }
         .sheet(isPresented: Binding(get: { exportFile != nil }, set: { if !$0 { exportFile = nil } })) { if let exportFile { ShareSheet(url: exportFile) } }

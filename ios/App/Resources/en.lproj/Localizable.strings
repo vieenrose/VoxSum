@@ -72,3 +72,4 @@
 "recording" = "Recording";
 "seconds_n" = "Live speaker delay: %d s";
 "speaker_delay_hint" = "While recording, words appear at once; speaker names follow at least this long after. Longer = more accurate names. The saved transcript is not affected.";
+"more" = "More";

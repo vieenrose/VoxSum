@@ -129,7 +129,10 @@ final class ReaderWorker: @unchecked Sendable {
     }
 }
 
-@MainActor final class Model: ObservableObject {
+enum StopFlag { nonisolated(unsafe) static var on = false }
+
+@MainActor
+final class Model: ObservableObject {
     @Published var lines: [Utterance] = []
     @Published var notes: [Note] = []
     let agent = AgentUi()
@@ -146,6 +149,10 @@ final class ReaderWorker: @unchecked Sendable {
     @Published var waiting: [Job] = []
     @Published var activeJob: UUID?
     func syncQueue() async { waiting = await queue.all; pending = waiting.count }
+    /// Android "stop (resumable)": the running job stops at the next chunk and stays queued, parked until resumed.
+    @Published var parked: Set<UUID> = []
+    func stopProcessing() { guard activeJob != nil else { return }; StopFlag.on = true; status = L("stopping") }
+    func resume(_ j: Job) { parked.remove(j.id); drain() }
     func processNext(_ j: Job) { guard j.id != activeJob else { return }; Task { await queue.promote(j.id); await syncQueue() } }
     func unqueue(_ j: Job) { guard j.id != activeJob else { return }; Task { await queue.remove(j.id); Checkpoint.remove(j.id); await syncQueue() } }
     func reload() { Task { sessions = await library.all(); await syncQueue() } }
@@ -229,7 +236,7 @@ final class ReaderWorker: @unchecked Sendable {
 
     /// Transcribe + read a source of 16 kHz mono chunks (a file, the bundled sample). `feed` pushes chunks until done or false.
     func process(seconds: Double, job: Job? = nil, skipper: SilenceSkipper? = nil, feed: @escaping @Sendable (([Float]) -> Bool) throws -> Void) async {
-        status = L("loading_models"); lines = []; notes = []; title = ""; summary = ""
+        status = L("loading_models"); lines = []; notes = []; title = ""; summary = ""; StopFlag.on = false
         let b = base
         await Task.detached {
             let cached = job.flatMap { Checkpoint.load($0.id) }   // transcript done by an earlier attempt: only the reader is left
@@ -252,6 +259,7 @@ final class ReaderWorker: @unchecked Sendable {
             let sk = skipper ?? SilenceSkipper()   // nothing skipped → identity
             do {
                 if cached == nil, let eng { try feed { chunk in
+                    if StopFlag.on { return false }
                     _ = Stage.watchdog; Stage.set("push")
                     if !eng.push(chunk) { StatusLog.add("trace push failed at \(Int(eng.fedSeconds)) s") }
                     let (frozen, tail) = eng.live()
@@ -265,7 +273,8 @@ final class ReaderWorker: @unchecked Sendable {
                     Stage.set("idle")
                     return true
                 } }
-            } catch { await MainActor.run { self.status = L("audio_error", error.localizedDescription) }; return }
+            } catch { if !StopFlag.on { await MainActor.run { self.status = L("audio_error", error.localizedDescription) } }; return }
+            if StopFlag.on { return }
             Stage.set("finish")
             let final: [Utterance]
             if let cached {
@@ -315,7 +324,7 @@ final class ReaderWorker: @unchecked Sendable {
         UIApplication.shared.isIdleTimerDisabled = true   // iOS suspends a locked app: stay awake while the queue works (Android: wake lock)
         Notifier.requestPermission()
         drainTask = Task {
-            while let job = await queue.first(skipping: recordingJob) {
+            while let job = await queue.first(excluding: parked.union(recordingJob.map { [$0] } ?? [])) {
                 let url = JobQueue.url(job)
                 WavWriter.repair(url)
                 guard let secs = AudioDecode.duration(url), secs > 0 else { await queue.remove(job.id); continue }
@@ -323,7 +332,8 @@ final class ReaderWorker: @unchecked Sendable {
                 if left > 1 { status = L("queue_n", left) }
                 let skipper = SilenceSkipper()
                 await process(seconds: secs, job: job, skipper: skipper) { sink in try AudioPrep.stream(url, skipper: skipper, onChunk: sink) }
-                if await queue.first(skipping: recordingJob)?.id == job.id { await queue.remove(job.id) }   // failed run: never loop on it
+                if StopFlag.on { StopFlag.on = false; parked.insert(job.id); status = L("app_ready") }
+                else if await queue.first(skipping: recordingJob)?.id == job.id { await queue.remove(job.id) }   // failed run: never loop on it
                 activeJob = nil; await syncQueue()
             }
             draining = false
@@ -392,7 +402,7 @@ struct ContentView: View {
             LibraryView(m: m, path: $path, onAdd: { showAdd = true }, onSettings: { showSettings = true })
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: Session.self) { x in SessionView(session: m.sessions.first { $0.id == x.id } ?? x, save: { m.update($0) }, rerun: { m.rerun($0, transcribe: $1) }) }
-            .onAppear { BackgroundWork.model = m; m.reload(); if Dev.env["VOX_OPEN"] != nil { Task { path = await m.library.all().prefix(1).map { $0 } } }; if let d = Dev.env["VOX_DOWNLOAD"] { if d == "speech" { Task { _ = await m.downloadSpeech() } } else { m.downloadReader() } }; if Dev.env["VOX_AUTORUN"] != nil { m.run() }; if Dev.env["VOX_RECORD"] != nil { m.toggleRecord() }; if Dev.env["VOX_SETTINGS"] != nil { showSettings = true }; if let q = Dev.env["VOX_YT_ADD"] { Task { var r = "yt: no result"; if let v = try? await YouTube.search(q).first { do { let a = try await YouTube.resolve(v.url); let f = try await YouTube.download(a, name: "yt_test." + a.ext) { _ in }; r = "yt ok \(v.title) \((try? FileManager.default.attributesOfItem(atPath: f.path)[.size]) ?? 0)B" } catch { r = "yt FAIL \(error)" } }; try? r.write(to: URL(fileURLWithPath: NSHomeDirectory() + "/Documents/yt.txt"), atomically: true, encoding: .utf8) } }; if Dev.env["VOX_STATUSLOG"] != nil { Task { while true { try? m.status.write(to: URL(fileURLWithPath: NSHomeDirectory() + "/Documents/status.txt"), atomically: true, encoding: .utf8); try? await Task.sleep(nanoseconds: 2_000_000_000) } } }; if Dev.env["VOX_ROUNDTRIP"] != nil { Task { if let s = await m.library.all().first(where: { $0.audio != nil }), let u = await SessionFile.export(s) { let r = SessionFile.read(u); m.status = "rt \((try? FileManager.default.attributesOfItem(atPath: u.path)[.size]) ?? 0)B lines \(r?.utterances?.count ?? -1)/\(s.lines.count) title \(r?.title == s.title)"; m.importAudio(u) } else { m.status = "rt: export failed" }; try? m.status.write(to: URL(fileURLWithPath: NSHomeDirectory() + "/Documents/rt.txt"), atomically: true, encoding: .utf8) } }; if Dev.env["VOX_ADD"] != nil { showAdd = true }; if Dev.env["VOX_YOUTUBE"] != nil { showYouTube = true }; m.drain(); if let f = Dev.env["VOX_IMPORT"] { m.importAudio(URL(fileURLWithPath: f.hasPrefix("/") ? f : NSHomeDirectory() + "/" + f)) }; if let q = Dev.env["VOX_PODCAST"] { Task { if let sr = try? await Podcast.search(q).first, let ep = try? await Podcast.episodes(sr.feedUrl, limit: 3).last { m.addEpisode(ep) } else { m.status = "podcast: no result" } } } }
+            .onAppear { BackgroundWork.model = m; m.reload(); if Dev.env["VOX_OPEN"] != nil { Task { path = await m.library.all().prefix(1).map { $0 } } }; if let d = Dev.env["VOX_DOWNLOAD"] { if d == "speech" { Task { _ = await m.downloadSpeech() } } else { m.downloadReader() } }; if Dev.env["VOX_AUTORUN"] != nil { m.run() }; if Dev.env["VOX_RECORD"] != nil { m.toggleRecord() }; if Dev.env["VOX_SETTINGS"] != nil { showSettings = true }; if let q = Dev.env["VOX_YT_ADD"] { Task { var r = "yt: no result"; if let v = try? await YouTube.search(q).first { do { let a = try await YouTube.resolve(v.url); let f = try await YouTube.download(a, name: "yt_test." + a.ext) { _ in }; r = "yt ok \(v.title) \((try? FileManager.default.attributesOfItem(atPath: f.path)[.size]) ?? 0)B" } catch { r = "yt FAIL \(error)" } }; try? r.write(to: URL(fileURLWithPath: NSHomeDirectory() + "/Documents/yt.txt"), atomically: true, encoding: .utf8) } }; if Dev.env["VOX_STOP"] != nil { Task { try? await Task.sleep(nanoseconds: 30_000_000_000); let before = m.activeJob != nil; m.stopProcessing(); try? await Task.sleep(nanoseconds: 20_000_000_000); try? "active before=\(before) parked=\(m.parked.count) active now=\(m.activeJob != nil) status=\(m.status)".write(to: URL(fileURLWithPath: NSHomeDirectory() + "/Documents/stop.txt"), atomically: true, encoding: .utf8) } }; if Dev.env["VOX_STATUSLOG"] != nil { Task { while true { try? m.status.write(to: URL(fileURLWithPath: NSHomeDirectory() + "/Documents/status.txt"), atomically: true, encoding: .utf8); try? await Task.sleep(nanoseconds: 2_000_000_000) } } }; if Dev.env["VOX_ROUNDTRIP"] != nil { Task { if let s = await m.library.all().first(where: { $0.audio != nil }), let u = await SessionFile.export(s) { let r = SessionFile.read(u); m.status = "rt \((try? FileManager.default.attributesOfItem(atPath: u.path)[.size]) ?? 0)B lines \(r?.utterances?.count ?? -1)/\(s.lines.count) title \(r?.title == s.title)"; m.importAudio(u) } else { m.status = "rt: export failed" }; try? m.status.write(to: URL(fileURLWithPath: NSHomeDirectory() + "/Documents/rt.txt"), atomically: true, encoding: .utf8) } }; if Dev.env["VOX_ADD"] != nil { showAdd = true }; if Dev.env["VOX_YOUTUBE"] != nil { showYouTube = true }; m.drain(); if let f = Dev.env["VOX_IMPORT"] { m.importAudio(URL(fileURLWithPath: f.hasPrefix("/") ? f : NSHomeDirectory() + "/" + f)) }; if let q = Dev.env["VOX_PODCAST"] { Task { if let sr = try? await Podcast.search(q).first, let ep = try? await Podcast.episodes(sr.feedUrl, limit: 3).last { m.addEpisode(ep) } else { m.status = "podcast: no result" } } } }
             .sheet(isPresented: $showAdd) { AddSourceSheet(onFile: { picking = true }, onPodcast: { showPodcast = true }, onYouTube: { showYouTube = true }, onSession: { picking = true }) }
             .fullScreenCover(isPresented: Binding(get: { m.recording }, set: { _ in })) { CaptureView(m: m) }
             .sheet(isPresented: $showPodcast) { PodcastView { m.addEpisode($0) } }

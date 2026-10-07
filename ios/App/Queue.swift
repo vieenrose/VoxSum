@@ -29,6 +29,7 @@ actor JobQueue {
     func promote(_ id: UUID) { if let i = jobs.firstIndex(where: { $0.id == id }), i > 0 { jobs.insert(jobs.remove(at: i), at: 0); persist() } }
     func remove(_ id: UUID) { jobs.removeAll { $0.id == id }; persist() }
     func first(skipping: UUID? = nil) -> Job? { jobs.first { $0.id != skipping } }
+    func first(excluding: Set<UUID>) -> Job? { jobs.first { !excluding.contains($0.id) } }
     var count: Int { jobs.count }
     var all: [Job] { jobs }
     static func url(_ j: Job) -> URL { audioDir.appendingPathComponent(j.audio) }

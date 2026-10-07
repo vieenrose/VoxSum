@@ -242,3 +242,6 @@
 "export_action_save" = "Save";
 "network_error" = "Network error — check your connection and try again.";
 "action_process_now" = "Process now";
+"action_stop_processing" = "Stop processing";
+"action_resume" = "Resume";
+"stop_resumable" = "Stop (can be resumed)";

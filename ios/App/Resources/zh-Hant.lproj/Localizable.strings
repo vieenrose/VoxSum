@@ -242,3 +242,6 @@
 "export_action_save" = "儲存";
 "network_error" = "網路錯誤——請檢查連線後再試一次。";
 "action_process_now" = "立即處理";
+"action_stop_processing" = "停止處理";
+"action_resume" = "繼續處理";
+"stop_resumable" = "停止（可繼續處理）";

@@ -63,3 +63,25 @@ produit, signe les frameworks, puis Xcode signe l'app (signature automatique).
 Sans Xcode GUI : `xcodebuild -project Xcode/VoxSum.xcodeproj -target VoxSum -sdk iphoneos -allowProvisioningUpdates DEVELOPMENT_TEAM=<ID> build`.
 `SKIP_NATIVE_BUILD=1` réutilise le bundle déjà compilé. Structure validée sans signature
 (`CODE_SIGNING_ALLOWED=NO`) ; la signature elle-même n'est pas testée.
+
+## État validé sur iPhone (2026-10-07)
+
+Appareil de référence : iPhone 14 Pro Max (6 Go, iOS 27). L'iPhone XR (3 Go, A12) ne tient pas E2B de façon fiable
+(app perdue à la transition ASR → lecteur) ; il n'est plus utilisé pour valider.
+
+- `long.mp3` (45 min) : transcription en ~15 min (RTF ≈ 0,3), lecteur E2B en parallèle, résumé confirmé correct.
+- Enregistrement micro : sessions de 30 s et 62 s terminées.
+- Mode séquentiel automatique sous 4,5 Go de RAM (lecteur en pause pendant l'ASR).
+- Point de reprise de la transcription (`Library/Application Support/checkpoints/`) : un kill pendant l'étape lecteur ne refait pas l'ASR.
+- Tâche d'arrière-plan `BGProcessingTask` (`tw.com.pesi.voxsum.queue`) : reprend la file de jobs quand l'app est quittée.
+- Réglages : délai des locuteurs en direct (5–30 s, défaut 15) et taille du texte.
+- Pré-traitement audio : normalisation du gain, saut des silences, découpe des longues interventions.
+- Non testé sur appareil : gain/silences, découpe, réglages, tâche d'arrière-plan, reprise depuis le point de reprise.
+
+## Construire et tester sur appareil
+
+- `DEV=1 bash native/build_app.sh iphoneos arm64` active `-DVOX_DEV` : variables `VOX_*` (`VOX_IMPORT`, `VOX_DOWNLOAD`,
+  `VOX_OPEN`, `VOX_PODCAST`, `VOX_READER_DIR`, `VOX_AUTORUN`) et bouton Sample. Les builds sans `DEV` n'en contiennent aucune.
+- Puis `xcodebuild … SKIP_NATIVE_BUILD=1 clean build` (sinon la phase de script Xcode recompile sans `DEV=1`).
+- Les modèles se téléchargent dans l'app (`VOX_DOWNLOAD=reader` pour le lecteur ; ASR au premier job).
+- Journal : `Documents/status.log` (`devicectl device copy from --domain-type appDataContainer`).

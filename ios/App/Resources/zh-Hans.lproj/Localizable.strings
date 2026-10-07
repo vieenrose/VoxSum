@@ -171,3 +171,10 @@
 "studio_processing_banner" = "%@（点按即时查看）";
 "source_process_all" = "处理待办（%d）";
 "agent_listening" = "阅读逐字稿 · 已写 %d 条笔记";
+"lic_nemo" = "nemo-x-asr-diarizer（流式语音识别与说话人分离）";
+"lic_crispasr" = "CrispASR（X-ASR 运行环境）";
+"lic_audiocpp" = "audio.cpp（Nemotron-3 说话人分离运行环境）";
+"lic_ggml" = "LiteRT · SentencePiece（AI 笔记）";
+"lic_xasr" = "X-ASR 中英模型";
+"lic_nemotron" = "Nemotron-3 说话人分离模型";
+"lic_opencc" = "OpenCC（繁体 / 简体）";

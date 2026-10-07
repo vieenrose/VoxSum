@@ -171,3 +171,10 @@
 "studio_processing_banner" = "%@ (tap to watch live)";
 "source_process_all" = "Process pending (%d)";
 "agent_listening" = "Reading transcript · %d notes written";
+"lic_nemo" = "nemo-x-asr-diarizer (streaming ASR + diarization)";
+"lic_crispasr" = "CrispASR (X-ASR runtime)";
+"lic_audiocpp" = "audio.cpp (Nemotron-3 diarization runtime)";
+"lic_ggml" = "LiteRT · SentencePiece (AI notes)";
+"lic_xasr" = "X-ASR zh-en model";
+"lic_nemotron" = "Nemotron-3 Diarization model";
+"lic_opencc" = "OpenCC (zh-TW / zh-CN)";

@@ -171,3 +171,10 @@
 "studio_processing_banner" = "%@（點按即時查看）";
 "source_process_all" = "處理待辦（%d）";
 "agent_listening" = "閱讀逐字稿 · 已寫 %d 則筆記";
+"lic_nemo" = "nemo-x-asr-diarizer（串流語音辨識與語者分離）";
+"lic_crispasr" = "CrispASR（X-ASR 執行環境）";
+"lic_audiocpp" = "audio.cpp（Nemotron-3 語者分離執行環境）";
+"lic_ggml" = "LiteRT · SentencePiece（AI 筆記）";
+"lic_xasr" = "X-ASR 中英模型";
+"lic_nemotron" = "Nemotron-3 語者分離模型";
+"lic_opencc" = "OpenCC（繁體 / 簡體）";

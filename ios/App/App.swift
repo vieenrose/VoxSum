@@ -425,7 +425,7 @@ struct SettingsView: View {
                     HStack { Text("VoxSum"); Spacer(); Text(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "").foregroundStyle(.secondary) }
                     Text(L("about_license"))
                     DisclosureGroup(L("about_components")) {
-                        ForEach(["CrispASR / ggml", "audio.cpp (diarization)", "LiteRT-LM", "SentencePiece", "OpenCC"], id: \.self) { Text($0).font(.footnote) }
+                        ForEach(["lic_nemo", "lic_crispasr", "lic_audiocpp", "lic_ggml", "lic_xasr", "lic_nemotron", "lic_opencc"], id: \.self) { Text(L($0)).font(.footnote) }
                     }
                 }
             }

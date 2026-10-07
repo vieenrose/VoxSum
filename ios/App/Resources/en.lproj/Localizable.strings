@@ -241,3 +241,4 @@
 "export_group_session_desc" = "Audio, transcript, speakers, summary and actions in one file. Reopens in VoxSum; plays anywhere.";
 "export_action_save" = "Save";
 "network_error" = "Network error — check your connection and try again.";
+"action_process_now" = "Process now";

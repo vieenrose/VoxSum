@@ -146,6 +146,7 @@ final class ReaderWorker: @unchecked Sendable {
     @Published var waiting: [Job] = []
     @Published var activeJob: UUID?
     func syncQueue() async { waiting = await queue.all; pending = waiting.count }
+    func processNext(_ j: Job) { guard j.id != activeJob else { return }; Task { await queue.promote(j.id); await syncQueue() } }
     func unqueue(_ j: Job) { guard j.id != activeJob else { return }; Task { await queue.remove(j.id); Checkpoint.remove(j.id); await syncQueue() } }
     func reload() { Task { sessions = await library.all(); await syncQueue() } }
     func update(_ s: Session) { Task { try? await library.save(s); sessions = await library.all() } }

@@ -92,7 +92,7 @@ struct LibraryView: View {
             }
             Spacer(minLength: 0)
             if !active && j.id != m.recordingJobId {
-                Menu { Button(L("action_remove_from_queue"), systemImage: "xmark.circle", role: .destructive) { m.unqueue(j) } }
+                Menu { Button(L("action_process_now"), systemImage: "text.line.first.and.arrowtriangle.forward") { m.processNext(j) }; Button(L("action_remove_from_queue"), systemImage: "xmark.circle", role: .destructive) { m.unqueue(j) } }
                     label: { Image(systemName: "ellipsis").padding(10).contentShape(Rectangle()) }
             }
         }

@@ -241,3 +241,4 @@
 "export_group_session_desc" = "音訊、逐字稿、語者、摘要與行動項目合為一個檔案。可在 VoxSum 重新開啟，任何播放器都能播放。";
 "export_action_save" = "儲存";
 "network_error" = "網路錯誤——請檢查連線後再試一次。";
+"action_process_now" = "立即處理";

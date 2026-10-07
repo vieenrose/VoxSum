@@ -26,6 +26,7 @@ actor JobQueue {
         try? enc.encode(jobs).write(to: file, options: .atomic)
     }
     func add(_ j: Job) { jobs.append(j); persist() }
+    func promote(_ id: UUID) { if let i = jobs.firstIndex(where: { $0.id == id }), i > 0 { jobs.insert(jobs.remove(at: i), at: 0); persist() } }
     func remove(_ id: UUID) { jobs.removeAll { $0.id == id }; persist() }
     func first(skipping: UUID? = nil) -> Job? { jobs.first { $0.id != skipping } }
     var count: Int { jobs.count }

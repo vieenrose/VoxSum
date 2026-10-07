@@ -1,10 +1,41 @@
 import SwiftUI
 import UserNotifications
 import os
+import BackgroundTasks
 
 @main struct VoxSumApp: App {
     @AppStorage("textSize") private var textSize = 0
-    var body: some Scene { WindowGroup { ContentView().modifier(TextSize(size: Prefs.typeSize(textSize))) } }
+    @Environment(\.scenePhase) private var phase
+    init() { BackgroundWork.register() }
+    var body: some Scene {
+        WindowGroup { ContentView().modifier(TextSize(size: Prefs.typeSize(textSize))) }
+            .onChange(of: phase) { if phase == .background { BackgroundWork.schedule() } }
+    }
+}
+
+/// Queued jobs keep going when the user leaves the app: iOS grants a processing window (usually while charging) that
+/// resumes the queue; a job cut short stays queued and restarts at the next launch (Android: foreground service).
+enum BackgroundWork {
+    static let id = "tw.com.pesi.voxsum.queue"
+    @MainActor static weak var model: Model?
+    static func register() {
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: id, using: nil) { task in
+            StatusLog.add("trace background task started")
+            task.expirationHandler = { StatusLog.add("trace background task expired"); schedule() }
+            Task { @MainActor in
+                if let m = model { m.drain(); await m.drainTask?.value }
+                task.setTaskCompleted(success: true)
+            }
+        }
+    }
+    static func schedule() {
+        Task {
+            guard let m = await model, await m.queue.count > 0 else { return }
+            let r = BGProcessingTaskRequest(identifier: id)
+            r.requiresNetworkConnectivity = false; r.requiresExternalPower = false
+            do { try BGTaskScheduler.shared.submit(r) } catch { StatusLog.add("trace background schedule failed: \(error)") }
+        }
+    }
 }
 
 /// Fixed Dynamic Type step from Settings; nil follows the system.
@@ -236,6 +267,7 @@ final class ReaderWorker: @unchecked Sendable {
     // MARK: processing queue
     let queue = JobQueue()
     private var draining = false
+    var drainTask: Task<Void, Never>?
     private var recordingJob: UUID?   // being recorded: not for the queue yet
     /// Processes every queued job in order (also at launch: recordings cut short by a kill are picked up here).
     func drain() {
@@ -243,7 +275,7 @@ final class ReaderWorker: @unchecked Sendable {
         draining = true
         UIApplication.shared.isIdleTimerDisabled = true   // iOS suspends a locked app: stay awake while the queue works (Android: wake lock)
         Notifier.requestPermission()
-        Task {
+        drainTask = Task {
             while let job = await queue.first(skipping: recordingJob) {
                 let url = JobQueue.url(job)
                 WavWriter.repair(url)
@@ -320,7 +352,7 @@ struct ContentView: View {
             }
             .navigationTitle("VoxSum")
             .navigationDestination(for: Session.self) { x in SessionView(session: m.sessions.first { $0.id == x.id } ?? x) { m.update($0) } }
-            .onAppear { m.reload(); if Dev.env["VOX_OPEN"] != nil { Task { path = await m.library.all().prefix(1).map { $0 } } }; if let d = Dev.env["VOX_DOWNLOAD"] { if d == "speech" { Task { _ = await m.downloadSpeech() } } else { m.downloadReader() } }; if Dev.env["VOX_AUTORUN"] != nil { m.run() }; m.drain(); if let f = Dev.env["VOX_IMPORT"] { m.importAudio(URL(fileURLWithPath: f.hasPrefix("/") ? f : NSHomeDirectory() + "/" + f)) }; if let q = Dev.env["VOX_PODCAST"] { Task { if let sr = try? await Podcast.search(q).first, let ep = try? await Podcast.episodes(sr.feedUrl, limit: 3).last { m.addEpisode(ep) } else { m.status = "podcast: no result" } } } }
+            .onAppear { BackgroundWork.model = m; m.reload(); if Dev.env["VOX_OPEN"] != nil { Task { path = await m.library.all().prefix(1).map { $0 } } }; if let d = Dev.env["VOX_DOWNLOAD"] { if d == "speech" { Task { _ = await m.downloadSpeech() } } else { m.downloadReader() } }; if Dev.env["VOX_AUTORUN"] != nil { m.run() }; m.drain(); if let f = Dev.env["VOX_IMPORT"] { m.importAudio(URL(fileURLWithPath: f.hasPrefix("/") ? f : NSHomeDirectory() + "/" + f)) }; if let q = Dev.env["VOX_PODCAST"] { Task { if let sr = try? await Podcast.search(q).first, let ep = try? await Podcast.episodes(sr.feedUrl, limit: 3).last { m.addEpisode(ep) } else { m.status = "podcast: no result" } } } }
             .toolbar {
                 ToolbarItem(placement: .bottomBar) { Button(L("settings")) { showSettings = true } }
                 if Dev.on { ToolbarItem(placement: .bottomBar) { Button(L("sample")) { m.run() } } }

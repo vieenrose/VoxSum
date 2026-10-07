@@ -317,3 +317,4 @@
 "svc_queue_item_failed" = "無法處理 %s——已保留在資料庫中";
 "svc_queue_item_failed_hint" = "點一下開啟 VoxSum 再試一次。";
 "summary_no_notes" = "這段錄音沒有需要記下的決議、待辦或數字。";
+"status_starting" = "啟動中…";

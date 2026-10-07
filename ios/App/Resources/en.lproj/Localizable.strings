@@ -317,3 +317,4 @@
 "svc_queue_item_failed" = "Could not process %s — kept in the library";
 "svc_queue_item_failed_hint" = "Tap to open VoxSum and try again.";
 "summary_no_notes" = "Nothing to note in this recording: no decisions, actions or figures.";
+"status_starting" = "Starting…";

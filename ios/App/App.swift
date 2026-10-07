@@ -332,6 +332,7 @@ final class Model: ObservableObject {
         let j = Job(id: s.id, date: s.date, audio: a, title: s.title)
         guard FileManager.default.fileExists(atPath: JobQueue.url(j).path) else { return }
         if transcribe { Checkpoint.remove(s.id); resummarized[s.id] = nil } else { Checkpoint.save(s.lines, s.id); resummarized[s.id] = s }
+        status = L("status_starting")   // Android: shown until the first model line
         Task { await queue.add(j); await syncQueue(); drain() }
     }
     func drain() {

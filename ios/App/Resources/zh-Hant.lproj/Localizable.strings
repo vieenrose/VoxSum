@@ -147,3 +147,5 @@
 "pillar_offline_desc" = "在飛機、高鐵或任何無網路環境皆可使用";
 "pillar_cost_title" = "無需訂閱";
 "pillar_cost_desc" = "一次擁有，無雲端費用";
+"re_transcribe" = "重新轉錄";
+"re_summarize" = "重新摘要";

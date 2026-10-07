@@ -35,6 +35,7 @@ import AVFoundation
 struct SessionView: View {
     @State var s: Session
     let save: (Session) -> Void
+    let rerun: (Session, Bool) -> Void
     @StateObject private var player: Player
     @State private var query = ""
     @State private var follow = true
@@ -44,8 +45,8 @@ struct SessionView: View {
     @State private var exportFile: URL?
     @State private var showExport = false
 
-    init(session: Session, save: @escaping (Session) -> Void) {
-        _s = State(initialValue: session); self.save = save
+    init(session: Session, save: @escaping (Session) -> Void, rerun: @escaping (Session, Bool) -> Void = { _, _ in }) {
+        _s = State(initialValue: session); self.save = save; self.rerun = rerun
         _tab = State(initialValue: Int(Dev.env["VOX_TAB"] ?? "") ?? 0)
         if let q = Dev.env["VOX_QUERY"] { _query = State(initialValue: q); _searching = State(initialValue: true) }
         _player = StateObject(wrappedValue: Player(file: session.audio))
@@ -181,6 +182,10 @@ struct SessionView: View {
                 Menu {
                     Button(L("rename")) { draft = s.title; renamingTitle = true }
                     Button(L("export_menu_entry")) { showExport = true }
+                    if s.audio != nil {
+                        Button(L("re_transcribe")) { rerun(s, true) }
+                        Button(L("re_summarize")) { rerun(s, false) }
+                    }
                 } label: { Image(systemName: "ellipsis.circle").accessibilityLabel(L("more")) }
             }
         }

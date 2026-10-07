@@ -286,6 +286,14 @@ final class ReaderWorker: @unchecked Sendable {
     var drainTask: Task<Void, Never>?
     private var recordingJob: UUID?   // being recorded: not for the queue yet
     /// Processes every queued job in order (also at launch: recordings cut short by a kill are picked up here).
+    /// Android re-transcribe / re-summarize: re-queues the session's saved audio under the same id (summarize reuses the stored transcript, so only the reader runs).
+    func rerun(_ s: Session, transcribe: Bool) {
+        guard let a = s.audio else { return }
+        let j = Job(id: s.id, date: s.date, audio: a, title: s.title)
+        guard FileManager.default.fileExists(atPath: JobQueue.url(j).path) else { return }
+        if transcribe { Checkpoint.remove(s.id) } else { Checkpoint.save(s.lines, s.id) }
+        Task { await queue.add(j); pending = await queue.count; drain() }
+    }
     func drain() {
         guard !draining else { return }
         draining = true
@@ -344,7 +352,7 @@ struct ContentView: View {
         NavigationStack(path: $path) {
             LibraryView(m: m, path: $path, onAdd: { showAdd = true }, onSettings: { showSettings = true })
             .toolbar(.hidden, for: .navigationBar)
-            .navigationDestination(for: Session.self) { x in SessionView(session: m.sessions.first { $0.id == x.id } ?? x) { m.update($0) } }
+            .navigationDestination(for: Session.self) { x in SessionView(session: m.sessions.first { $0.id == x.id } ?? x, save: { m.update($0) }, rerun: { m.rerun($0, transcribe: $1) }) }
             .onAppear { BackgroundWork.model = m; m.reload(); if Dev.env["VOX_OPEN"] != nil { Task { path = await m.library.all().prefix(1).map { $0 } } }; if let d = Dev.env["VOX_DOWNLOAD"] { if d == "speech" { Task { _ = await m.downloadSpeech() } } else { m.downloadReader() } }; if Dev.env["VOX_AUTORUN"] != nil { m.run() }; if Dev.env["VOX_RECORD"] != nil { m.toggleRecord() }; if Dev.env["VOX_SETTINGS"] != nil { showSettings = true }; if Dev.env["VOX_ADD"] != nil { showAdd = true }; m.drain(); if let f = Dev.env["VOX_IMPORT"] { m.importAudio(URL(fileURLWithPath: f.hasPrefix("/") ? f : NSHomeDirectory() + "/" + f)) }; if let q = Dev.env["VOX_PODCAST"] { Task { if let sr = try? await Podcast.search(q).first, let ep = try? await Podcast.episodes(sr.feedUrl, limit: 3).last { m.addEpisode(ep) } else { m.status = "podcast: no result" } } } }
             .sheet(isPresented: $showAdd) { AddSourceSheet(onFile: { picking = true }, onPodcast: { showPodcast = true }) }
             .fullScreenCover(isPresented: Binding(get: { m.recording }, set: { _ in })) { CaptureView(m: m) }

@@ -147,3 +147,5 @@
 "pillar_offline_desc" = "On a plane, a train, anywhere — no network";
 "pillar_cost_title" = "No subscription";
 "pillar_cost_desc" = "Yours to keep, no cloud fees";
+"re_transcribe" = "Re-transcribe";
+"re_summarize" = "Re-summarize";

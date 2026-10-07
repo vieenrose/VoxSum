@@ -275,3 +275,11 @@
 "status_error" = "Error: %@";
 "settings_inference_capped" = "A reading failed with more threads, so 2 are used until the next benchmark.";
 "storage_compile_cache" = "%@ (compile cache)";
+"cd_edit" = "Edit";
+"cd_line_actions" = "Line actions";
+"speaker_move_line" = "Move line to";
+"speaker_merge_into" = "Merge speaker into";
+"transcript_changed_resummarize" = "Transcript edited — tap Re-summarize to update the summary.";
+"summary_pending_hint" = "No summary yet — it appears here once processing finishes.";
+"summary_missing_hint" = "No summary for this session — choose Re-summarize in the ⋮ menu to try again.";
+"status_no_speech" = "No speech detected";

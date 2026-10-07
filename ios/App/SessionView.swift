@@ -43,6 +43,8 @@ struct SessionView: View {
     @State private var renamingTitle = false
     @State private var draft = ""
     @State private var renamingSpeaker: Int?
+    @State private var editingLine: UUID?
+    @State private var transcriptDirty = false
     @State private var exportFile: URL?
     @State private var showExport = Dev.env["VOX_EXPORT"] != nil
 
@@ -131,6 +133,7 @@ struct SessionView: View {
                 }
             }
             if !s.lines.isEmpty { SpeakerStats(s: s, palette: Self.palette).id("stats") }
+            if s.summary.isEmpty { Text(L(s.lines.isEmpty ? "status_no_speech" : "summary_missing_hint")).font(.subheadline).foregroundStyle(.secondary).padding(.top, 12) }
         }.padding(.horizontal, 16)
     }
     private var transcriptTab: some View {
@@ -170,6 +173,8 @@ struct SessionView: View {
                 .background(l.id == current ? Color.accentColor.opacity(0.18) : (hits.indices.contains(match) && hits[match].id == l.id ? Color.yellow.opacity(0.22) : Color(.secondarySystemGroupedBackground)), in: RoundedRectangle(cornerRadius: 12))
                 .contentShape(Rectangle())
                 .onTapGesture { if player.available { player.seek(l.start) } }
+                .contextMenu { lineMenu(l) }
+                .accessibilityAction(named: L("cd_line_actions")) { editingLine = l.id; draft = l.text }
             }
         }.padding(.horizontal, 16)
     }
@@ -225,8 +230,43 @@ struct SessionView: View {
             }
             Button(L("cancel"), role: .cancel) {}
         }
+        .alert(L("cd_edit"), isPresented: Binding(get: { editingLine != nil }, set: { if !$0 { editingLine = nil } })) {
+            TextField("", text: $draft, axis: .vertical)
+            Button(L("done")) {
+                let t = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+                if let id = editingLine, !t.isEmpty, let i = s.lines.firstIndex(where: { $0.id == id }), s.lines[i].text != t { s.lines[i].text = t; edited() }
+            }
+            Button(L("cancel"), role: .cancel) {}
+        }
+        .alert(L("transcript_changed_resummarize"), isPresented: $transcriptDirty) {
+            if s.audio != nil { Button(L("re_summarize")) { rerun(s, false) } }
+            Button(L("cancel"), role: .cancel) {}
+        }
         .onDisappear { player.stop() }
     }
+
+    /// Android LineMenu: edit the text, move this line to another speaker, or merge this speaker into another.
+    @ViewBuilder private func lineMenu(_ l: Utterance) -> some View {
+        Button { editingLine = l.id; draft = l.text } label: { Label(L("cd_edit"), systemImage: "pencil") }
+        let others = Array(Set(s.lines.map(\.speaker))).sorted().filter { $0 != l.speaker }
+        if !others.isEmpty {
+            Section(L("speaker_move_line")) { ForEach(others, id: \.self) { k in Button(s.name(k)) { reassign(l.id, k) } } }
+            Section(L("speaker_merge_into")) { ForEach(others, id: \.self) { k in Button(s.name(k)) { merge(l.speaker, k) } } }
+        }
+    }
+    /// Android SpeakerEdits: plain relabels, ids kept (labels and colours stay put); a speaker left without lines loses its name.
+    private func reassign(_ id: UUID, _ to: Int) {
+        guard let i = s.lines.firstIndex(where: { $0.id == id }) else { return }
+        let old = s.lines[i].speaker; s.lines[i].speaker = to
+        if !s.lines.contains(where: { $0.speaker == old }) { dropName(old) }
+        edited()
+    }
+    private func merge(_ from: Int, _ into: Int) {
+        for i in s.lines.indices where s.lines[i].speaker == from { s.lines[i].speaker = into }
+        dropName(from); edited()
+    }
+    private func dropName(_ k: Int) { s.speakerNames?[String(k)] = nil; if s.speakerNames?.isEmpty == true { s.speakerNames = nil } }
+    private func edited() { save(s); if !s.summary.isEmpty { transcriptDirty = true } }
 
     private func stepMatch(_ d: Int) {
         guard !hits.isEmpty else { return }

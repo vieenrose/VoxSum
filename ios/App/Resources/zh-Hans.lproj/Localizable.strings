@@ -275,3 +275,11 @@
 "status_error" = "错误：%@";
 "settings_inference_capped" = "曾有一次阅读在较多线程下失败，因此在下次测试前改用 2 个。";
 "storage_compile_cache" = "%@（编译缓存）";
+"cd_edit" = "编辑";
+"cd_line_actions" = "此句操作";
+"speaker_move_line" = "将此句移至";
+"speaker_merge_into" = "合并说话人至";
+"transcript_changed_resummarize" = "转写文本已编辑，请点“重新摘要”以更新摘要。";
+"summary_pending_hint" = "尚无摘要——处理完成后会显示在这里。";
+"summary_missing_hint" = "此场次没有摘要——可从菜单选“重新摘要”再试一次。";
+"status_no_speech" = "未检测到语音";

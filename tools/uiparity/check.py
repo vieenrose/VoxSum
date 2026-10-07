@@ -9,7 +9,7 @@ vals = {m[0]: re.sub(r"\\(.)", r"\1", m[1]) for m in re.findall(r'<string name="
 ios = open("ios/App/Resources/zh-Hant.lproj/Localizable.strings").read()
 ios_vals = {re.sub(r"%\d*\$?[,.\d]*[dsf@]", "%", v) for v in re.findall(r'=\s*"((?:[^"\\]|\\.)*)";', ios)}
 norm = lambda v: re.sub(r"%\d*\$?[,.\d]*[dsf@]", "%", v)
-files = [f for f in git("ls-tree", "-r", "--name-only", ref).split() if "/ui/" in f and f.endswith(".kt") and "/test/" not in f]
+files = [f for f in git("ls-tree", "-r", "--name-only", ref).split() if ("/ui/" in f or f.endswith("/MainActivity.kt")) and f.endswith(".kt") and "/test/" not in f]
 total = miss = 0; rep = collections.defaultdict(list)
 for f in files:
     for k in sorted(set(re.findall(r"R\.string\.(\w+)", git("show", f"{ref}:{f}")))):

@@ -556,7 +556,7 @@ struct YouTubeSheet: View {
         Task {
             defer { busy = false }
             do { results = try await YouTube.search(q); if results.isEmpty { error = L("youtube_no_videos") } }
-            catch { self.error = L("youtube_search_failed") }
+            catch { self.error = (error as? URLError) != nil ? L("network_error") : L("youtube_search_failed") }
         }
     }
 }

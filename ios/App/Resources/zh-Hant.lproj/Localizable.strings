@@ -140,7 +140,7 @@
 "import_busy" = "已有下載進行中";
 "podcast_transcribe" = "轉錄";
 "empty_headline" = "完全離線轉錄與摘要";
-"empty_subtitle" = "加入音訊檔案或錄製會議以開始。";
+"empty_subtitle" = "加入音訊檔案、錄製會議，或貼上 YouTube 連結以開始。";
 "pillar_private_title" = "隱私至上";
 "pillar_private_desc" = "音訊永不離開您的裝置";
 "pillar_offline_title" = "離線運作";
@@ -240,3 +240,4 @@
 "export_group_session" = "VoxSum 場次（.m4a）";
 "export_group_session_desc" = "音訊、逐字稿、語者、摘要與行動項目合為一個檔案。可在 VoxSum 重新開啟，任何播放器都能播放。";
 "export_action_save" = "儲存";
+"network_error" = "網路錯誤——請檢查連線後再試一次。";

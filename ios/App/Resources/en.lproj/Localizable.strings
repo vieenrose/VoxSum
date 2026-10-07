@@ -140,7 +140,7 @@
 "import_busy" = "A download is already running";
 "podcast_transcribe" = "Transcribe";
 "empty_headline" = "Transcribe & summarize, fully offline";
-"empty_subtitle" = "Add an audio file or record a meeting to begin.";
+"empty_subtitle" = "Add an audio file, record a meeting, or paste a YouTube link to begin.";
 "pillar_private_title" = "Private by design";
 "pillar_private_desc" = "Audio never leaves your device";
 "pillar_offline_title" = "Works offline";
@@ -240,3 +240,4 @@
 "export_group_session" = "VoxSum session (.m4a)";
 "export_group_session_desc" = "Audio, transcript, speakers, summary and actions in one file. Reopens in VoxSum; plays anywhere.";
 "export_action_save" = "Save";
+"network_error" = "Network error — check your connection and try again.";

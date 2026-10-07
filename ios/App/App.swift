@@ -23,17 +23,19 @@ enum Notifier {
 /// Every status line, timestamped, in Documents/status.log (pullable with devicectl: the console is not always attached).
 enum StatusLog {
     static let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("status.log")
-    private static let lock = NSLock()
-    private static var lastKey = "", lastAt = Date.distantPast
+    private static let q = DispatchQueue(label: "statuslog", qos: .utility)   // never block the app on file I/O (a stalled devicectl copy held the file)
+    nonisolated(unsafe) private static var lastKey = "", lastAt = Date.distantPast
     static func add(_ s: String) {
-        lock.lock(); defer { lock.unlock() }
-        // progress lines ("轉錄中 12 / 300 秒") differ only by digits: keep one every 15 s
-        let key = String(s.filter { !$0.isNumber })
-        if key == lastKey && Date().timeIntervalSince(lastAt) < 15 { return }
-        lastKey = key; lastAt = Date()
-        if let n = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.size] as? Int, n > 1_000_000 { try? FileManager.default.removeItem(at: url) }
-        guard let d = (ISO8601DateFormatter().string(from: Date()) + " " + s + "\n").data(using: .utf8) else { return }
-        if let h = try? FileHandle(forWritingTo: url) { defer { try? h.close() }; _ = try? h.seekToEnd(); try? h.write(contentsOf: d) } else { try? d.write(to: url) }
+        let now = Date()
+        q.async {
+            // progress lines ("轉錄中 12 / 300 秒") differ only by digits: keep one every 15 s
+            let key = String(s.filter { !$0.isNumber })
+            if key == lastKey && now.timeIntervalSince(lastAt) < 15 { return }
+            lastKey = key; lastAt = now
+            if let n = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.size] as? Int, n > 1_000_000 { try? FileManager.default.removeItem(at: url) }
+            guard let d = (ISO8601DateFormatter().string(from: now) + " " + s + "\n").data(using: .utf8) else { return }
+            if let h = try? FileHandle(forWritingTo: url) { defer { try? h.close() }; _ = try? h.seekToEnd(); try? h.write(contentsOf: d) } else { try? d.write(to: url) }
+        }
     }
 }
 
@@ -185,7 +187,7 @@ final class ReaderWorker: @unchecked Sendable {
                         self.lines = conv.utterances(frozen + tail); self.notes = conv.notes(j)
                         self.status = L("transcribing_s", Int(fed), Int(seconds))
                     }
-                    Stage.set("decode")
+                    Stage.set("idle")
                     return true
                 }
             } catch { await MainActor.run { self.status = L("audio_error", error.localizedDescription) }; return }

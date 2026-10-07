@@ -43,7 +43,7 @@ struct SessionView: View {
     @State private var draft = ""
     @State private var renamingSpeaker: Int?
     @State private var exportFile: URL?
-    @State private var showExport = false
+    @State private var showExport = Dev.env["VOX_EXPORT"] != nil
 
     init(session: Session, save: @escaping (Session) -> Void, rerun: @escaping (Session, Bool) -> Void = { _, _ in }) {
         _s = State(initialValue: session); self.save = save; self.rerun = rerun
@@ -117,7 +117,7 @@ struct SessionView: View {
                     Text(L("ai_disclaimer")).font(.caption2).foregroundStyle(.secondary)
                 }
             }
-            if !s.lines.isEmpty { SpeakerStats(s: s, palette: Self.palette) }
+            if !s.lines.isEmpty { SpeakerStats(s: s, palette: Self.palette).id("stats") }
         }.padding(.horizontal, 16)
     }
     private var transcriptTab: some View {
@@ -171,6 +171,7 @@ struct SessionView: View {
                 }.padding(.top, 8)
             }
             .background(Color(.systemGroupedBackground))
+            .onAppear { if Dev.env["VOX_SCROLL"] != nil { DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { proxy.scrollTo("stats", anchor: .top) } } }
             .safeAreaInset(edge: .bottom) { if player.available { playerBar } }
             .onChange(of: current) { _, id in if follow, player.playing, tab == 1, let id { withAnimation { proxy.scrollTo(id, anchor: .center) } } }
         }

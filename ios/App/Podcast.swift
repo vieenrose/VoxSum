@@ -29,14 +29,14 @@ enum Podcast {
     }
 
     /// Streams the enclosure into the audio directory under `name` (resumable via a `.part` file), 500 MB max.
-    static func download(_ ep: Episode, name: String, progress: @escaping @Sendable (Double) -> Void) async throws -> URL {
+    static func download(_ ep: Episode, name: String, progress: @escaping @Sendable (Double) -> Void, ua: String? = nil) async throws -> URL {
         guard let u = URL(string: ep.audioUrl), ["http", "https"].contains(u.scheme) else { throw URLError(.unsupportedURL) }
-        var head = request(u); head.httpMethod = "HEAD"
+        var head = request(u, ua); head.httpMethod = "HEAD"
         let total = ((try? await URLSession.shared.data(for: head).1) as? HTTPURLResponse)?.expectedContentLength ?? -1
         if total > maxBytes { throw URLError(.dataLengthExceedsMaximum) }
         let dest = JobQueue.audioDir.appendingPathComponent(name), part = dest.appendingPathExtension("part")
         let have = (try? FileManager.default.attributesOfItem(atPath: part.path)[.size] as? Int64) ?? 0
-        try await Chunked.fetch(request(u), to: part, resumeFrom: have) { got in if total > 0 { progress(Double(got) / Double(total)) } }
+        try await Chunked.fetch(request(u, ua), to: part, resumeFrom: have) { got in if total > 0 { progress(Double(got) / Double(total)) } }
         let size = (try FileManager.default.attributesOfItem(atPath: part.path)[.size] as? Int64) ?? 0
         if size > maxBytes { try? FileManager.default.removeItem(at: part); throw URLError(.dataLengthExceedsMaximum) }
         try? FileManager.default.removeItem(at: dest)
@@ -54,7 +54,7 @@ enum Podcast {
         guard let s = Int(t) else { return t }
         return s >= 3600 ? String(format: "%d:%02d:%02d", s / 3600, s % 3600 / 60, s % 60) : String(format: "%d:%02d", s / 60, s % 60)
     }
-    private static func request(_ u: URL) -> URLRequest { var r = URLRequest(url: u, timeoutInterval: 15); r.setValue(ua, forHTTPHeaderField: "User-Agent"); return r }
+    private static func request(_ u: URL, _ agent: String? = nil) -> URLRequest { var r = URLRequest(url: u, timeoutInterval: 15); r.setValue(agent ?? ua, forHTTPHeaderField: "User-Agent"); return r }
 
     private final class RSS: NSObject, XMLParserDelegate {
         let limit: Int; var out: [Episode] = []

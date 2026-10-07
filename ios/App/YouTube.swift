@@ -23,8 +23,8 @@ enum YouTubeError: LocalizedError {
 enum YouTube {
     private static let api = "https://www.youtube.com/youtubei/v1"
     private static let key = "AIzaSyB-63vPrdThhKuerbB2N_l7Kwwcxj6yUAc"
-    private static let iosVersion = "19.45.4"
-    private static let ua = "com.google.ios.youtube/19.45.4 (iPhone16,2; U; CPU iOS 18_1_0 like Mac OS X;)"
+    private static let iosVersion = "20.33.2"
+    private static let ua = "com.google.ios.youtube/20.33.2 (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X;)"
 
     static func looksLikeUrl(_ text: String) -> Bool {
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -74,7 +74,7 @@ enum YouTube {
     static func resolve(_ url: String) async throws -> YouTubeAudio {
         guard let id = videoId(url) else { throw YouTubeError.noStream }
         let ctx: [String: Any] = ["client": ["clientName": "IOS", "clientVersion": iosVersion, "deviceMake": "Apple", "deviceModel": "iPhone16,2",
-                                             "osName": "iPhone", "osVersion": "18.1.0.22B83", "hl": "en"]]
+                                             "osName": "iPhone", "osVersion": "18.3.2.22D82", "hl": "en"]]
         let j = try await post("player", ["context": ctx, "videoId": id, "contentCheckOk": true, "racyCheckOk": true], ua: ua)
         let details = j["videoDetails"] as? [String: Any] ?? [:]
         if details["isLive"] as? Bool == true || details["isLiveContent"] as? Bool == true && (details["lengthSeconds"] as? String) == "0" { throw YouTubeError.live }
@@ -89,6 +89,6 @@ enum YouTube {
     /// Streams the resolved audio into the audio directory (resumable `.part`), 500 MB max like podcasts.
     static func download(_ a: YouTubeAudio, name: String, progress: @escaping @Sendable (Double) -> Void) async throws -> URL {
         let ep = Episode(title: a.title, audioUrl: a.streamUrl, published: "", duration: "")
-        return try await Podcast.download(ep, name: name, progress: progress)
+        return try await Podcast.download(ep, name: name, progress: progress, ua: ua)
     }
 }

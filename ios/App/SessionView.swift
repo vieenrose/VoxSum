@@ -178,7 +178,7 @@ struct SessionView: View {
         .navigationTitle(s.title).navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button { tab = 1; searching = true; searchFocus = true } label: { Image(systemName: "magnifyingglass") }.accessibilityLabel(L("search_transcript_hint"))
+                Button { tab = 1; searching = true; searchFocus = true } label: { Image(systemName: "magnifyingglass") }.accessibilityLabel(L("search_transcript"))
             }
             ToolbarItem(placement: .primaryAction) {
                 Menu {
@@ -188,7 +188,7 @@ struct SessionView: View {
                         Button(L("re_transcribe")) { rerun(s, true) }
                         Button(L("re_summarize")) { rerun(s, false) }
                     }
-                } label: { Image(systemName: "ellipsis.circle").accessibilityLabel(L("more")) }
+                } label: { Image(systemName: "ellipsis.circle").accessibilityLabel(L("cd_more_options")) }
             }
         }
         .sheet(isPresented: $showExport) {

@@ -69,7 +69,7 @@ struct LibraryView: View {
                 }
                 Button(L("rename"), systemImage: "pencil") { draft = s.title; renaming = s }
                 Button(L("delete"), systemImage: "trash", role: .destructive) { deleting = s }
-            } label: { Image(systemName: "ellipsis").padding(10).contentShape(Rectangle()) }
+            } label: { Image(systemName: "ellipsis").padding(10).contentShape(Rectangle()).accessibilityLabel(L("cd_manage")) }
                 .accessibilityLabel(L("more")) }
         }
         .padding(12)
@@ -93,13 +93,13 @@ struct LibraryView: View {
             Spacer(minLength: 0)
             if active {
                 Menu { Button(L("action_stop_processing"), systemImage: "stop.circle", role: .destructive) { m.stopProcessing() } }
-                    label: { Image(systemName: "ellipsis").padding(10).contentShape(Rectangle()) }
+                    label: { Image(systemName: "ellipsis").padding(10).contentShape(Rectangle()).accessibilityLabel(L("cd_manage")) }
             } else if m.parked.contains(j.id) {
                 Menu { Button(L("action_resume"), systemImage: "play.circle") { m.resume(j) }; Button(L("action_remove_from_queue"), systemImage: "xmark.circle", role: .destructive) { m.unqueue(j) } }
-                    label: { Image(systemName: "ellipsis").padding(10).contentShape(Rectangle()) }
+                    label: { Image(systemName: "ellipsis").padding(10).contentShape(Rectangle()).accessibilityLabel(L("cd_manage")) }
             } else if j.id != m.recordingJobId {
                 Menu { Button(L("action_process_now"), systemImage: "text.line.first.and.arrowtriangle.forward") { m.processNext(j) }; Button(L("action_remove_from_queue"), systemImage: "xmark.circle", role: .destructive) { m.unqueue(j) } }
-                    label: { Image(systemName: "ellipsis").padding(10).contentShape(Rectangle()) }
+                    label: { Image(systemName: "ellipsis").padding(10).contentShape(Rectangle()).accessibilityLabel(L("cd_manage")) }
             }
         }
         .padding(12).background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))

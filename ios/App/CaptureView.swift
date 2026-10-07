@@ -42,7 +42,7 @@ struct CaptureView: View {
                 .onChange(of: m.lines.count) { _, _ in if let id = m.lines.last?.id { withAnimation { proxy.scrollTo(id, anchor: .bottom) } } }
             }
             Button { m.nextTalk() } label: {
-                Label(L("capture_next_talk"), systemImage: "forward.end.fill").font(.headline)
+                Label(L("capture_next_talk"), systemImage: "forward.end.fill").font(.headline).accessibilityLabel(L("cd_next_talk"))
                     .frame(maxWidth: .infinity).padding(.vertical, 14)
                     .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
             }.padding(.horizontal, 20)

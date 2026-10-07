@@ -245,3 +245,7 @@
 "action_stop_processing" = "停止處理";
 "action_resume" = "繼續處理";
 "stop_resumable" = "停止（可繼續處理）";
+"cd_manage" = "管理";
+"cd_more_options" = "更多選項";
+"cd_next_talk" = "下一場（儲存並開始下一段錄音）";
+"search_transcript" = "搜尋逐字稿";

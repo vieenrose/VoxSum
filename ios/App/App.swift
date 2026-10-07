@@ -195,6 +195,12 @@ final class ReaderWorker: @unchecked Sendable {
             }
         }
     }
+    /// Android "Next talk": save this recording (it is queued like any stop) and start the next one straight away.
+    func nextTalk() {
+        guard recording else { return }
+        toggleRecord()
+        Task { while recordingJob != nil || recording { try? await Task.sleep(nanoseconds: 100_000_000) }; toggleRecord() }
+    }
     /// Dev override (VOX_BASE, simulator only) else the downloaded copy in Application Support.
     nonisolated func modelPath(_ n: String, _ b: String) -> String {
         if Dev.env["VOX_BASE"] != nil { return "\(b)/models/\(n)" }

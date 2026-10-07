@@ -158,3 +158,4 @@
 "cd_exit_selection" = "Exit selection";
 "cd_status_queued" = "Queued";
 "action_remove_from_queue" = "Remove from queue";
+"capture_next_talk" = "Next talk";

@@ -158,3 +158,4 @@
 "cd_exit_selection" = "結束選取";
 "cd_status_queued" = "排入佇列";
 "action_remove_from_queue" = "從佇列移除";
+"capture_next_talk" = "下一場";

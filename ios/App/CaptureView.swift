@@ -40,11 +40,16 @@ struct CaptureView: View {
                 }
                 .onChange(of: m.lines.count) { _, _ in if let id = m.lines.last?.id { withAnimation { proxy.scrollTo(id, anchor: .bottom) } } }
             }
+            Button { m.nextTalk() } label: {
+                Label(L("capture_next_talk"), systemImage: "forward.end.fill").font(.headline)
+                    .frame(maxWidth: .infinity).padding(.vertical, 14)
+                    .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
+            }.padding(.horizontal, 20)
             Button { m.toggleRecord() } label: {
                 Label(L("capture_stop"), systemImage: "stop.fill").font(.headline)
                     .frame(maxWidth: .infinity).padding(.vertical, 16)
                     .background(Color.red, in: RoundedRectangle(cornerRadius: 16)).foregroundStyle(.white)
-            }.padding(20)
+            }.padding(.horizontal, 20).padding(.vertical, 12)
         }
         .background(Color(.systemGroupedBackground))
     }

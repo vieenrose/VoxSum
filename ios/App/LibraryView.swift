@@ -157,7 +157,7 @@ struct LibraryView: View {
                 }.padding(.horizontal, 16)
             }
             if m.activeJob != nil {
-                HStack(spacing: 8) { ProgressView().controlSize(.small); Text(L("studio_processing_banner", m.status)).font(.caption).lineLimit(1); Spacer() }
+                HStack(spacing: 8) { ProgressView().controlSize(.small); VStack(alignment: .leading, spacing: 2) { Text(L("studio_processing_banner", m.status)).font(.caption).lineLimit(1); if !m.notes.isEmpty { Text(L("agent_listening", m.notes.count)).font(.caption2).foregroundStyle(.secondary) } }; Spacer() }
                     .padding(10).background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 12)).padding(.horizontal, 16)
             } else {
                 Text(m.status).font(.caption).foregroundStyle(.secondary).lineLimit(1).padding(.horizontal, 16)

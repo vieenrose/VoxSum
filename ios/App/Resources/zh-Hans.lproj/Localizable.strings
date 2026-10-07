@@ -170,3 +170,4 @@
 "model_kind_other" = "其他";
 "studio_processing_banner" = "%@（点按即时查看）";
 "source_process_all" = "处理待办（%d）";
+"agent_listening" = "阅读逐字稿 · 已写 %d 条笔记";

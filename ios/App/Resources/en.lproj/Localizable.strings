@@ -170,3 +170,4 @@
 "model_kind_other" = "Other";
 "studio_processing_banner" = "%@ (tap to watch live)";
 "source_process_all" = "Process pending (%d)";
+"agent_listening" = "Reading transcript · %d notes written";

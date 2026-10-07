@@ -235,3 +235,8 @@
 "agent_notes_count" = "%1$@ notes";
 "agent_outcome_one" = "%1$@ window read · %2$@";
 "agent_outcome" = "%1$@ windows read · %2$@";
+"source_session" = "Open session (.ogg / .m4a)";
+"source_session_desc" = "Reload a saved .ogg or .m4a to keep editing the transcript";
+"export_group_session" = "VoxSum session (.m4a)";
+"export_group_session_desc" = "Audio, transcript, speakers, summary and actions in one file. Reopens in VoxSum; plays anywhere.";
+"export_action_save" = "Save";

@@ -192,7 +192,7 @@ struct SessionView: View {
             }
         }
         .sheet(isPresented: $showExport) {
-            ExportSheet(s: s) { f in showExport = false; DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { exportFile = Export.file(s, f) } }
+            ExportSheet(s: s) { f in showExport = false; DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { exportFile = Export.file(s, f) } } onSession: { showExport = false; Task { let u = await SessionFile.export(s); try? await Task.sleep(nanoseconds: 400_000_000); exportFile = u } }
                 .presentationDetents([.medium, .large])
         }
         .sheet(isPresented: Binding(get: { exportFile != nil }, set: { if !$0 { exportFile = nil } })) { if let exportFile { ShareSheet(url: exportFile) } }
@@ -255,6 +255,7 @@ struct ShareSheet: UIViewControllerRepresentable {
 struct ExportSheet: View {
     let s: Session
     let onPick: (Export.Format) -> Void
+    var onSession: () -> Void = {}
     @State private var copied = false
 
     private func group(_ title: String, _ desc: String, _ fs: [Export.Format]) -> some View {
@@ -269,6 +270,13 @@ struct ExportSheet: View {
             Text(L("export_sheet_title")).font(.title2.bold())
             group(L("export_group_document"), L("export_group_document_desc"), [.pdf, .md, .txt])
             group(L("export_group_subtitles"), L("export_group_subtitles_desc"), [.srt, .vtt, .lrc])
+            if s.audio != nil {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(L("export_group_session")).font(.headline)
+                    Text(L("export_group_session_desc")).font(.footnote).foregroundStyle(.secondary)
+                    Button(L("export_action_save")) { onSession() }.buttonStyle(.bordered)
+                }
+            }
             Button { UIPasteboard.general.string = Export.text(s, .txt); copied = true } label: { Label(L("export_copy_transcript"), systemImage: copied ? "checkmark" : "doc.on.doc") }
             Spacer()
         }.padding(20).frame(maxWidth: .infinity, alignment: .leading)

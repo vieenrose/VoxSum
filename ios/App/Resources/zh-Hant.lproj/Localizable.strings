@@ -235,3 +235,8 @@
 "agent_notes_count" = "%1$@ 則筆記";
 "agent_outcome_one" = "已讀 %1$@ 個片段 · %2$@";
 "agent_outcome" = "已讀 %1$@ 個片段 · %2$@";
+"source_session" = "開啟場次（.ogg / .m4a）";
+"source_session_desc" = "重新載入已儲存的 .ogg 或 .m4a 以繼續編輯逐字稿";
+"export_group_session" = "VoxSum 場次（.m4a）";
+"export_group_session_desc" = "音訊、逐字稿、語者、摘要與行動項目合為一個檔案。可在 VoxSum 重新開啟，任何播放器都能播放。";
+"export_action_save" = "儲存";

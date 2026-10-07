@@ -1,4 +1,5 @@
 import SwiftUI
+import AVFoundation
 import UserNotifications
 import os
 import BackgroundTasks
@@ -365,6 +366,12 @@ final class ReaderWorker: @unchecked Sendable {
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         let j = Job(audio: UUID().uuidString + "." + (url.pathExtension.isEmpty ? "m4a" : url.pathExtension))
         do { try FileManager.default.copyItem(at: url, to: JobQueue.url(j)) } catch { status = L("audio_unreadable"); return }
+        if let man = SessionFile.read(JobQueue.url(j)) {   // a VoxSum session: restore it instead of re-transcribing
+            var s = SessionFile.session(man, audio: j.audio)
+            if s.title.isEmpty { s.title = url.deletingPathExtension().lastPathComponent }
+            if let t = AVURLAsset(url: JobQueue.url(j)).duration.seconds as Double?, t.isFinite, t > s.seconds { s.seconds = t }
+            update(s); return
+        }
         Task { await queue.add(j); drain() }
     }
 }
@@ -384,14 +391,14 @@ struct ContentView: View {
             LibraryView(m: m, path: $path, onAdd: { showAdd = true }, onSettings: { showSettings = true })
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: Session.self) { x in SessionView(session: m.sessions.first { $0.id == x.id } ?? x, save: { m.update($0) }, rerun: { m.rerun($0, transcribe: $1) }) }
-            .onAppear { BackgroundWork.model = m; m.reload(); if Dev.env["VOX_OPEN"] != nil { Task { path = await m.library.all().prefix(1).map { $0 } } }; if let d = Dev.env["VOX_DOWNLOAD"] { if d == "speech" { Task { _ = await m.downloadSpeech() } } else { m.downloadReader() } }; if Dev.env["VOX_AUTORUN"] != nil { m.run() }; if Dev.env["VOX_RECORD"] != nil { m.toggleRecord() }; if Dev.env["VOX_SETTINGS"] != nil { showSettings = true }; if Dev.env["VOX_ADD"] != nil { showAdd = true }; if Dev.env["VOX_YOUTUBE"] != nil { showYouTube = true }; m.drain(); if let f = Dev.env["VOX_IMPORT"] { m.importAudio(URL(fileURLWithPath: f.hasPrefix("/") ? f : NSHomeDirectory() + "/" + f)) }; if let q = Dev.env["VOX_PODCAST"] { Task { if let sr = try? await Podcast.search(q).first, let ep = try? await Podcast.episodes(sr.feedUrl, limit: 3).last { m.addEpisode(ep) } else { m.status = "podcast: no result" } } } }
-            .sheet(isPresented: $showAdd) { AddSourceSheet(onFile: { picking = true }, onPodcast: { showPodcast = true }, onYouTube: { showYouTube = true }) }
+            .onAppear { BackgroundWork.model = m; m.reload(); if Dev.env["VOX_OPEN"] != nil { Task { path = await m.library.all().prefix(1).map { $0 } } }; if let d = Dev.env["VOX_DOWNLOAD"] { if d == "speech" { Task { _ = await m.downloadSpeech() } } else { m.downloadReader() } }; if Dev.env["VOX_AUTORUN"] != nil { m.run() }; if Dev.env["VOX_RECORD"] != nil { m.toggleRecord() }; if Dev.env["VOX_SETTINGS"] != nil { showSettings = true }; if Dev.env["VOX_ROUNDTRIP"] != nil { Task { if let s = await m.library.all().first(where: { $0.audio != nil }), let u = await SessionFile.export(s) { let r = SessionFile.read(u); m.status = "rt \((try? FileManager.default.attributesOfItem(atPath: u.path)[.size]) ?? 0)B lines \(r?.utterances?.count ?? -1)/\(s.lines.count) title \(r?.title == s.title)"; m.importAudio(u) } else { m.status = "rt: export failed" }; try? m.status.write(to: URL(fileURLWithPath: NSHomeDirectory() + "/Documents/rt.txt"), atomically: true, encoding: .utf8) } }; if Dev.env["VOX_ADD"] != nil { showAdd = true }; if Dev.env["VOX_YOUTUBE"] != nil { showYouTube = true }; m.drain(); if let f = Dev.env["VOX_IMPORT"] { m.importAudio(URL(fileURLWithPath: f.hasPrefix("/") ? f : NSHomeDirectory() + "/" + f)) }; if let q = Dev.env["VOX_PODCAST"] { Task { if let sr = try? await Podcast.search(q).first, let ep = try? await Podcast.episodes(sr.feedUrl, limit: 3).last { m.addEpisode(ep) } else { m.status = "podcast: no result" } } } }
+            .sheet(isPresented: $showAdd) { AddSourceSheet(onFile: { picking = true }, onPodcast: { showPodcast = true }, onYouTube: { showYouTube = true }, onSession: { picking = true }) }
             .fullScreenCover(isPresented: Binding(get: { m.recording }, set: { _ in })) { CaptureView(m: m) }
             .sheet(isPresented: $showPodcast) { PodcastView { m.addEpisode($0) } }
             .sheet(isPresented: $showYouTube) { YouTubeSheet { m.addYouTube($0) } }
             .sheet(isPresented: $showSettings) { SettingsView(language: $language, theme: $theme) }
             .onOpenURL { m.importAudio($0) }
-            .fileImporter(isPresented: $picking, allowedContentTypes: [.audio]) { if case .success(let u) = $0 { m.importAudio(u) } }
+            .fileImporter(isPresented: $picking, allowedContentTypes: [.audio, .mpeg4Audio]) { if case .success(let u) = $0 { m.importAudio(u) } }
         }
         .preferredColorScheme((Theme(rawValue: theme) ?? .auto).scheme)
     }

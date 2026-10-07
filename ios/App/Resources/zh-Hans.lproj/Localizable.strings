@@ -293,3 +293,8 @@
 "action_items_copied" = "已复制待办事项";
 "show_more" = "显示更多";
 "show_less" = "显示较少";
+"status_stopped" = "已停止";
+"status_transcript_lines" = "转写文本：%d 行";
+"status_transcript_lines_speakers" = "转写文本：%1$d 行，%2$d 位说话人";
+"import_failed" = "无法导入该文件";
+"mic_permission_required" = "录音需要麦克风权限";

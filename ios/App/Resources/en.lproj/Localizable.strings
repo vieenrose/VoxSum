@@ -293,3 +293,8 @@
 "action_items_copied" = "Action items copied";
 "show_more" = "Show more";
 "show_less" = "Show less";
+"status_stopped" = "Stopped";
+"status_transcript_lines" = "Transcript: %d lines";
+"status_transcript_lines_speakers" = "Transcript: %1$d lines, %2$d speakers";
+"import_failed" = "Couldn't import that file";
+"mic_permission_required" = "Microphone permission is required to record";

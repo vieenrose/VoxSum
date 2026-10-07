@@ -176,7 +176,7 @@ final class Model: ObservableObject {
     func toggleRecord() {
         if recording { recorder?.stop(); recorder = nil; recording = false; status = L("stopping"); return }
         Task {
-            guard await Recorder.requestPermission() else { status = L("mic_denied"); return }
+            guard await Recorder.requestPermission() else { status = L("mic_permission_required"); return }
             guard await downloadSpeech() else { return }
             status = L("loading_models"); lines = []; notes = []; title = ""; summary = ""
             elapsed = 0
@@ -291,7 +291,7 @@ final class Model: ObservableObject {
             let sum = ReaderSummarizer(llm: r.llm)
             let t = sum.title(journal), prose = sum.prose(journal) ?? ReaderProtocol.minutes(journal)
             let (fl, fn, ft, fp) = (conv.utterances(cached == nil ? sk.restore(final) : final), sk.restore(conv.notes(journal)), sk.restore(text: conv.text(t ?? "")), sk.restore(text: conv.text(prose)))
-            await MainActor.run { self.lines = fl; self.notes = fn; self.title = ft; self.summary = fp; self.status = L("finished"); self.agent.apply(.state(.done, notes: fn.count)) }
+            await MainActor.run { self.lines = fl; self.notes = fn; self.title = ft; self.summary = fp; let ns = Set(fl.map(\.speaker)).count; self.status = ns > 1 ? L("status_transcript_lines_speakers", fl.count, ns) : L("status_transcript_lines", fl.count); self.agent.apply(.state(.done, notes: fn.count)) }
             await self.archive(lines: fl, notes: fn, title: ft, summary: fp, seconds: seconds, job: job)
             if let job { Checkpoint.remove(job.id); await self.queue.remove(job.id) }
         }.value
@@ -333,7 +333,7 @@ final class Model: ObservableObject {
                 if left > 1 { status = L("queue_n", left) }
                 let skipper = SilenceSkipper()
                 await process(seconds: secs, job: job, skipper: skipper) { sink in try AudioPrep.stream(url, skipper: skipper, onChunk: sink) }
-                if StopFlag.on { StopFlag.on = false; parked.insert(job.id); status = L("app_ready") }
+                if StopFlag.on { StopFlag.on = false; parked.insert(job.id); status = L("status_stopped") }
                 else if await queue.first(skipping: recordingJob)?.id == job.id { await queue.remove(job.id) }   // failed run: never loop on it
                 activeJob = nil; await syncQueue()
             }
@@ -382,7 +382,7 @@ final class Model: ObservableObject {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         let j = Job(audio: UUID().uuidString + "." + (url.pathExtension.isEmpty ? "m4a" : url.pathExtension))
-        do { try FileManager.default.copyItem(at: url, to: JobQueue.url(j)) } catch { status = L("audio_unreadable"); return }
+        do { try FileManager.default.copyItem(at: url, to: JobQueue.url(j)) } catch { status = L("import_failed"); return }
         if let man = SessionFile.read(JobQueue.url(j)) {   // a VoxSum session: restore it instead of re-transcribing
             var s = SessionFile.session(man, audio: j.audio)
             if s.title.isEmpty { s.title = url.deletingPathExtension().lastPathComponent }

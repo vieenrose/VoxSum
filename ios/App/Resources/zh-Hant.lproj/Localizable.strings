@@ -293,3 +293,8 @@
 "action_items_copied" = "已複製行動項目";
 "show_more" = "顯示更多";
 "show_less" = "顯示較少";
+"status_stopped" = "已停止";
+"status_transcript_lines" = "逐字稿：%d 行";
+"status_transcript_lines_speakers" = "逐字稿：%1$d 行，%2$d 位語者";
+"import_failed" = "無法匯入該檔案";
+"mic_permission_required" = "錄音需要麥克風權限";

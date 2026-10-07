@@ -165,3 +165,6 @@
 "reader_model_e4b" = "Mobile E4B";
 "reader_model_e4b_ram" = "E4B needs a phone with 8 GB of RAM.";
 "reader_model_hint" = "Mobile models run on a faster engine with a shorter memory. E2B: %d MB download, about 1.3 GB RAM. E4B: %d MB, about 3 GB RAM, fewer mistakes.";
+"model_kind_asr" = "Transcription model";
+"model_kind_llm" = "Summary model";
+"model_kind_other" = "Other";

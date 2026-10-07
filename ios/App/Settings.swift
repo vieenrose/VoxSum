@@ -67,7 +67,8 @@ enum Theme: String, CaseIterable, Identifiable {
 
 /// What the app keeps on disk (Android Storage section): each model folder with its size, deletable.
 enum Storage {
-    struct Item: Identifiable { let url: URL; let bytes: Int64; var id: String { url.path }; var name: String { url.lastPathComponent } }
+    struct Item: Identifiable { let url: URL; let bytes: Int64; var id: String { url.path }; var name: String { url.lastPathComponent }
+        var kind: String { let n = name.lowercased(); return n.contains("asr") || n.contains("diariz") || n.contains("nemotron") ? "model_kind_asr" : (n.contains("gemma") || n.contains("mfa") || n.contains("litert") || n.contains("reader") || n.hasSuffix(".litertlm") ? "model_kind_llm" : "model_kind_other") } }
     static var modelsRoot: URL { FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("models") }
     static func size(_ u: URL) -> Int64 {
         guard let e = FileManager.default.enumerator(at: u, includingPropertiesForKeys: [.fileSizeKey]) else { return 0 }

@@ -417,7 +417,7 @@ struct SettingsView: View {
                 Section {
                     if models.isEmpty { Text(L("storage_none")).foregroundStyle(.secondary) }
                     ForEach(models) { i in
-                        HStack { Text(i.name); Spacer(); Text(ByteCountFormatter.string(fromByteCount: i.bytes, countStyle: .file)).foregroundStyle(.secondary) }
+                        HStack { VStack(alignment: .leading) { Text(i.name); Text(L(i.kind)).font(.caption2).foregroundStyle(.secondary) }; Spacer(); Text(ByteCountFormatter.string(fromByteCount: i.bytes, countStyle: .file)).foregroundStyle(.secondary) }
                             .swipeActions { Button(L("storage_delete"), role: .destructive) { toDelete = i } }
                     }
                 } header: { Text(L("settings_storage")) } footer: { if !models.isEmpty { Text(L("storage_total", ByteCountFormatter.string(fromByteCount: models.reduce(0) { $0 + $1.bytes }, countStyle: .file))) } }

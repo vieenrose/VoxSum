@@ -63,7 +63,7 @@ struct SessionView: View {
     private static let palette: [Color] = [.blue, .orange, .green, .purple, .pink, .teal, .red, .indigo]
     private func tint(_ spk: Int) -> Color { Self.palette[max(0, spk) % Self.palette.count] }
     private var hits: [Utterance] { query.isEmpty ? [] : s.lines.filter { $0.text.localizedCaseInsensitiveContains(query) } }
-    @State private var showProcess = false
+    @State private var showProcess = Dev.env["VOX_PROCESS"] != nil
 
     private func card<C: View>(@ViewBuilder _ c: () -> C) -> some View {
         VStack(alignment: .leading, spacing: 8) { c() }.padding(14).frame(maxWidth: .infinity, alignment: .leading)
@@ -101,7 +101,10 @@ struct SessionView: View {
                 }
                 if !s.notes.isEmpty {
                     Button(L(showProcess ? "hide_process" : "show_process")) { withAnimation { showProcess.toggle() } }.font(.subheadline)
-                    if showProcess { ForEach(s.notes) { Text(ReaderProtocol.render($0)).font(.caption).padding(.top, 2) } }
+                    if showProcess {
+                        Text(L("agent_notes_caution")).font(.caption2).foregroundStyle(.secondary)
+                        ForEach(s.notes) { n in NoteRow(n: n) { sec in if player.available { player.seek(Double(sec)); if !player.playing { player.toggle() } } } }
+                    }
                 }
             }
             if !s.summary.isEmpty {
@@ -262,5 +265,44 @@ struct ExportSheet: View {
             Button { UIPasteboard.general.string = Export.text(s, .txt); copied = true } label: { Label(L("export_copy_transcript"), systemImage: copied ? "checkmark" : "doc.on.doc") }
             Spacer()
         }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+
+/// Android AgentPanel NoteCard: timestamp pill (seeks), coloured tag chip, text, and a "verify" link on the error-prone tags.
+struct NoteRow: View {
+    let n: Note
+    let seek: (Int) -> Void
+    private var full: String {
+        let t = (n.tag ?? "").uppercased()
+        return ["DECISION", "ACTION", "OPEN-ISSUE", "NUMBER", "PROPOSAL"].first { $0.hasPrefix(t) && !t.isEmpty } ?? t
+    }
+    private var color: Color {
+        switch full { case "DECISION": return .green; case "ACTION": return .blue; case "OPEN-ISSUE": return .orange
+        case "NUMBER": return Color(red: 0.55, green: 0.42, blue: 0.94); case "PROPOSAL": return Color(red: 0.05, green: 0.6, blue: 0.65); default: return .gray }
+    }
+    private var label: String {
+        switch full { case "DECISION": return L("agent_tag_decision"); case "ACTION": return L("agent_tag_action"); case "OPEN-ISSUE": return L("agent_tag_open")
+        case "NUMBER": return L("agent_tag_number"); case "PROPOSAL": return L("agent_tag_proposal"); default: return n.tag ?? "" }
+    }
+    var body: some View {
+        let sec = ReaderProtocol.parseTs(n.ts)
+        HStack(alignment: .top, spacing: 6) {
+            Button { if let sec { seek(sec) } } label: {
+                Text(n.ts).font(.caption2.monospaced().weight(.semibold)).foregroundStyle(.blue)
+                    .padding(.horizontal, 5).padding(.vertical, 1).background(Color.blue.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
+            }.buttonStyle(.plain)
+            if let tag = n.tag, tag != "-" {
+                Text(label).font(.caption2.weight(.semibold)).foregroundStyle(color)
+                    .padding(.horizontal, 8).padding(.vertical, 2).background(color.opacity(0.14), in: Capsule())
+            }
+            Text(n.text).font(.caption).lineLimit(2).frame(maxWidth: .infinity, alignment: .leading)
+            if ["DECISION", "ACTION", "NUMBER"].contains(full), let sec {
+                Button { seek(sec) } label: {
+                    Text(L("agent_verify")).font(.caption2.weight(.semibold)).foregroundStyle(.orange)
+                        .padding(.horizontal, 6).padding(.vertical, 1).overlay(Capsule().stroke(Color.orange.opacity(0.5)))
+                }.buttonStyle(.plain)
+            }
+        }.padding(.vertical, 3)
     }
 }

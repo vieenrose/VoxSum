@@ -127,3 +127,10 @@
 "export_group_subtitles_desc" = "含語者標籤的時間軸字幕，適用於影音播放器。";
 "export_action_share" = "分享";
 "export_copy_transcript" = "複製逐字稿";
+"agent_notes_caution" = "這是工作筆記，不是正式紀錄——約五則中有一則可能有誤。";
+"agent_verify" = "核對";
+"agent_tag_decision" = "決議";
+"agent_tag_action" = "待辦";
+"agent_tag_open" = "未決";
+"agent_tag_number" = "數字";
+"agent_tag_proposal" = "提議";

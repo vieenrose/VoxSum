@@ -127,3 +127,10 @@
 "export_group_subtitles_desc" = "Timed lines with speaker labels, for video and audio players.";
 "export_action_share" = "Share";
 "export_copy_transcript" = "Copy transcript";
+"agent_notes_caution" = "Working notes, not minutes — about 1 in 5 may be wrong.";
+"agent_verify" = "Verify";
+"agent_tag_decision" = "Decision";
+"agent_tag_action" = "Action";
+"agent_tag_open" = "Open issue";
+"agent_tag_number" = "Figure";
+"agent_tag_proposal" = "Proposal";

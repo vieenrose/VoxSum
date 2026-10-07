@@ -127,3 +127,10 @@
 "export_group_subtitles_desc" = "含说话人标签的时间轴字幕，适用于影音播放器。";
 "export_action_share" = "分享";
 "export_copy_transcript" = "复制转写文本";
+"agent_notes_caution" = "这是工作笔记，不是正式记录——约五则中有一则可能有误。";
+"agent_verify" = "核对";
+"agent_tag_decision" = "决议";
+"agent_tag_action" = "待办";
+"agent_tag_open" = "未决";
+"agent_tag_number" = "数字";
+"agent_tag_proposal" = "提议";

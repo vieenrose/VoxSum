@@ -80,6 +80,11 @@ struct SessionView: View {
     @State private var match = 0
     @FocusState private var searchFocus: Bool
     private static let palette: [Color] = [.blue, .orange, .green, .purple, .pink, .teal, .red, .indigo]
+    private var names: [(String, Color)] { Array(Set(s.lines.map(\.speaker))).sorted().map { (SpeakerRefs.unbreakable(s.name($0)), tint($0)) } }
+    /// Model text as shown: its S1, S2 become the transcript's speaker names (Android refs(screen = true)).
+    private func refs(_ t: String, screen: Bool = true) -> String {
+        SpeakerRefs.resolve(t, label: { s.name($0) }, known: Set(s.lines.map(\.speaker)), wrap: screen ? SpeakerRefs.unbreakable : { $0 })
+    }
     private func tint(_ spk: Int) -> Color { Self.palette[max(0, spk) % Self.palette.count] }
     private var hits: [Utterance] { query.isEmpty ? [] : s.lines.filter { $0.text.localizedCaseInsensitiveContains(query) } }
     @State private var showProcess = Dev.env["VOX_PROCESS"] != nil
@@ -127,7 +132,7 @@ struct SessionView: View {
                     Button(L(showProcess ? "hide_process" : "show_process")) { withAnimation { showProcess.toggle() } }.font(.subheadline)
                     if showProcess {
                         Text(L("agent_notes_caution")).font(.caption2).foregroundStyle(.secondary)
-                        ForEach(s.notes) { n in NoteRow(n: n) { sec in if player.available { player.seek(Double(sec)); if !player.playing { player.toggle() } } } }
+                        ForEach(s.notes) { n in NoteRow(n: n, refs: { refs($0) }) { sec in if player.available { player.seek(Double(sec)); if !player.playing { player.toggle() } } } }
                     }
                 }
             }
@@ -136,7 +141,7 @@ struct SessionView: View {
                     HStack { Text(L("card_summary")).font(.headline); Spacer()
                         Button { draft = s.summary; editingSummary = true } label: { Image(systemName: "pencil") }.accessibilityLabel(L("cd_edit"))
                         Button { UIPasteboard.general.string = s.summary; toast = L("summary_copied") } label: { Image(systemName: "doc.on.doc") }.accessibilityLabel(L("cd_copy_summary")) }
-                    Collapsible(lines: 12) { Text(Self.linked(s.summary)) }.environment(\.openURL, OpenURLAction { u in
+                    Collapsible(lines: 12) { Text(Markdown.render(refs(s.summary), anchors: Color.secondary, speakers: names)) }.environment(\.openURL, OpenURLAction { u in
                         if u.scheme == "vox", let t = Double(u.host ?? "") { player.seek(t); if !player.playing { player.toggle() }; return .handled }
                         return .systemAction })
                     Text(L("ai_disclaimer")).font(.caption2).foregroundStyle(.secondary)
@@ -148,7 +153,7 @@ struct SessionView: View {
                         Text(L("card_action_items")).font(.headline); Spacer()
                         Button { UIPasteboard.general.string = a; toast = L("action_items_copied") } label: { Image(systemName: "doc.on.doc") }.accessibilityLabel(L("cd_copy_actions"))
                     }
-                    Collapsible(lines: 8) { Text(Self.linked(a)) }.environment(\.openURL, OpenURLAction { u in
+                    Collapsible(lines: 8) { Text(Markdown.render(refs(a), anchors: .blue, speakers: names)) }.environment(\.openURL, OpenURLAction { u in
                         if u.scheme == "vox", let t = Double(u.host ?? "") { player.seek(t); if !player.playing { player.toggle() }; return .handled }
                         return .systemAction })
                     Text(L("actions_verify_hint")).font(.caption2).foregroundStyle(.secondary)
@@ -216,7 +221,7 @@ struct SessionView: View {
             .safeAreaInset(edge: .bottom) { if player.available { playerBar } }
             .onChange(of: current) { _, id in if follow, player.playing, tab == 1, let id { withAnimation { proxy.scrollTo(id, anchor: .center) } } }
         }
-        .navigationTitle(s.title).navigationBarTitleDisplayMode(.inline)
+        .navigationTitle(refs(s.title, screen: false)).navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { tab = 1; searching = true; searchFocus = true } label: { Image(systemName: "magnifyingglass") }.accessibilityLabel(L("search_transcript"))
@@ -348,20 +353,6 @@ struct SessionView: View {
     }
     private func highlight(_ id: UUID) -> Color? { id == current ? Color.accentColor.opacity(0.18) : nil }
 
-    /// "[1:06]" markers in the summary become links that seek the recording.
-    static func linked(_ text: String) -> AttributedString {
-        var out = AttributedString(), last = text.startIndex
-        guard let re = try? NSRegularExpression(pattern: #"\[(\d+):(\d{2})(?::(\d{2}))?\]"#) else { return AttributedString(text) }
-        for m in re.matches(in: text, range: NSRange(text.startIndex..., in: text)) {
-            guard let r = Range(m.range, in: text), let a = Range(m.range(at: 1), in: text), let b = Range(m.range(at: 2), in: text),
-                  var mm = Double(text[a]), var ss = Double(text[b]) else { continue }
-            if let c = Range(m.range(at: 3), in: text), let x = Double(text[c]) { mm = mm * 60 + ss; ss = x }   // [h:mm:ss] as Android ANCHOR_RE
-            out += AttributedString(text[last..<r.lowerBound])
-            var link = AttributedString(text[r]); link.link = URL(string: "vox://\(Int(mm * 60 + ss))"); out += link
-            last = r.upperBound
-        }
-        return out + AttributedString(text[last...])
-    }
 }
 
 struct ShareSheet: UIViewControllerRepresentable {
@@ -407,6 +398,7 @@ struct ExportSheet: View {
 /// Android AgentPanel NoteCard: timestamp pill (seeks), coloured tag chip, text, and a "verify" link on the error-prone tags.
 struct NoteRow: View {
     let n: Note
+    var refs: (String) -> String = { $0 }
     let seek: (Int) -> Void
     private var full: String {
         let t = (n.tag ?? "").uppercased()
@@ -431,7 +423,7 @@ struct NoteRow: View {
                 Text(label).font(.caption2.weight(.semibold)).foregroundStyle(color)
                     .padding(.horizontal, 8).padding(.vertical, 2).background(color.opacity(0.14), in: Capsule())
             }
-            Text(n.text).font(.caption).lineLimit(2).frame(maxWidth: .infinity, alignment: .leading)
+            Text(refs(n.text)).font(.caption).lineLimit(2).frame(maxWidth: .infinity, alignment: .leading)
             if ["DECISION", "ACTION", "NUMBER"].contains(full), let sec {
                 Button { seek(sec) } label: {
                     Text(L("agent_verify")).font(.caption2.weight(.semibold)).foregroundStyle(.orange)

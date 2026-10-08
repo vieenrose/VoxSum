@@ -117,7 +117,7 @@ final class SilenceSkipper: @unchecked Sendable {
 
 /// File decode → gain → silence skipping, in ~1 s chunks.
 enum AudioPrep {
-    static func stream(_ url: URL, skipper: SilenceSkipper, onChunk: ([Float]) -> Bool) throws {
+    static func stream(_ url: URL, skipper: SilenceSkipper, from: Double = 0, onChunk: ([Float]) -> Bool) throws {
         let gain = GainNormalizer()
         var pending: [Float] = []
         var stopped = false
@@ -128,7 +128,7 @@ enum AudioPrep {
                 if let o = skipper.apply(c), !onChunk(o) { stopped = true }
             }
         }
-        try AudioDecode.stream(url) { c in emit(gain.add(c)); return !stopped }
+        try AudioDecode.stream(url, from: from) { c in emit(gain.add(c)); return !stopped }
         if !stopped { emit(gain.finish(), flush: true) }
     }
 }

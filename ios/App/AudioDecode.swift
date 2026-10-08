@@ -8,9 +8,10 @@ enum AudioDecode {
         return Double(f.length) / f.processingFormat.sampleRate
     }
 
-    static func stream(_ url: URL, onChunk: ([Float]) -> Bool) throws {
+    static func stream(_ url: URL, from: Double = 0, onChunk: ([Float]) -> Bool) throws {
         let file = try AVAudioFile(forReading: url)
         let inFmt = file.processingFormat
+        if from > 0 { file.framePosition = min(file.length, AVAudioFramePosition(from * inFmt.sampleRate)) }   // resume: decode only after the seam
         let out = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000, channels: 1, interleaved: false)!
         guard let conv = AVAudioConverter(from: inFmt, to: out) else { throw CocoaError(.fileReadUnsupportedScheme) }
         let inCap: AVAudioFrameCount = 16384

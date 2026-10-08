@@ -268,11 +268,11 @@ final class Model: ObservableObject {
     }
 
     /// Transcribe + read a source of 16 kHz mono chunks (a file, the bundled sample). `feed` pushes chunks until done or false.
-    func process(seconds: Double, job: Job? = nil, skipper: SilenceSkipper? = nil, feed: @escaping @Sendable (([Float]) -> Bool) throws -> Void) async {
+    func process(seconds: Double, job: Job? = nil, skipper: SilenceSkipper? = nil, resume: Checkpoint.Partial? = nil, offset: Double = 0, feed: @escaping @Sendable (([Float]) -> Bool) throws -> Void) async {
         status = L("loading_models"); lines = []; notes = []; title = ""; summary = ""; StopFlag.on = false
         let b = base
         await Task.detached {
-            let cached = job.flatMap { Checkpoint.load($0.id) }   // transcript done by an earlier attempt: only the reader is left
+            let cached = resume != nil ? nil : job.flatMap { Checkpoint.load($0.id) }   // transcript done by an earlier attempt: only the reader is left
             let speechReady = cached != nil ? true : await self.downloadSpeech()
             guard speechReady else { await MainActor.run { self.status = L("load_failed") }; return }
             let eng = cached != nil ? nil : NemoEngine(xasr: self.modelPath("x-asr-zh-en-q8_0.gguf", b), diar: self.modelPath("nemotron-3-diarization-q8_0.gguf", b), threads: Prefs.effectiveThreads, settle: Double(Prefs.speakerDelay))
@@ -287,35 +287,51 @@ final class Model: ObservableObject {
             let agentUi = self.agent
             let reader = MeetingReader(llm: r.llm, systemPrompt: r.systemPrompt, events: { e in Task { @MainActor in agentUi.apply(e) } }, budget: .mobile)
             do { try reader.start() } catch { Prefs.reportReadFailure(); await MainActor.run { self.status = L("reader_error", "\(error)") }; return }
-            var seenFrozen = 0; let conv = TextConv(); let lowRam = ProcessInfo.processInfo.physicalMemory < 4_500_000_000   // 3 GB phones cannot hold ASR + diarizer + E2B at once
+            let conv = TextConv(); let lowRam = ProcessInfo.processInfo.physicalMemory < 4_500_000_000   // 3 GB phones cannot hold ASR + diarizer + E2B at once
             let worker = ReaderWorker(reader, paused: lowRam && cached == nil)
             let sk = skipper ?? SilenceSkipper()   // nothing skipped → identity
+            // Resume: the saved prefix goes to the reader first; fresh lines are mapped to original-audio time (offset + skipped
+            // silence) and stitched onto it, so the reader sees original times and nothing is restored twice.
+            let prior = resume?.lines ?? [], seam = resume?.seam ?? 0
+            func full(_ fresh: [Utterance], stable: Int) -> ([Utterance], Int) {
+                SeamStitcher.stitch(prior, seam: seam, sk.restore(fresh).map { var u = $0; u.start += offset; u.end += offset; return u }, stable: stable)
+            }
+            var kept: [Utterance] = prior, snapshot: [Utterance] = prior, offered = 0
+            if resume != nil { for u in prior { if let l = ReaderSummarizer.toLine(u) { worker.offer(l) } }; offered = prior.count; StatusLog.add("trace resume at \(Int(seam)) s, \(prior.count) utterances kept") }
             do {
                 if cached == nil, let eng { try feed { chunk in
                     if StopFlag.on { return false }
                     _ = Stage.watchdog; Stage.set("push")
                     if !eng.push(chunk) { StatusLog.add("trace push failed at \(Int(eng.fedSeconds)) s") }
                     let (frozen, tail) = eng.live()
-                    for u in frozen.dropFirst(seenFrozen) { if let l = ReaderSummarizer.toLine(u) { worker.offer(l) } }
-                    seenFrozen = frozen.count
+                    let (all, stable) = full(frozen + tail, stable: frozen.count); kept = Array(all.prefix(stable))
+                    let edge = all.last?.end ?? 0; snapshot = all.filter { $0.end <= edge - 10 }   // resume point: everything clear of the live edge
+                    for u in kept.dropFirst(offered) { if let l = ReaderSummarizer.toLine(u) { worker.offer(l) } }   // original-audio times: notes need no restore
+                    offered = max(offered, kept.count)
                     let j = worker.journal, fed = eng.fedSeconds
                     Task { @MainActor in
-                        self.lines = conv.utterances(frozen + tail); self.notes = conv.notes(j)
-                        self.status = L("transcribing_s", Int(fed), Int(seconds))
+                        self.lines = conv.utterances(all); self.notes = conv.notes(j)
+                        self.status = L("transcribing_s", Int(fed + offset), Int(seconds))
                     }
                     Stage.set("idle")
                     return true
                 } }
             } catch { if !StopFlag.on { await MainActor.run { self.status = L("audio_error", error.localizedDescription) } }; return }
-            if StopFlag.on { return }
+            // Stopped before the end: keep the frozen prefix (the tail is re-attributed) so Resume continues from there (Android saveProgress).
+            if StopFlag.on {
+                // A file run has no live lines (diarization settles at finish): close the engine on what was fed, and drop the
+                // last line, cut mid-sentence by the stop.
+                if snapshot.count <= prior.count, let eng, let f = eng.finish(), !f.isEmpty { snapshot = Array(full(f, stable: f.count).0.dropLast()) }
+                StatusLog.add("trace stop: \(snapshot.count) utterances kept for resume"); if let job, cached == nil, let last = snapshot.last { Checkpoint.savePartial(.init(lines: snapshot, seam: last.end), job.id) }; return }
             Stage.set("finish")
             let final: [Utterance]
             if let cached {
                 final = cached; StatusLog.add("trace transcript restored from checkpoint, \(cached.count) utterances")
                 for u in cached { if let l = ReaderSummarizer.toLine(u) { worker.offer(l) } }
             } else {
-                final = eng?.finish() ?? []
-                if let job { Checkpoint.save(sk.restore(final), job.id) }
+                let fresh = eng?.finish() ?? []
+                final = full(fresh, stable: fresh.count).0
+                if let job { Checkpoint.save(final, job.id) }
                 if lowRam { eng?.close(); StatusLog.add("trace models freed, reader starts (\(os_proc_available_memory() / 1_048_576) MB free)"); worker.resume() }
             }
             worker.drain { d, t in Task { @MainActor in self.status = L("reading_s", d, t) } }
@@ -323,7 +339,7 @@ final class Model: ObservableObject {
             let sum = ReaderSummarizer(llm: r.llm)
             // No notes at all (a short or off-topic recording): one plain line, not five empty sections (Android summary_no_notes).
             let t = journal.isEmpty ? nil : sum.title(journal), prose = journal.isEmpty ? nil : sum.prose(journal) ?? ReaderProtocol.minutes(journal)
-            let (fl, fn, ft, fp) = (conv.utterances(cached == nil ? sk.restore(final) : final), sk.restore(conv.notes(journal)), sk.restore(text: conv.text(t ?? "")), prose.map { sk.restore(text: conv.text($0)) } ?? "")
+            let (fl, fn, ft, fp) = (conv.utterances(final), conv.notes(journal), conv.text(t ?? ""), prose.map { conv.text($0) } ?? "")
             let summaryText = fp.isEmpty && !fl.isEmpty ? L("summary_no_notes") : fp
             await MainActor.run { self.lines = fl; self.notes = fn; self.title = ft; self.summary = summaryText; let ns = Set(fl.map(\.speaker)).count; self.status = ns > 1 ? L("status_transcript_lines_speakers", fl.count, ns) : L("status_transcript_lines", fl.count); self.agent.apply(.state(.done, notes: fn.count)) }
             await self.archive(lines: fl, notes: fn, title: ft, summary: summaryText, seconds: seconds, job: job)
@@ -369,7 +385,9 @@ final class Model: ObservableObject {
                 let left = await queue.count; pending = left; activeJob = job.id; await syncQueue()
                 if left > 1 { status = L("queue_n", left) }
                 let skipper = SilenceSkipper()
-                await process(seconds: secs, job: job, skipper: skipper) { sink in try AudioPrep.stream(url, skipper: skipper, onChunk: sink) }
+                let partial = Checkpoint.loadPartial(job.id)   // only a Stop leaves one: Resume continues after its seam
+                let from = partial.map { max(0, $0.seam - SeamStitcher.preroll) } ?? 0
+                await process(seconds: secs, job: job, skipper: skipper, resume: partial, offset: from) { sink in try AudioPrep.stream(url, skipper: skipper, from: from, onChunk: sink) }
                 if StopFlag.on { StopFlag.on = false; parked.insert(job.id); status = L("status_stopped") }
                 else if await queue.first(skipping: recordingJob)?.id == job.id { parked.insert(job.id); failed[job.id] = status; Notifier.failed(job.title ?? L("meeting")) }   // failed run: parked with its error and a Retry (Android), never looped on
                 activeJob = nil; await syncQueue()
@@ -455,7 +473,7 @@ struct ContentView: View {
             LibraryView(m: m, path: $path, onAdd: { showAdd = true }, onSettings: { showSettings = true })
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: Session.self) { x in SessionView(session: m.sessions.first { $0.id == x.id } ?? x, save: { m.update($0) }, rerun: { m.rerun($0, transcribe: $1) }) }
-            .onAppear { BackgroundWork.model = m; m.reload(); if Dev.env["VOX_BENCH"] != nil { Task { let t0 = Date(); let n = await Prefs.runBench(); try? "bench pick=\(n ?? -1) eff=\(Prefs.effectiveThreads) cores=\(Prefs.cores) \(Int(Date().timeIntervalSince(t0) * 1000))ms".write(to: URL(fileURLWithPath: NSHomeDirectory() + "/Documents/bench.txt"), atomically: true, encoding: .utf8) } }; if let th = Dev.env["VOX_THEME"] { theme = th }; if Dev.env["VOX_CANCEL"] != nil { Task { try? await Task.sleep(nanoseconds: 4_000_000_000); let was = m.downloading != nil; m.cancelDownload(); try? await Task.sleep(nanoseconds: 2_000_000_000); try? "cancel was=\(was) now=\(m.downloading != nil) queued=\(m.waiting.count) status=\(m.status)".write(to: URL(fileURLWithPath: NSHomeDirectory() + "/Documents/cancel.txt"), atomically: true, encoding: .utf8) } }; if Dev.env["VOX_ACTIONS"] != nil { UserDefaults.standard.set(true, forKey: "showActions") }; if Dev.env["VOX_OPEN"] != nil { Task { let all = await m.library.all(); path = Dev.env["VOX_OPEN"] == "short" ? all.filter { $0.audio != nil && $0.seconds > 30 }.min { $0.seconds < $1.seconds }.map { [$0] } ?? [] : Array(all.prefix(1)) } }; if let d = Dev.env["VOX_DOWNLOAD"] { if d == "speech" { Task { _ = await m.downloadSpeech() } } else { m.downloadReader() } }; if Dev.env["VOX_AUTORUN"] != nil { m.run() }; if Dev.env["VOX_RECORD"] != nil { m.toggleRecord() }; if Dev.env["VOX_SETTINGS"] != nil { showSettings = true }; if let q = Dev.env["VOX_YT_ADD"] { Task { var r = "yt: no result"; if let v = try? await YouTube.search(q).first { do { let a = try await YouTube.resolve(v.url); let f = try await YouTube.download(a, name: "yt_test." + a.ext) { _ in }; r = "yt ok \(v.title) \((try? FileManager.default.attributesOfItem(atPath: f.path)[.size]) ?? 0)B" } catch { r = "yt FAIL \(error)" } }; try? r.write(to: URL(fileURLWithPath: NSHomeDirectory() + "/Documents/yt.txt"), atomically: true, encoding: .utf8) } }; if Dev.env["VOX_STOP"] != nil { Task { try? await Task.sleep(nanoseconds: 30_000_000_000); let before = m.activeJob != nil; m.stopProcessing(); try? await Task.sleep(nanoseconds: 20_000_000_000); try? "active before=\(before) parked=\(m.parked.count) active now=\(m.activeJob != nil) status=\(m.status)".write(to: URL(fileURLWithPath: NSHomeDirectory() + "/Documents/stop.txt"), atomically: true, encoding: .utf8) } }; if Dev.env["VOX_STATUSLOG"] != nil { Task { while true { try? m.status.write(to: URL(fileURLWithPath: NSHomeDirectory() + "/Documents/status.txt"), atomically: true, encoding: .utf8); try? await Task.sleep(nanoseconds: 2_000_000_000) } } }; if Dev.env["VOX_ROUNDTRIP"] != nil { Task { if let s = await m.library.all().first(where: { $0.audio != nil }), let u = await SessionFile.export(s) { let r = SessionFile.read(u); m.status = "rt \((try? FileManager.default.attributesOfItem(atPath: u.path)[.size]) ?? 0)B lines \(r?.utterances?.count ?? -1)/\(s.lines.count) title \(r?.title == s.title)"; m.importAudio(u) } else { m.status = "rt: export failed" }; try? m.status.write(to: URL(fileURLWithPath: NSHomeDirectory() + "/Documents/rt.txt"), atomically: true, encoding: .utf8) } }; if Dev.env["VOX_ADD"] != nil { showAdd = true }; if Dev.env["VOX_DIALOG"] == "podcast" { showPodcast = true }; if Dev.env["VOX_YOUTUBE"] != nil { showYouTube = true }; m.drain(); if let fs = Dev.env["VOX_IMPORT"] { for f in fs.split(separator: ",").map(String.init) { m.importAudio(URL(fileURLWithPath: f.hasPrefix("/") ? f : NSHomeDirectory() + "/" + f)) } }; if let q = Dev.env["VOX_PODCAST"] { Task { if let sr = try? await Podcast.search(q).first, let ep = try? await Podcast.episodes(sr.feedUrl, limit: 3).last { m.addEpisode(ep) } else { m.status = "podcast: no result" } } } }
+            .onAppear { BackgroundWork.model = m; m.reload(); if Dev.env["VOX_BENCH"] != nil { Task { let t0 = Date(); let n = await Prefs.runBench(); try? "bench pick=\(n ?? -1) eff=\(Prefs.effectiveThreads) cores=\(Prefs.cores) \(Int(Date().timeIntervalSince(t0) * 1000))ms".write(to: URL(fileURLWithPath: NSHomeDirectory() + "/Documents/bench.txt"), atomically: true, encoding: .utf8) } }; if let th = Dev.env["VOX_THEME"] { theme = th }; if Dev.env["VOX_CANCEL"] != nil { Task { try? await Task.sleep(nanoseconds: 4_000_000_000); let was = m.downloading != nil; m.cancelDownload(); try? await Task.sleep(nanoseconds: 2_000_000_000); try? "cancel was=\(was) now=\(m.downloading != nil) queued=\(m.waiting.count) status=\(m.status)".write(to: URL(fileURLWithPath: NSHomeDirectory() + "/Documents/cancel.txt"), atomically: true, encoding: .utf8) } }; if Dev.env["VOX_ACTIONS"] != nil { UserDefaults.standard.set(true, forKey: "showActions") }; if Dev.env["VOX_OPEN"] != nil { Task { let all = await m.library.all(); path = Dev.env["VOX_OPEN"] == "short" ? all.filter { $0.audio != nil && $0.seconds > 30 }.min { $0.seconds < $1.seconds }.map { [$0] } ?? [] : Array(all.prefix(1)) } }; if let d = Dev.env["VOX_DOWNLOAD"] { if d == "speech" { Task { _ = await m.downloadSpeech() } } else { m.downloadReader() } }; if Dev.env["VOX_AUTORUN"] != nil { m.run() }; if Dev.env["VOX_RECORD"] != nil { m.toggleRecord() }; if Dev.env["VOX_SETTINGS"] != nil { showSettings = true }; if let q = Dev.env["VOX_YT_ADD"] { Task { var r = "yt: no result"; if let v = try? await YouTube.search(q).first { do { let a = try await YouTube.resolve(v.url); let f = try await YouTube.download(a, name: "yt_test." + a.ext) { _ in }; r = "yt ok \(v.title) \((try? FileManager.default.attributesOfItem(atPath: f.path)[.size]) ?? 0)B" } catch { r = "yt FAIL \(error)" } }; try? r.write(to: URL(fileURLWithPath: NSHomeDirectory() + "/Documents/yt.txt"), atomically: true, encoding: .utf8) } }; if let st = Dev.env["VOX_STOP"] { Task { try? await Task.sleep(nanoseconds: UInt64(Int(st) ?? 30) * 1_000_000_000); let before = m.activeJob != nil; m.stopProcessing(); try? await Task.sleep(nanoseconds: 20_000_000_000); try? "active before=\(before) parked=\(m.parked.count) active now=\(m.activeJob != nil) status=\(m.status)".write(to: URL(fileURLWithPath: NSHomeDirectory() + "/Documents/stop.txt"), atomically: true, encoding: .utf8) } }; if Dev.env["VOX_STATUSLOG"] != nil { Task { while true { try? m.status.write(to: URL(fileURLWithPath: NSHomeDirectory() + "/Documents/status.txt"), atomically: true, encoding: .utf8); try? await Task.sleep(nanoseconds: 2_000_000_000) } } }; if Dev.env["VOX_ROUNDTRIP"] != nil { Task { if let s = await m.library.all().first(where: { $0.audio != nil }), let u = await SessionFile.export(s) { let r = SessionFile.read(u); m.status = "rt \((try? FileManager.default.attributesOfItem(atPath: u.path)[.size]) ?? 0)B lines \(r?.utterances?.count ?? -1)/\(s.lines.count) title \(r?.title == s.title)"; m.importAudio(u) } else { m.status = "rt: export failed" }; try? m.status.write(to: URL(fileURLWithPath: NSHomeDirectory() + "/Documents/rt.txt"), atomically: true, encoding: .utf8) } }; if Dev.env["VOX_ADD"] != nil { showAdd = true }; if Dev.env["VOX_DIALOG"] == "podcast" { showPodcast = true }; if Dev.env["VOX_YOUTUBE"] != nil { showYouTube = true }; m.drain(); if let fs = Dev.env["VOX_IMPORT"] { for f in fs.split(separator: ",").map(String.init) { m.importAudio(URL(fileURLWithPath: f.hasPrefix("/") ? f : NSHomeDirectory() + "/" + f)) } }; if let q = Dev.env["VOX_PODCAST"] { Task { if let sr = try? await Podcast.search(q).first, let ep = try? await Podcast.episodes(sr.feedUrl, limit: 3).last { m.addEpisode(ep) } else { m.status = "podcast: no result" } } } }
             .sheet(isPresented: $showAdd) { AddSourceSheet(onFile: { picking = true }, onPodcast: { showPodcast = true }, onYouTube: { showYouTube = true }, onSession: { picking = true }) }
             .fullScreenCover(isPresented: Binding(get: { m.recording }, set: { _ in })) { CaptureView(m: m) }
             .sheet(isPresented: $showPodcast) { PodcastView { m.addEpisode($0) } }

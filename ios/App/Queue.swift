@@ -77,5 +77,35 @@ enum Checkpoint {
         if let d = try? JSONEncoder().encode(us) { try? d.write(to: url(id), options: .atomic) }
     }
     static func load(_ id: UUID) -> [Utterance]? { (try? Data(contentsOf: url(id))).flatMap { try? JSONDecoder().decode([Utterance].self, from: $0) } }
-    static func remove(_ id: UUID) { try? FileManager.default.removeItem(at: url(id)) }
+    static func remove(_ id: UUID) { try? FileManager.default.removeItem(at: url(id)); try? FileManager.default.removeItem(at: partialUrl(id)) }
+
+    /// Android SessionLibrary.Progress: the frozen transcript of a run stopped before the end (original-audio times),
+    /// so Resume transcribes only the audio after `seam`.
+    struct Partial: Codable { var lines: [Utterance]; var seam: Double }
+    private static func partialUrl(_ id: UUID) -> URL { dir.appendingPathComponent(id.uuidString + ".partial.json") }
+    static func savePartial(_ p: Partial, _ id: UUID) {
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        if let d = try? JSONEncoder().encode(p) { try? d.write(to: partialUrl(id), options: .atomic) }
+    }
+    static func loadPartial(_ id: UUID) -> Partial? { (try? Data(contentsOf: partialUrl(id))).flatMap { try? JSONDecoder().decode(Partial.self, from: $0) } }
+}
+
+/// Android SeamStitcher: a resumed run restarts the diarizer PREROLL seconds before the seam; the overlap maps its
+/// fresh speaker ids onto the saved ones (greedy by overlapping seconds), and only fresh lines centred after the seam are kept.
+enum SeamStitcher {
+    static let preroll = 30.0
+    static func stitch(_ prior: [Utterance], seam: Double, _ fresh: [Utterance], stable: Int) -> ([Utterance], Int) {
+        if prior.isEmpty { return (fresh, stable) }
+        var overlap: [[Int]: Double] = [:]
+        for f in fresh where f.start < seam { for p in prior { let o = min(f.end, p.end) - max(f.start, p.start); if o > 0 { overlap[[f.speaker, p.speaker], default: 0] += o } } }
+        var map: [Int: Int] = [:], taken = Set<Int>()
+        for (k, _) in overlap.sorted(by: { $0.value > $1.value }) where map[k[0]] == nil && !taken.contains(k[1]) { map[k[0]] = k[1]; taken.insert(k[1]) }
+        var next = (prior.map(\.speaker).max() ?? -1) + 1
+        var kept: [Utterance] = [], keptStable = 0
+        for (i, f) in fresh.enumerated() where (f.start + f.end) / 2 >= seam {
+            var u = f; if let m = map[f.speaker] { u.speaker = m } else { map[f.speaker] = next; u.speaker = next; next += 1 }
+            kept.append(u); if i < stable { keptStable += 1 }
+        }
+        return (prior + kept, prior.count + keptStable)
+    }
 }

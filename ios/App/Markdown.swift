@@ -90,3 +90,9 @@ enum SpeakerRefs {
     /// A name as one unit on screen: it never wraps between "語者" and its number.
     static func unbreakable(_ s: String) -> String { s.replacingOccurrences(of: " ", with: "\u{00A0}") }
 }
+
+/// Android LocalSpeakerRefs: how model text (notes, title) names speakers in the views below.
+private struct SpeakerRefsKey: EnvironmentKey { static let defaultValue: @Sendable (String) -> String = { $0 } }
+extension EnvironmentValues {
+    var speakerRefs: @Sendable (String) -> String { get { self[SpeakerRefsKey.self] } set { self[SpeakerRefsKey.self] = newValue } }
+}

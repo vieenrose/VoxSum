@@ -132,7 +132,7 @@ struct SessionView: View {
                     Button(L(showProcess ? "hide_process" : "show_process")) { withAnimation { showProcess.toggle() } }.font(.subheadline)
                     if showProcess {
                         Text(L("agent_notes_caution")).font(.caption2).foregroundStyle(.secondary)
-                        ForEach(s.notes) { n in NoteRow(n: n, refs: { refs($0) }) { sec in if player.available { player.seek(Double(sec)); if !player.playing { player.toggle() } } } }
+                        ForEach(s.notes) { n in NoteRow(n: n) { sec in if player.available { player.seek(Double(sec)); if !player.playing { player.toggle() } } } }
                     }
                 }
             }
@@ -221,6 +221,7 @@ struct SessionView: View {
             .safeAreaInset(edge: .bottom) { if player.available { playerBar } }
             .onChange(of: current) { _, id in if follow, player.playing, tab == 1, let id { withAnimation { proxy.scrollTo(id, anchor: .center) } } }
         }
+        .environment(\.speakerRefs, { [s] t in SpeakerRefs.resolve(t, label: { s.name($0) }, known: Set(s.lines.map(\.speaker)), wrap: SpeakerRefs.unbreakable) })
         .navigationTitle(refs(s.title, screen: false)).navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -398,7 +399,7 @@ struct ExportSheet: View {
 /// Android AgentPanel NoteCard: timestamp pill (seeks), coloured tag chip, text, and a "verify" link on the error-prone tags.
 struct NoteRow: View {
     let n: Note
-    var refs: (String) -> String = { $0 }
+    @Environment(\.speakerRefs) private var refs
     let seek: (Int) -> Void
     private var full: String {
         let t = (n.tag ?? "").uppercased()

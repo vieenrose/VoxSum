@@ -255,6 +255,9 @@ struct WatchLive: View {
                     HStack(spacing: 8) { ProgressView().controlSize(.small); Text(m.status).font(.subheadline) }
                     if m.agent.state == nil { Text(L("watch_live_hint")).font(.footnote).foregroundStyle(.secondary) }
                     AgentPanel(agent: m.agent) { _ in }
+                        // The live notes name speakers as the booth does (S2 → 語者 2); with no live lines yet, any S-number.
+                        .environment(\.speakerRefs, { [known = Set(m.lines.map(\.speaker))] t in
+                            SpeakerRefs.resolve(t, label: { L("speaker_n", $0 + 1) }, known: known.isEmpty ? nil : known) })
                 }.padding(16).frame(maxWidth: .infinity, alignment: .leading)
             }
             .navigationTitle(L("action_watch_live")).navigationBarTitleDisplayMode(.inline)

@@ -36,7 +36,7 @@ flowchart TD
 
 ---
 
-<p align="center"><img src="screenshots/demo-live.gif" width="260"></p>
+<p align="center"><img src="screenshots/demo-record.gif" width="240"> <img src="screenshots/demo-queue.gif" width="240"></p>
 
 ## 1. 首頁（場次庫）
 

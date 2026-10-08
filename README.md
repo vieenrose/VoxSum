@@ -11,9 +11,12 @@
 
 VoxSum for iOS 是 [Android 版](https://github.com/vieenrose/VoxSum/blob/android/README.md) 的原生 SwiftUI 移植：同一套語音引擎、同一個 AI 筆記模型與閱讀協定（Swift 版的閱讀器與 Android 的黃金測試資料逐位元組一致），介面與功能對齊 Android。
 
-<p align="center"><img src="docs/screenshots/demo-live.gif" width="260" alt="即時查看：轉錄與 AI 筆記"></p>
+<p align="center">
+<img src="docs/screenshots/demo-record.gif" width="260" alt="即時錄音：逐字稿與語者">
+<img src="docs/screenshots/demo-queue.gif" width="260" alt="兩場會議連續處理">
+</p>
 
-<p align="center"><sub>模擬器實錄（4 倍速）：匯入公開示範會議音訊 → 轉錄 → AI 筆記逐段寫入 → 摘要。</sub></p>
+<p align="center"><sub>模擬器實錄（公開示範會議音訊）。左：錄音中即時逐字稿與語者標記（4 倍速），停止後產生摘要。右：連續匯入兩場會議，依序轉錄、AI 筆記、摘要（6 倍速）。</sub></p>
 
 <p align="center">
 <img src="docs/screenshots/10-summary.png" width="200" alt="摘要">

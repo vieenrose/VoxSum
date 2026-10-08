@@ -50,6 +50,9 @@ final class ChunkBuffer: @unchecked Sendable {
     private var data: [Float] = []; private let lock = NSLock()
     func add(_ c: [Float]) { lock.lock(); data += c; lock.unlock() }
     func take() -> [Float] { lock.lock(); defer { lock.unlock() }; let d = data; data = []; return d }
+    private var shut = false
+    var closed: Bool { lock.lock(); defer { lock.unlock() }; return shut }
+    func close() { lock.lock(); shut = true; lock.unlock() }
 }
 
 /// Local notification when a meeting is ready (Android posts one from its foreground service).
@@ -206,7 +209,7 @@ final class Model: ObservableObject {
             guard (n.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt).flatMap(AVAudioSession.InterruptionType.init) == .began else { return }
             Task { @MainActor in guard let self, self.recording else { return }; self.toggleRecord(); self.status = L("rec_interrupted") }
         } }
-        if recording { recorder?.stop(); recorder = nil; recording = false; status = L("stopping"); return }
+        if recording { recorder?.stop(); recorder = nil; liveBuffer?.close(); liveBuffer = nil; recording = false; status = L("stopping"); return }
         Task {
             guard await Recorder.requestPermission() else { status = L("mic_permission_required"); return }
             guard await downloadSpeech() else { return }
@@ -217,6 +220,10 @@ final class Model: ObservableObject {
             guard let wav = try? WavWriter(JobQueue.url(job)) else { recording = false; return }
             recordingJob = job.id
             await queue.add(job)       // on the list before the first sample: a kill mid-recording keeps the audio
+            // Android: the reader takes notes while the meeting is recorded, so the summary is ready moments after Stop. One
+            // engine pair at a time: with the queue at work (or the previous talk still being read), record only; it is processed after.
+            let readerReady = Dev.env["VOX_READER_DIR"] != nil ? true : await store.isComplete(Prefs.reader)
+            if liveJob == nil && activeJob == nil && readerReady && Dev.env["VOX_LEGACYREC"] == nil { await recordLive(job, wav, r); return }
             let b = base
             Task.detached { [weak self] in
                 guard let self, let eng = NemoEngine(xasr: self.modelPath("x-asr-zh-en-q8_0.gguf", b), diar: self.modelPath("nemotron-3-diarization-q8_0.gguf", b), threads: Prefs.effectiveThreads, settle: Double(Prefs.speakerDelay)) else {
@@ -224,19 +231,46 @@ final class Model: ObservableObject {
                 let agc = LiveAgc()
                 do { try r.start { [buffer = self.buffer] c in var c = c; agc.process(&c); wav.append(c); buffer.add(c) } }
                 catch { await MainActor.run { self.status = L("mic_error", "\(error)"); self.recording = false }; return }
-                var seen = 0; let conv = TextConv()
+                var frozen: [Utterance] = []; let conv = TextConv()
                 while await MainActor.run(body: { self.recording }) {
                     try? await Task.sleep(nanoseconds: 500_000_000)
                     let chunk = self.buffer.take()
                     if !chunk.isEmpty { _ = eng.push(chunk) }
-                    let (frozen, tail) = eng.live(); seen = frozen.count
-                    await MainActor.run { self.lines = conv.utterances(frozen + tail); self.elapsed = Int(eng.fedSeconds); self.status = L("recording_s", Int(eng.fedSeconds)) }
+                    let (fresh, tail) = eng.live(); frozen += fresh   // the engine returns only the newly frozen lines
+                    await MainActor.run { [frozen] in self.lines = conv.utterances(frozen + tail); self.elapsed = Int(eng.fedSeconds); self.status = L("recording_s", Int(eng.fedSeconds)) }
                 }
                 wav.finish()
                 await MainActor.run { self.recordingJob = nil }
                 await MainActor.run { self.drain() }   // full pipeline (diarization settled + notes) from the saved audio
             }
         }
+    }
+    private var liveBuffer: ChunkBuffer?
+    private var liveJob: UUID?
+    /// The recording fed straight into `process` (ASR + diarization + reader live), archived at the end like a queued job.
+    private func recordLive(_ job: Job, _ wav: WavWriter, _ r: Recorder) async {
+        let buf = ChunkBuffer(), agc = LiveAgc()
+        do { try r.start { c in var c = c; agc.process(&c); wav.append(c); buf.add(c) } }
+        catch { status = L("mic_error", "\(error)"); recording = false; recordingJob = nil; return }
+        liveBuffer = buf; liveJob = job.id; activeJob = job.id
+        let t0 = Date()   // the timer runs on the clock, not on what the recognizer has caught up with (models still loading)
+        Task { while self.recording, self.liveJob == job.id { self.elapsed = Int(Date().timeIntervalSince(t0)); try? await Task.sleep(nanoseconds: 500_000_000) } }
+        await process(seconds: 0, job: job, live: true) { [weak self] sink in
+            while true {
+                // Half-second blocks, as the record-only loop: the live diarizer settles speakers on what it is pushed.
+                Thread.sleep(forTimeInterval: 0.5)
+                let done = buf.closed, c = buf.take()
+                if !c.isEmpty, !sink(c) { break }
+                if done { break }
+            }
+            wav.finish()
+            Task { @MainActor in self?.recordingJob = nil }   // the audio is complete: Next talk may start the next one
+        }
+        if recording, liveJob == job.id { toggleRecord() }   // models failed to load: stop the mic, the audio stays queued
+        if StopFlag.on { StopFlag.on = false; parked.insert(job.id); status = L("status_stopped") }
+        else if await queue.contains(job.id) { parked.insert(job.id); failed[job.id] = status }
+        recordingJob = nil; liveJob = nil; activeJob = nil; await syncQueue()
+        drain()   // whatever was queued meanwhile
     }
     /// Android "Next talk": save this recording (it is queued like any stop) and start the next one straight away.
     func nextTalk() {
@@ -268,7 +302,7 @@ final class Model: ObservableObject {
     }
 
     /// Transcribe + read a source of 16 kHz mono chunks (a file, the bundled sample). `feed` pushes chunks until done or false.
-    func process(seconds: Double, job: Job? = nil, skipper: SilenceSkipper? = nil, resume: Checkpoint.Partial? = nil, offset: Double = 0, feed: @escaping @Sendable (([Float]) -> Bool) throws -> Void) async {
+    func process(seconds: Double, job: Job? = nil, skipper: SilenceSkipper? = nil, resume: Checkpoint.Partial? = nil, offset: Double = 0, live: Bool = false, feed: @escaping @Sendable (([Float]) -> Bool) throws -> Void) async {
         status = L("loading_models"); lines = []; notes = []; title = ""; summary = ""; StopFlag.on = false
         let b = base
         await Task.detached {
@@ -296,14 +330,14 @@ final class Model: ObservableObject {
             func full(_ fresh: [Utterance], stable: Int) -> ([Utterance], Int) {
                 SeamStitcher.stitch(prior, seam: seam, sk.restore(fresh).map { var u = $0; u.start += offset; u.end += offset; return u }, stable: stable)
             }
-            var kept: [Utterance] = prior, snapshot: [Utterance] = prior, offered = 0
+            var kept: [Utterance] = prior, snapshot: [Utterance] = prior, offered = 0, frozen: [Utterance] = []
             if resume != nil { for u in prior { if let l = ReaderSummarizer.toLine(u) { worker.offer(l) } }; offered = prior.count; StatusLog.add("trace resume at \(Int(seam)) s, \(prior.count) utterances kept") }
             do {
                 if cached == nil, let eng { try feed { chunk in
                     if StopFlag.on { return false }
                     _ = Stage.watchdog; Stage.set("push")
                     if !eng.push(chunk) { StatusLog.add("trace push failed at \(Int(eng.fedSeconds)) s") }
-                    let (frozen, tail) = eng.live()
+                    let (fresh, tail) = eng.live(); frozen += fresh   // the engine returns only the newly frozen lines
                     let (all, stable) = full(frozen + tail, stable: frozen.count); kept = Array(all.prefix(stable))
                     let edge = all.last?.end ?? 0; snapshot = all.filter { $0.end <= edge - 10 }   // resume point: everything clear of the live edge
                     for u in kept.dropFirst(offered) { if let l = ReaderSummarizer.toLine(u) { worker.offer(l) } }   // original-audio times: notes need no restore
@@ -311,6 +345,7 @@ final class Model: ObservableObject {
                     let j = worker.journal, fed = eng.fedSeconds
                     Task { @MainActor in
                         self.lines = conv.utterances(all); self.notes = conv.notes(j)
+                        if live { if self.recording { self.status = L("recording_s", Int(fed)) }; return }
                         self.status = L("transcribing_s", Int(fed + offset), Int(seconds))
                     }
                     Stage.set("idle")
@@ -342,7 +377,7 @@ final class Model: ObservableObject {
             let (fl, fn, ft, fp) = (conv.utterances(final), conv.notes(journal), conv.text(t ?? ""), prose.map { conv.text($0) } ?? "")
             let summaryText = fp.isEmpty && !fl.isEmpty ? L("summary_no_notes") : fp
             await MainActor.run { self.lines = fl; self.notes = fn; self.title = ft; self.summary = summaryText; let ns = Set(fl.map(\.speaker)).count; self.status = ns > 1 ? L("status_transcript_lines_speakers", fl.count, ns) : L("status_transcript_lines", fl.count); self.agent.apply(.state(.done, notes: fn.count)) }
-            await self.archive(lines: fl, notes: fn, title: ft, summary: summaryText, seconds: seconds, job: job)
+            await self.archive(lines: fl, notes: fn, title: ft, summary: summaryText, seconds: live ? (eng?.fedSeconds ?? 0) : seconds, job: job)
             if let job { Checkpoint.remove(job.id); await self.queue.remove(job.id) }
         }.value
     }
@@ -373,7 +408,7 @@ final class Model: ObservableObject {
         Task { await queue.add(j); await syncQueue(); drain() }
     }
     func drain() {
-        guard !draining else { return }
+        guard !draining, liveJob == nil else { return }
         draining = true
         UIApplication.shared.isIdleTimerDisabled = true   // iOS suspends a locked app: stay awake while the queue works (Android: wake lock)
         if Dev.env["VOX_SHOTS"] == nil { Notifier.requestPermission() }   // screenshots: no permission prompt over the UI

@@ -80,14 +80,14 @@ struct AgentPanel: View {
     @State private var opened: Set<Int> = []
     @State private var expandedOverride: Bool?
 
-    private func color(_ s: AgentState) -> Color {
+    fileprivate func color(_ s: AgentState) -> Color {
         switch s { case .starting: return .gray; case .listening: return .blue; case .reading, .summarizing: return .orange; case .restarting: return .secondary; case .done: return .green }
     }
-    private func chip(_ s: AgentState) -> String {
+    fileprivate func chip(_ s: AgentState) -> String {
         switch s { case .starting: return L("agent_state_starting"); case .listening: return L("agent_state_listening"); case .reading: return L("agent_state_reading")
         case .restarting: return L("agent_state_restarting"); case .summarizing: return L("agent_state_summarizing"); case .done: return L("agent_state_done") }
     }
-    private func line(_ s: AgentState) -> String {
+    fileprivate func line(_ s: AgentState) -> String {
         switch s { case .starting: return L("agent_starting"); case .listening: return L("agent_listening", agent.notesSoFar); case .reading: return L("agent_reading", agent.steps.last { !$0.restart }?.window ?? 0)
         case .restarting: return L("agent_restarting"); case .summarizing: return L("agent_summarizing", agent.notesSoFar); case .done: return L("agent_done", notesCount(agent.notes.count)) }
     }
@@ -256,6 +256,40 @@ private struct ReplyPreview: View {
                     }
                 }
             }.padding(10).frame(maxWidth: .infinity, alignment: .leading).background(Color.secondary.opacity(0.1), in: RoundedRectangle(cornerRadius: 10))
+        }
+    }
+}
+
+/// Android AgentStrip: the reader's status pinned on the recording screen — state, notes so far, the window filling
+/// up while it listens, then the line being written or the latest note.
+struct AgentStrip: View {
+    @ObservedObject var agent: AgentUi
+    @Environment(\.speakerRefs) private var refs
+    var body: some View {
+        if let st = agent.state {
+            let p = AgentPanel(agent: agent), cur = agent.steps.last { !$0.restart }
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Dot(color: p.color(st), pulsing: agent.working)
+                    Text(L("agent_title")).font(.subheadline.weight(.semibold))
+                    Spacer()
+                    if !agent.notes.isEmpty { Text(notesCount(agent.notes.count)).font(.caption).foregroundStyle(.secondary) }
+                    Text(p.chip(st)).font(.caption2.weight(.semibold)).foregroundStyle(p.color(st))
+                        .padding(.horizontal, 8).padding(.vertical, 3).background(p.color(st).opacity(0.14), in: Capsule())
+                }
+                if st == .listening, let cur { Bar(value: cur.tokens, max: agent.windowMax, active: true).frame(height: 3) }
+                if st == .reading, let last = agent.reply.split(separator: "\n").last(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty }) {
+                    Text(String(last).replacingOccurrences(of: "NOTE ", with: "") + " ▍").font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                } else if let n = agent.notes.last {
+                    HStack(spacing: 8) {
+                        Text(n.ts).font(.caption2.monospaced()).foregroundStyle(.blue)
+                        Text(refs(n.text)).font(.caption).lineLimit(1)
+                    }
+                } else { Text(p.line(st)).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
+            }
+            .padding(.horizontal, 12).padding(.vertical, 10).frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.secondary.opacity(0.2)))
         }
     }
 }

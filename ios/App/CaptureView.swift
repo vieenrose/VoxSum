@@ -15,6 +15,10 @@ struct CaptureView: View {
             Text(Export.mmss(Double(m.elapsed))).font(.system(size: 76, weight: .bold, design: .rounded).monospacedDigit())
                 .padding(.vertical, 12)
             HwStatusLine().padding(.bottom, 6)
+            // The summarizing agent works alongside ASR + diarization: its status stays pinned on top (Android LivePanel).
+            AgentStrip(agent: m.agent).padding(.horizontal, 20).padding(.bottom, 6)
+                .environment(\.speakerRefs, { [known = Set(m.lines.map(\.speaker))] t in
+                    SpeakerRefs.resolve(t, label: { L("speaker_n", $0 + 1) }, known: known.isEmpty ? nil : known) })
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 10) {

@@ -174,7 +174,7 @@ final class Model: ObservableObject {
         if !summary.isEmpty { s.reader = Prefs.readerId }
         let old = resummarized.removeValue(forKey: s.id)
         if let old { s.speakerNames = old.speakerNames }   // re-summarize keeps the transcript, so its speaker names too
-        try? await library.save(s)
+        do { try await library.save(s) } catch { status = L("session_save_failed"); Notifier.failed(s.title); return }   // Android: never claim success on a failed save
         NotificationCenter.default.post(name: .voxSessionSaved, object: s, userInfo: old.map { ["undo": $0] })
         sessions = await library.all(); await syncQueue()
         Notifier.done(s.title)

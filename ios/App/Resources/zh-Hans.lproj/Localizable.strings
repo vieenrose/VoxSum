@@ -318,3 +318,4 @@
 "svc_queue_item_failed_hint" = "点击打开 VoxSum 再试一次。";
 "summary_no_notes" = "这段录音没有需要记下的决议、待办或数字。";
 "status_starting" = "启动中…";
+"session_save_failed" = "无法保存场次";

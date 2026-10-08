@@ -318,3 +318,4 @@
 "svc_queue_item_failed_hint" = "Tap to open VoxSum and try again.";
 "summary_no_notes" = "Nothing to note in this recording: no decisions, actions or figures.";
 "status_starting" = "Starting…";
+"session_save_failed" = "Couldn't save session";

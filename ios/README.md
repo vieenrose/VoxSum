@@ -1,87 +1,82 @@
-# VoxSum iOS — native engine feasibility (2026-10-05)
+<h1 align="center">VoxSum for iOS</h1>
 
-Built on a MacBook Pro 16,3 (Intel, macOS 15.7, Xcode 26.2, iOS 26.2 SDK) with `ios/native/build_ios.sh`
-(cmake 3.31.6 installed in `~/tools`; Homebrew is not writable there).
+<p align="center">
+  <b>會議錄音 → 標註語者的逐字稿 → 摘要。<br>全程在 iPhone 上完成，完全離線。</b>
+</p>
 
-| Piece | Result |
-|---|---|
-| CrispASR x-asr + pinned ggml fork (static) | builds: simulator x86_64 and device arm64 |
-| audio.cpp diarization (`libaudiocpp.dylib`, ggml hidden, 75 exported symbols, 0 `ggml_*`) | builds: simulator x86_64 and device arm64 |
-| `nemo/` glue (engine, fusion, diar_crispasr) | compiles for iOS arm64 (syntax check) |
-| `mfa/` LiteRT-LM fork (mfa_engine.cc, i8_attn.cc) | compiles for iOS arm64 (syntax check) |
-| LiteRT runtime | `CLiteRTLM.xcframework` v0.17.1 exports the full LiteRT C API incl. `LiteRtAddCustomOpKernelOption` → the fused-attention custom op can link against it |
+<p align="center">
+  <img alt="平台" src="https://img.shields.io/badge/iOS-17.0%2B-000000?logo=apple&logoColor=white">
+  <img alt="授權" src="https://img.shields.io/badge/license-GPL--3.0-blue">
+</p>
 
-Changes needed vs Android: deployment target 17.0 (`std::to_chars`), `ru_minflt` (profiling only) patched out of
-audio.cpp, a no-op `set_xcode_property` for sentencepiece, OpenMP off (CrispASR kernels run single-threaded
-until an iOS libomp is wired in), Metal/Accelerate/BLAS off.
+VoxSum for iOS 是 [Android 版](../README.md) 的原生 SwiftUI 移植：同一套語音引擎、同一個 AI 筆記模型與閱讀協定（Swift 版的閱讀器與 Android 的黃金測試資料逐位元組一致），介面與功能對齊 Android。
 
-Known limits: CLiteRTLM ships arm64 device + arm64 simulator slices only — no x86_64 — so this Intel Mac can
-build but not run the reader in the simulator; running needs a real iPhone (no signing identity configured yet).
-Not done yet: JNI → C/Swift bridge for nemo and mfa, linking `libvoxsum-nemo`, Xcode/SwiftUI project.
+## 特色
 
-## CLI check on the iOS simulator (`build_nemo_eval.sh`)
+- **完全離線、無帳號**：音訊不離開手機，模型只在第一次使用時下載。
+- **即時逐字稿與語者**：錄音時文字即時上螢幕，同時標註語者。
+- **邊開會邊做筆記**：AI 筆記在錄音中閱讀逐字稿，寫下決議、待辦與數字；停止後很快完成摘要。
+- **每句都可核對**：摘要與筆記的時間點一下，就從原話開始播放。
+- **錄音不會遺失**：開始錄音前就排入佇列，App 被終止也保留音訊；處理失敗的項目留在佇列可「重試」。
+- **可編輯、可匯出**：修正文字、改派或合併語者；匯出 VoxSum 場次 `.m4a`（與 Android 互通）、PDF、Markdown、純文字或字幕。
+- **依手機調整**：首次啟動做一秒測試選執行緒數；全程使用 CPU 推論（GPU 將以 Metal 後端另行處理）。
 
-`nemo_eval` (the app's engine, driven from the command line) built for iphonesimulator x86_64 and run with
-`xcrun simctl spawn` on an iPhone 17 Pro simulator, on `diar_ref_2spk_123s.wav` (123 s, 2 speakers), against the
-Linux host build of the same sources:
+## 使用
 
-| | Linux host (4 threads) | iOS simulator (x86_64, no OpenMP) |
-|---|---|---|
-| speakers / diarizer turns | 2 / 57 | 2 / 57 |
-| transcript text | — | identical (similarity 1.0000) |
-| speaker label per second | — | 108/119 agree (91 %); the host agrees with itself at 119/119 across 1 and 4 threads |
-| wall / RTF | 47 s / 0.38 | 208 s / 1.69 (1.4 GHz Intel i5, single-threaded — not representative of an iPhone) |
+**錄音**：首頁底部的錄音鈕。逐字稿即時出現，語者確定後標上顏色；AI 筆記卡片顯示它在閱讀或寫筆記。停止後場次自動轉錄、摘要並取標題，完成時發出「場次已就緒」通知。
 
-The label differences start where speech overlaps (~48 s) and are ±10–20 ms on most turn edges. Likely cause: the
-iOS build uses baseline x86 SIMD kernels (`GGML_NATIVE=OFF`) where the host build uses AVX2, i.e. float-rounding
-differences in the diarizer — not verified. `engine.cpp` needs `apple_sched_shim.h` (Linux CPU affinity).
+**摘要**：段落式摘要（超過 12 行可展開／收合，可編輯、複製），藍色時間點可直接播放；待辦事項另列一卡；下方一行是各語者的發言比例。
 
-## État (reader + app)
+**逐字稿**：點任一句從該處播放；長按可修改文字、把這句移給其他語者，或把整位語者合併到另一位；點語者可改名。修改逐字稿後會提示重新摘要。
 
-- Le lecteur de réunion (protocole, `MeetingReader`, `ReaderSummarizer`) est porté en Swift, identique octet par octet aux goldens Android (`tests/run.sh`).
-- `native/mfa/` : moteur LiteRT (CPU) + SentencePiece compilés pour iOS arm64 (`native/build_mfa_lib.sh`). Lien/ABI avec `CLiteRTLM.xcframework` à valider sur un iPhone.
-- Simulateur Intel : x86_64 uniquement, donc `StubLlm` (notes simulées) ; `MfaSession` n'est compilé que pour l'appareil.
-- Prochain pas sur iPhone : signature (Apple ID), `build_app.sh iphoneos arm64` (lien mfa + sentencepiece + CLiteRTLM, à intégrer au bundle), téléchargement des modèles du lecteur, mesure de vitesse ASR (ggml sans OpenMP = mono-thread).
+**場次選單**（右上 **⋯**）：分享逐字稿、匯出（`.m4a` 場次、PDF、MD、TXT、SRT、VTT、LRC）、**重新轉錄**、**重新摘要**（保留逐字稿與語者名稱；完成後可「復原」）。換了 AI 筆記模型後開啟舊場次會提示重新摘要。
 
-## Vrai lecteur dans le simulateur Intel
+**播放列**：播放／暫停、±5 秒、進度、音量（靜音、25–100%）。
 
-`native/litert_x86_sim/` compile `libLiteRt.so` v2.1.6 pour `ios_x86_64` (Bazel, ~25 min, patch de 3 lignes de lien).
-`build_app.sh` la lie dès qu'elle existe (`-DVOX_REAL_READER`) ; `VOX_READER_DIR=<dossier des modèles>` choisit le lecteur réel.
-Vérifié : E2B charge, notes/titre/résumé réels sur l'extrait de 123 s (ASR rtf 0,73 dans le simulateur).
+**匯入**：首頁 **＋** 可加入「檔案」App 裡的音訊、Podcast，或開啟 VoxSum 場次 `.m4a`；也可從其他 App 分享音訊過來。
 
-## Projet Xcode (signature sur iPhone)
+**設定**：語言（English、繁體中文、简体中文）、外觀（自動、淺色、深色、電子紙）、文字大小、語者標註延遲（5–30 秒）、AI 筆記模型（E2B，或 RAM 足夠的 iPhone 可選 E4B）、硬體狀態列、推論執行緒（自動或手動）、顯示待辦事項、模型與儲存空間管理、關於。
 
-`Xcode/VoxSum.xcodeproj` est une cible app minimale : sa phase « Build + embed native bundle »
-(`Xcode/embed_prebuilt.sh`) lance `native/build_app.sh`, copie le binaire et `Frameworks/` dans le
-produit, signe les frameworks, puis Xcode signe l'app (signature automatique).
+完整操作說明與介面測試地圖見 [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md)。
 
-1. iPhone branché, « Faire confiance », Réglages > Confidentialité et sécurité > Mode développeur.
-2. Xcode > Settings > Accounts : ajouter l'identifiant Apple.
-3. Ouvrir `~/work/vox/ios/Xcode/VoxSum.xcodeproj`, cible VoxSum > Signing & Capabilities : choisir la Team
-   (changer le bundle id `studio.voxsum.ios` s'il est pris), choisir l'iPhone, Run.
+## 需求
 
-Sans Xcode GUI : `xcodebuild -project Xcode/VoxSum.xcodeproj -target VoxSum -sdk iphoneos -allowProvisioningUpdates DEVELOPMENT_TEAM=<ID> build`.
-`SKIP_NATIVE_BUILD=1` réutilise le bundle déjà compilé. Structure validée sans signature
-(`CODE_SIGNING_ALLOWED=NO`) ; la signature elle-même n'est pas testée.
+- iOS 17.0 以上，arm64 iPhone。驗證機型：iPhone 14 Pro Max（6 GB）。
+- 模型首次使用時下載：語音引擎約 275 MB，AI 筆記模型 E2B 約 2.2 GB（E4B 約 3.3 GB）。
+- RAM 不足 4.5 GB 的 iPhone 自動改為循序處理：錄音結束後才閱讀。3 GB 機型（如 iPhone XR）無法可靠執行 E2B。
+- 唯一的網路連線：下載模型與 Podcast。
 
-## État validé sur iPhone (2026-10-07)
+## 與 Android 版的差異
 
-Appareil de référence : iPhone 14 Pro Max (6 Go, iOS 27). L'iPhone XR (3 Go, A12) ne tient pas E2B de façon fiable
-(app perdue à la transition ASR → lecteur) ; il n'est plus utilisé pour valider.
+- 只用 CPU 推論；沒有 GPU／NPU 選項（之後以 Metal 後端處理）。
+- 沒有 App 內更新（由 App Store／TestFlight 負責）、沒有 Android 的背景可靠性設定。iOS 以 `BGProcessingTask` 在 App 離開後繼續處理佇列。
+- 暫不提供 YouTube 匯入。
+- 中斷的處理不會跳出詢問：佇列在下次啟動時自動從檢查點接續。
 
-- `long.mp3` (45 min) : transcription en ~15 min (RTF ≈ 0,3), lecteur E2B en parallèle, résumé confirmé correct.
-- Enregistrement micro : sessions de 30 s et 62 s terminées.
-- Mode séquentiel automatique sous 4,5 Go de RAM (lecteur en pause pendant l'ASR).
-- Point de reprise de la transcription (`Library/Application Support/checkpoints/`) : un kill pendant l'étape lecteur ne refait pas l'ASR.
-- Tâche d'arrière-plan `BGProcessingTask` (`tw.com.pesi.voxsum.queue`) : reprend la file de jobs quand l'app est quittée.
-- Réglages : délai des locuteurs en direct (5–30 s, défaut 15) et taille du texte.
-- Pré-traitement audio : normalisation du gain, saut des silences, découpe des longues interventions.
-- Non testé sur appareil : gain/silences, découpe, réglages, tâche d'arrière-plan, reprise depuis le point de reprise.
+## 已知限制
 
-## Construire et tester sur appareil
+與 Android 相同：摘要模型以中文會議訓練，英文會議也會寫出中文摘要；部分會議紀錄內容可能與原話不符，請點時間核對；偶爾會多分出發言很少的語者，可用「合併語者」修正。
 
-- `DEV=1 bash native/build_app.sh iphoneos arm64` active `-DVOX_DEV` : variables `VOX_*` (`VOX_IMPORT`, `VOX_DOWNLOAD`,
-  `VOX_OPEN`, `VOX_PODCAST`, `VOX_READER_DIR`, `VOX_AUTORUN`) et bouton Sample. Les builds sans `DEV` n'en contiennent aucune.
-- Puis `xcodebuild … SKIP_NATIVE_BUILD=1 clean build` (sinon la phase de script Xcode recompile sans `DEV=1`).
-- Les modèles se téléchargent dans l'app (`VOX_DOWNLOAD=reader` pour le lecteur ; ASR au premier job).
-- Journal : `Documents/status.log` (`devicectl device copy from --domain-type appDataContainer`).
+## 運作方式
+
+- **聽寫**：[nemo-x-asr-diarizer](https://github.com/vieenrose/nemo-x-asr-diarizer.cpp)：語音辨識（X-ASR）與語者分離（Nemotron-3）在同一條時間軸上的串流引擎，以 C 介面接到 Swift。
+- **AI 筆記與摘要**：Gemma-4-E2B 會議模型（行動版）在 LiteRT 上執行（[自訂引擎](https://github.com/vieenrose/LiteRT-LM/tree/mobile-fused-attention)，`CLiteRTLM.xcframework`）。閱讀協定（`MeetingReader`、`ReaderSummarizer`）以 Swift 重寫。
+
+## 從原始碼建置
+
+需要 macOS 與 Xcode（iOS 26 SDK）、cmake。在 Mac 上：
+
+```bash
+bash ios/native/build_app.sh iphoneos arm64        # 原生引擎 + SwiftUI App bundle
+# 簽署並安裝：開啟 ios/Xcode/VoxSum.xcodeproj 選 Team 與 iPhone 後 Run，或
+xcodebuild -project ios/Xcode/VoxSum.xcodeproj -scheme VoxSum -configuration Release \
+  -destination "id=<裝置>" DEVELOPMENT_TEAM=<ID> -allowProvisioningUpdates SKIP_NATIVE_BUILD=1 build
+bash ios/tests/run.sh                               # 閱讀器與 Android 黃金資料比對
+python3 tools/uiparity/check.py                     # 介面字串與 Android 的對齊程度
+```
+
+`DEV=1` 開啟開發用的 `VOX_*` 環境變數（自動匯入、開啟場次、下載模型等）。引擎移植、模擬器與實機驗證的細節見 [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md)。
+
+## 授權
+
+應用程式以 [GPL-3.0-or-later](../LICENSE) 授權；模型與資料各依其授權，見 [Android 版 README](../README.md#授權)。

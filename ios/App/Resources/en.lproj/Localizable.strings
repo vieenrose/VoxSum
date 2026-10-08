@@ -319,3 +319,4 @@
 "summary_no_notes" = "Nothing to note in this recording: no decisions, actions or figures.";
 "status_starting" = "Starting…";
 "session_save_failed" = "Couldn't save session";
+"rec_interrupted" = "Recording stopped by another app (call or alarm) — what was recorded is saved and queued.";

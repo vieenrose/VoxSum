@@ -24,16 +24,30 @@ enum SessionFile {
         m.notes = s.notes.isEmpty ? nil : s.notes.map { ReaderProtocol.render($0) }.joined(separator: "\n")
         m.action_items = s.actionItems ?? "-"
         m.asr_backend = "ios"
+        m.llm_model = s.reader
         m.speaker_names = (s.speakerNames ?? [:]).filter { !$0.value.isEmpty }.mapValues { Manifest.SN(name: $0, confidence: "user", reason: "") }
         m.utterances = s.lines.enumerated().map { Manifest.U(index: $0.offset, start: $0.element.start, end: $0.element.end, text: $0.element.text, speaker: $0.element.speaker) }
         return m
+    }
+
+    /// The AI notes journal as written by `manifest` / Android's agent: one "#id [m:ss] (TAG) text" per line.
+    static func notes(_ t: String?) -> [Note] {
+        guard let t else { return [] }
+        let re = try! NSRegularExpression(pattern: #"^#(\d+)\s+\[([0-9:]+)\]\s+(?:\(([^)]+)\)\s+)?(.*)$"#)
+        return t.split(separator: "\n").compactMap { l in
+            let l = String(l); guard let m = re.firstMatch(in: l, range: NSRange(l.startIndex..., in: l)) else { return nil }
+            func g(_ i: Int) -> String? { Range(m.range(at: i), in: l).map { String(l[$0]) } }
+            return Note(id: Int(g(1) ?? "") ?? 0, window: 0, ts: g(2) ?? "", tag: g(3), text: g(4) ?? "")
+        }
     }
 
     static func session(_ m: Manifest, audio: String?) -> Session {
         let lines = (m.utterances ?? []).map { Utterance(speaker: $0.speaker ?? 0, start: $0.start, end: $0.end, text: $0.text) }
         var names: [String: String] = [:]
         for (k, v) in m.speaker_names ?? [:] where !v.name.isEmpty { names[k] = v.name }
-        return Session(title: m.title ?? "", summary: m.summary ?? "", seconds: lines.last?.end ?? 0, lines: lines, notes: [], audio: audio, speakerNames: names.isEmpty ? nil : names)
+        var s = Session(title: m.title ?? "", summary: m.summary ?? "", seconds: lines.last?.end ?? 0, lines: lines, notes: notes(m.notes), audio: audio, speakerNames: names.isEmpty ? nil : names)
+        s.reader = m.llm_model   // Android sessionModels: the summary stays attributed to the model that wrote it
+        return s
     }
 
     // MARK: gzip (Apple's COMPRESSION_ZLIB is raw deflate)

@@ -161,13 +161,28 @@ final class Model: ObservableObject {
     /// Jobs whose last run failed → their error, shown on the queue row with Retry.
     @Published var failed: [UUID: String] = [:]
     func processNext(_ j: Job) { guard j.id != activeJob else { return }; Task { await queue.promote(j.id); await syncQueue() } }
-    func unqueue(_ j: Job) { guard j.id != activeJob else { return }; failed[j.id] = nil; Task { await queue.remove(j.id); Checkpoint.remove(j.id); await syncQueue() } }
+    func unqueue(_ j: Job) { guard j.id != activeJob else { return }; failed[j.id] = nil; Task {
+        await queue.remove(j.id); Checkpoint.remove(j.id)
+        // Android: removing from the queue keeps the recording in the library (unprocessed), so it can be transcribed later
+        if FileManager.default.fileExists(atPath: JobQueue.url(j).path), !(await library.all()).contains(where: { $0.id == j.id }) {
+            var s = Session(title: j.title ?? L("meeting"), summary: "", seconds: AudioDecode.duration(JobQueue.url(j)) ?? 0, lines: [], notes: [])
+            s.id = j.id; s.date = j.date; s.audio = j.audio
+            try? await library.save(s); sessions = await library.all()
+        }
+        await syncQueue()
+    } }
     func reload() { Task { sessions = await library.all(); await syncQueue() } }
     func update(_ s: Session) { Task { try? await library.save(s); sessions = await library.all() } }
-    func remove(_ s: Session) { Task { await library.delete(s.id); sessions = await library.all() } }
+    func remove(_ s: Session) { Task {
+        await library.delete(s.id); sessions = await library.all()
+        // Android deletes the whole entry: the audio goes too, unless another session or a queued job still uses it
+        if let a = s.audio, !sessions.contains(where: { $0.audio == a }), !(await queue.all).contains(where: { $0.audio == a }) { try? FileManager.default.removeItem(at: JobQueue.audioDir.appendingPathComponent(a)) }
+    } }
     func open(_ s: Session) { lines = s.lines; notes = s.notes; title = s.title; summary = s.summary; status = L("archive_of", s.date.formatted(date: .abbreviated, time: .shortened)) }
     private func archive(lines: [Utterance], notes: [Note], title: String, summary: String, seconds: Double, job: Job? = nil) async {
-        guard !lines.isEmpty else { return }
+        // No speech: still a library entry with its audio (Android keeps the entry, status_no_speech), never a silent drop.
+        let summary = lines.isEmpty && summary.isEmpty ? L("status_no_speech") : summary
+        if lines.isEmpty { status = L("status_no_speech") }
         let fallback = lines.first.map { String($0.text.prefix(20)) } ?? L("meeting")
         var s = Session(title: title.isEmpty ? fallback : title, summary: summary, seconds: seconds, lines: lines, notes: notes)
         if let job { s.id = job.id; s.date = job.date; s.audio = job.audio; if let t = job.title, !t.isEmpty { s.title = t } }
@@ -184,7 +199,13 @@ final class Model: ObservableObject {
     private var recorder: Recorder?
     private let buffer = ChunkBuffer()
 
+    private var interruptObs: NSObjectProtocol?
     func toggleRecord() {
+        // A call, Siri or another app taking the mic: save what was recorded (queued like any stop) and say so, instead of a stalled tap.
+        if interruptObs == nil { interruptObs = NotificationCenter.default.addObserver(forName: AVAudioSession.interruptionNotification, object: nil, queue: .main) { [weak self] n in
+            guard (n.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt).flatMap(AVAudioSession.InterruptionType.init) == .began else { return }
+            Task { @MainActor in guard let self, self.recording else { return }; self.toggleRecord(); self.status = L("rec_interrupted") }
+        } }
         if recording { recorder?.stop(); recorder = nil; recording = false; status = L("stopping"); return }
         Task {
             guard await Recorder.requestPermission() else { status = L("mic_permission_required"); return }
@@ -344,7 +365,7 @@ final class Model: ObservableObject {
             while let job = await queue.first(excluding: parked.union(recordingJob.map { [$0] } ?? [])) {
                 let url = JobQueue.url(job)
                 WavWriter.repair(url)
-                guard let secs = AudioDecode.duration(url), secs > 0 else { await queue.remove(job.id); continue }
+                guard let secs = AudioDecode.duration(url), secs > 0 else { parked.insert(job.id); failed[job.id] = L("import_failed"); status = L("import_failed"); await syncQueue(); continue }   // undecodable: shown with its error and Remove, not dropped silently
                 let left = await queue.count; pending = left; activeJob = job.id; await syncQueue()
                 if left > 1 { status = L("queue_n", left) }
                 let skipper = SilenceSkipper()

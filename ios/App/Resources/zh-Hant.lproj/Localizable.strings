@@ -319,3 +319,4 @@
 "summary_no_notes" = "這段錄音沒有需要記下的決議、待辦或數字。";
 "status_starting" = "啟動中…";
 "session_save_failed" = "無法儲存場次";
+"rec_interrupted" = "錄音被其他應用程式（來電或鬧鐘）中斷——已錄下的部分已儲存並排入佇列。";

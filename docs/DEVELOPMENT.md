@@ -1,4 +1,4 @@
-# VoxSum iOS — notes de développement (chemins relatifs à `ios/`)
+# VoxSum iOS — notes de développement (chemins relatifs à `ios/`, depuis la racine : `ios/native/…`)
 
 Built on a MacBook Pro 16,3 (Intel, macOS 15.7, Xcode 26.2, iOS 26.2 SDK) with `ios/native/build_ios.sh`
 (cmake 3.31.6 installed in `~/tools`; Homebrew is not writable there).

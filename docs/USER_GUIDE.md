@@ -1,6 +1,6 @@
 # VoxSum iOS 使用說明（含介面測試地圖）
 
-結構與 [Android 版使用說明](../../docs/USER_GUIDE.md) 相同：
+結構與 [Android 版使用說明](https://github.com/vieenrose/VoxSum/blob/android/docs/USER_GUIDE.md) 相同：
 
 - **使用說明**：每一節介紹一個畫面。
 - **測試地圖**：每一節最後的表格列出該畫面上的每個操作（節點）、進入方式、預期結果與驗證狀態。

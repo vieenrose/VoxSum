@@ -9,7 +9,7 @@
   <img alt="授權" src="https://img.shields.io/badge/license-GPL--3.0-blue">
 </p>
 
-VoxSum for iOS 是 [Android 版](../README.md) 的原生 SwiftUI 移植：同一套語音引擎、同一個 AI 筆記模型與閱讀協定（Swift 版的閱讀器與 Android 的黃金測試資料逐位元組一致），介面與功能對齊 Android。
+VoxSum for iOS 是 [Android 版](https://github.com/vieenrose/VoxSum/blob/android/README.md) 的原生 SwiftUI 移植：同一套語音引擎、同一個 AI 筆記模型與閱讀協定（Swift 版的閱讀器與 Android 的黃金測試資料逐位元組一致），介面與功能對齊 Android。
 
 ## 特色
 
@@ -79,4 +79,4 @@ python3 tools/uiparity/check.py                     # 介面字串與 Android �
 
 ## 授權
 
-應用程式以 [GPL-3.0-or-later](../LICENSE) 授權；模型與資料各依其授權，見 [Android 版 README](../README.md#授權)。
+應用程式以 [GPL-3.0-or-later](https://github.com/vieenrose/VoxSum/blob/android/LICENSE) 授權；模型與資料各依其授權，見 [Android 版 README](https://github.com/vieenrose/VoxSum/blob/android/README.md#授權)。

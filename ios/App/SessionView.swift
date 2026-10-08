@@ -17,7 +17,7 @@ import AVFoundation
     func toggle() {
         guard let p else { return }
         if p.isPlaying { p.pause(); playing = false; timer?.invalidate(); return }
-        try? AVAudioSession.sharedInstance().setCategory(.playback); try? AVAudioSession.sharedInstance().setActive(true)
+        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default); try? AVAudioSession.sharedInstance().setActive(true)   // the recorder left .measurement, which plays very quietly
         p.play(); playing = true
         timer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in
             Task { @MainActor in
@@ -98,12 +98,8 @@ struct SessionView: View {
             Slider(value: Binding(get: { player.time }, set: { player.seek($0) }), in: 0...max(1, player.duration))
             HStack {
                 Text(Export.mmss(player.time)).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                    .frame(width: 96, alignment: .leading)
                 Spacer()
-                Menu {
-                    Button { player.muted.toggle() } label: { Label(L(player.muted ? "cd_unmute" : "cd_mute"), systemImage: player.muted ? "speaker.wave.2" : "speaker.slash") }
-                    ForEach([0.25, 0.5, 0.75, 1.0], id: \.self) { v in Button("\(Int(v * 100)) %") { player.muted = false; player.volume = Float(v) } }
-                } label: { Image(systemName: player.muted || player.volume == 0 ? "speaker.slash" : "speaker.wave.2").font(.body).foregroundStyle(.secondary) }
-                    .accessibilityLabel(L("cd_mute"))
                 Button { player.seek(player.time - 5) } label: { Image(systemName: "gobackward.5").font(.title2) }.accessibilityLabel(L("cd_back5"))
                 Button { player.toggle() } label: {
                     Image(systemName: player.playing ? "pause.fill" : "play.fill").font(.title2).foregroundStyle(.white)
@@ -111,7 +107,14 @@ struct SessionView: View {
                 }.accessibilityLabel(L(player.playing ? "pause" : "play"))
                 Button { player.seek(player.time + 5) } label: { Image(systemName: "goforward.5").font(.title2) }.accessibilityLabel(L("cd_forward5"))
                 Spacer()
+                HStack(spacing: 12) {
+                Menu {
+                    Button { player.muted.toggle() } label: { Label(L(player.muted ? "cd_unmute" : "cd_mute"), systemImage: player.muted ? "speaker.wave.2" : "speaker.slash") }
+                    ForEach([0.25, 0.5, 0.75, 1.0], id: \.self) { v in Button("\(Int(v * 100)) %") { player.muted = false; player.volume = Float(v) } }
+                } label: { Image(systemName: player.muted || player.volume == 0 ? "speaker.slash" : "speaker.wave.2").font(.body).foregroundStyle(.secondary) }
+                    .accessibilityLabel(L("cd_mute"))
                 Text(Export.mmss(player.duration)).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                }.frame(width: 96, alignment: .trailing)
             }
         }.padding(.horizontal, 20).padding(.vertical, 8).background(.bar)
     }

@@ -61,6 +61,13 @@ struct SessionView: View {
         _tab = State(initialValue: Int(Dev.env["VOX_TAB"] ?? "") ?? 0)
         if let q = Dev.env["VOX_QUERY"] { _query = State(initialValue: q); _searching = State(initialValue: true) }
         _player = StateObject(wrappedValue: Player(file: session.audio))
+        switch Dev.env["VOX_DIALOG"] {   // README / guide screenshots: open one dialog without taps
+        case "title": _draft = State(initialValue: session.title); _renamingTitle = State(initialValue: true)
+        case "speaker": _draft = State(initialValue: ""); _renamingSpeaker = State(initialValue: session.lines.first?.speaker)
+        case "line": _draft = State(initialValue: session.lines.first?.text ?? ""); _editingLine = State(initialValue: session.lines.first?.id)
+        case "summary": _editingSummary = State(initialValue: true)
+        default: break
+        }
     }
     private var shown: [Utterance] { s.lines }
     private var current: UUID? {

@@ -5,7 +5,7 @@
 - **使用說明**：每一節介紹一個畫面。
 - **測試地圖**：每一節最後的表格列出該畫面上的每個操作（節點）、進入方式、預期結果與驗證狀態。
 
-驗證欄：✅ 手動＝在 iPhone 14 Pro Max 上實際操作確認；⬜＝尚未在實機驗證（已編譯）。截圖之後補上。
+驗證欄：✅ 手動＝在 iPhone 14 Pro Max 上實際操作確認；⬜＝尚未在實機驗證（已編譯）。截圖取自 iPhone 17 Pro 模擬器（iOS 26，示範音訊）。
 與 Android 的差異：沒有 YouTube、App 內更新、GPU／NPU 選項與中斷復原對話框（佇列會自動接續）。
 
 畫面結構：
@@ -36,7 +36,11 @@ flowchart TD
 
 ---
 
+<p align="center"><img src="screenshots/demo-live.gif" width="260"></p>
+
 ## 1. 首頁（場次庫）
+
+<p><img src="guide/01-library.png" width="200"> <img src="guide/04-select.png" width="200"> <img src="guide/19-dark.png" width="200"></p>
 
 所有錄音與匯入的場次依日期（今天、昨天、日期）分組。上方可搜尋標題並以晶片篩選；沒有場次時顯示說明（隱私、離線、免費）。底部的 **錄音** 開始一場新會議。排入佇列或處理中的項目列在最上方。
 
@@ -76,6 +80,8 @@ App 被終止或離開時，佇列由背景工作（`BGProcessingTask`）或下�
 
 ## 3. 加入音訊
 
+<p><img src="guide/02-add.png" width="200"> <img src="guide/07-podcast.png" width="200"></p>
+
 | 節點 | 預期結果 | 驗證 |
 |---|---|---|
 | 音訊檔案 | 「檔案」挑選器；複製時顯示「正在匯入分享的音訊…」，完成後排入佇列；失敗時顯示「匯入失敗」 | ✅ 手動 |
@@ -95,6 +101,8 @@ App 被終止或離開時，佇列由背景工作（`BGProcessingTask`）或下�
 
 ## 5. 場次：摘要分頁
 
+<p><img src="guide/10-summary.png" width="200"> <img src="guide/17-process.png" width="200"> <img src="guide/18-actions.png" width="200"> <img src="guide/20-dark-summary.png" width="200"></p>
+
 | 節點 | 預期結果 | 驗證 |
 |---|---|---|
 | 摘要卡片 | 超過 12 行時「顯示更多／顯示較少」 | ✅ 手動 |
@@ -107,6 +115,8 @@ App 被終止或離開時，佇列由背景工作（`BGProcessingTask`）或下�
 | 模型已更換 | 開啟以舊模型摘要的場次時，提示重新摘要 | ⬜ |
 
 ## 6. 場次：逐字稿分頁
+
+<p><img src="guide/11-transcript.png" width="200"> <img src="guide/14-speaker.png" width="200"> <img src="guide/15-line.png" width="200"></p>
 
 上方註明處理流程（X-ASR + Nemotron-3 語者分離）。
 
@@ -121,6 +131,8 @@ App 被終止或離開時，佇列由背景工作（`BGProcessingTask`）或下�
 
 ## 7. 播放列與場次選單
 
+<p><img src="guide/12-export.png" width="200"></p>
+
 | 節點 | 預期結果 | 驗證 |
 |---|---|---|
 | 播放／暫停、±5 秒、進度 | — | ✅ 手動 |
@@ -132,6 +144,8 @@ App 被終止或離開時，佇列由背景工作（`BGProcessingTask`）或下�
 | ⋯ → 重新摘要 | 保留逐字稿與語者名稱；完成時畫面即時更新並顯示「新摘要已完成 · 復原」 | ✅ 手動 |
 
 ## 8. 設定
+
+<p><img src="guide/03-settings.png" width="200"></p>
 
 | 節點 | 預期結果 | 驗證 |
 |---|---|---|

@@ -190,7 +190,7 @@ flowchart TD
 
 ## 9. 設定
 
-<img src="guide/22-settings.png" width="270" alt="設定"> <img src="guide/23-settings-2.png" width="270" alt="設定（續）">
+<img src="guide/22-settings.png" width="270" alt="設定"> <img src="guide/23-settings-2.png" width="270" alt="設定（續）"> <img src="guide/23b-settings-backend.gif" width="270" alt="「建議」測試 CPU 與 GPU">
 
 處理進行中時設定為唯讀。
 
@@ -200,6 +200,7 @@ flowchart TD
 | 文字大小（85–150%） | 整個 App 的文字（含對話框）立即放大或縮小，疊加於系統字型大小；重新開啟 App 後保留 | ✅ 手動 |
 | 硬體狀態列 | 錄音與 AI 閱讀時，計時器下方顯示 CPU／記憶體／電池細條；數值過高時轉紅；預設開啟 | ✅ 手動 |
 | 推論：執行緒滑桿（2 至全部核心）與「建議」 | 拖曳滑桿手動指定；「建議」測完 2 至全部核心的執行緒數，自動選用提升不再明顯的最少執行緒數並移動滑桿 | ✅ 手動 |
+| 推論：閱讀器執行於 CPU／GPU（僅 E2B） | 「建議」同時測試兩者：首次下載 GPU 版本（約 800 MB），各自顯示可用與否、寫入／讀取速度；GPU 只有回答與 CPU 一致時才可選；預設 CPU；GPU 日後載入失敗時自動改用 CPU | ✅ 手動（Note 10+：CPU 14.4、GPU 9.1 詞元/秒，皆可用） |
 | 語言：跟隨系統／English／繁體中文／简体中文 | 介面與產生的文字一起切換 | ✅ 手動、✅ 自動（SettingsContentTest） |
 | 即時語者標註延遲（5–30 秒） | 錄音時語者標籤出現的延遲；重新開啟 App 後保留 | ✅ 手動 |
 | AI 筆記模型：行動版 E2B／行動版 E4B | 下次閱讀時使用所選模型（未下載時先下載）；E4B 只在 RAM 8 GB 以上的手機可選 | ✅ 手動（Note 10+：E2B、E4B） |

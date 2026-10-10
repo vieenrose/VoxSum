@@ -24,6 +24,7 @@ enum ReaderFactory {
             Prefs.reportReadFailure()
             return (StubLlm(), fallback, false)
         }
+        StatusLog.add("reader on the \(eng.onGpu ? "GPU" : "CPU")")
         let prompt = (try? String(contentsOfFile: dir + "/system_prompt.txt", encoding: .utf8)) ?? fallback
         return (MfaSession(engine: eng, tok: tok), prompt, true)
         #endif

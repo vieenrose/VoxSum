@@ -43,11 +43,13 @@ final class MfaEngine {
         guard let p = mfa_load(dir, gpuGraph ?? dir + "/prefill_decode_fused.tflite", Int32(ctx), Int32(threads),
                                gpuGraph == nil ? weightCache : "", gpuGraph == nil ? 0 : 1, &err, 1024)
         else { throw ReaderError(description: "mobile reader load failed: " + String(cString: err)) }
-        h = p
+        h = p; onGpu = gpuGraph != nil
     }
     deinit { mfa_free(h) }
 
     var context: Int { h.map { Int(mfa_context($0)) } ?? 0 }
+    /// Loaded on the GPU (ML Drift Metal) rather than the CPU.
+    let onGpu: Bool
     /// The last `generate`: prefilled, reused, generated, prefill_s, decode_s.
     private(set) var lastStats = [Double](repeating: 0, count: 5)
 

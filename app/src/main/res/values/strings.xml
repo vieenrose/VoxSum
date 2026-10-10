@@ -405,8 +405,11 @@
     <string name="backend_why_crashed">it crashed the engine, so it stays off</string>
     <string name="backend_why_output">it produced no text</string>
     <string name="backend_why_unsupported">this chip cannot run the reader\'s operations</string>
+    <string name="backend_why_wrong">its answers differ from the CPU\'s (it computes wrong on this chip)</string>
+    <string name="backend_why_model">this reader model has no GPU version (only Gemma 4 E2B does)</string>
+    <string name="backend_downloading">Downloading the GPU version of the reader… %1$d%%</string>
     <string name="backend_untested">Not tested yet</string>
     <string name="backend_testing">Testing %1$s…</string>
-    <string name="backend_need_model">Download the reader model (summarize one recording) to also test the GPU and NPU.</string>
-    <string name="backend_hint">The CPU is the default and the safest. The GPU unlocks only after its test passes here; if it fails to load later, the app falls back to the CPU on its own.</string>
+    <string name="backend_need_model">Download the reader model (summarize one recording) to also test the GPU.</string>
+    <string name="backend_hint">The CPU is the default and the safest. Testing the GPU downloads its version of the reader (about 800 MB, Gemma 4 E2B only) and unlocks it only if its answers match the CPU\'s; if it fails to load later, the app falls back to the CPU on its own.</string>
 </resources>

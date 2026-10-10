@@ -614,6 +614,7 @@ private fun InferencePanel(enabled: Boolean) {
     var chosen by remember { mutableStateOf(studio.voxsum.core.hw.HwInfo.backend(ctx)) }
     var testing by remember { mutableStateOf<studio.voxsum.core.hw.Backend?>(null) }
     var needModel by remember { mutableStateOf(false) }
+    var gpuFetch by remember { mutableStateOf<Float?>(null) }   // the GPU graph's download, before its test
     val multiBackend = studio.voxsum.core.hw.Backend.offered.size > 1
     if (multiBackend) Section(stringResource(R.string.settings_backend_title))
     if (multiBackend) FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -636,6 +637,8 @@ private fun InferencePanel(enabled: Boolean) {
     if (multiBackend) studio.voxsum.core.hw.Backend.offered.forEach { b ->
         val r = results[b]
         val line = when {
+            b == studio.voxsum.core.hw.Backend.GPU && gpuFetch != null ->
+                stringResource(R.string.backend_downloading, (gpuFetch!! * 100).roundToInt())
             testing == b -> stringResource(R.string.backend_testing, backendLabel(b))
             r == null -> stringResource(R.string.backend_untested)
             r.passed -> stringResource(R.string.backend_ok, r.decodeTps, r.prefillTps.roundToInt(),
@@ -645,6 +648,8 @@ private fun InferencePanel(enabled: Boolean) {
                 "no_runtime" -> R.string.backend_why_runtime
                 "crashed" -> R.string.backend_why_crashed
                 "no_output" -> R.string.backend_why_output
+                "wrong_output" -> R.string.backend_why_wrong
+                "no_model" -> R.string.backend_why_model
                 else -> R.string.backend_why_unsupported
             }))
         }
@@ -665,11 +670,18 @@ private fun InferencePanel(enabled: Boolean) {
                 val dir = models.llmDir(spec)
                 if (!multiBackend) {
                 } else if (java.io.File(dir, spec.mainFile).exists() && java.io.File(dir, "weights.xnnpack_cache").exists()) {
+                    // The GPU graph (~800 MB) is fetched only here, when the user asks to test the GPU.
+                    if (spec.gpuGraph != null) {
+                        gpuFetch = 0f
+                        runCatching { models.ensureLlmGpu(spec) { gpuFetch = it } }
+                        gpuFetch = null
+                    }
+                    val gpuMain = models.llmGpuFile(spec)?.path
                     results = withContext(kotlinx.coroutines.Dispatchers.Default) {
                         runCatching {
                             studio.voxsum.core.hw.BackendBench.run(
                                 ctx, hwKey, java.io.File(dir, spec.mainFile).parentFile!!.path, java.io.File(dir, spec.tokenizerFile).path, spec.maxCtx, profile.threads,
-                                java.io.File(dir, "weights.xnnpack_cache").path,
+                                java.io.File(dir, "weights.xnnpack_cache").path, gpuMain,
                             ) { testing = it }
                         }.getOrDefault(results)
                     }

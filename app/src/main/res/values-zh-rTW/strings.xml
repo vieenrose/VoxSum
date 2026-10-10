@@ -397,8 +397,11 @@
     <string name="backend_why_crashed">曾使引擎當機，因此保持關閉</string>
     <string name="backend_why_output">沒有產生文字</string>
     <string name="backend_why_unsupported">此晶片無法執行閱讀器所需的運算</string>
+    <string name="backend_why_wrong">回答與 CPU 不一致（此晶片上計算有誤）</string>
+    <string name="backend_why_model">此閱讀器模型沒有 GPU 版本（僅 Gemma 4 E2B 有）</string>
+    <string name="backend_downloading">正在下載閱讀器的 GPU 版本… %1$d%%</string>
     <string name="backend_untested">尚未測試</string>
     <string name="backend_testing">正在測試 %1$s…</string>
-    <string name="backend_need_model">請先下載閱讀器模型（摘要一段錄音），才能一併測試 GPU 與 NPU。</string>
-    <string name="backend_hint">CPU 是預設也最穩定。GPU 須在此手機通過測試後才能選用；若日後載入失敗，應用程式會自動改用 CPU。</string>
+    <string name="backend_need_model">請先下載閱讀器模型（摘要一段錄音），才能一併測試 GPU。</string>
+    <string name="backend_hint">CPU 是預設也最穩定。測試 GPU 會下載閱讀器的 GPU 版本（約 800 MB，僅限 Gemma 4 E2B），且只有在回答與 CPU 一致時才會啟用；若日後載入失敗，應用程式會自動改用 CPU。</string>
 </resources>

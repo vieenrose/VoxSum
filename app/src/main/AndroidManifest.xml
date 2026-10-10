@@ -42,6 +42,9 @@
         android:networkSecurityConfig="@xml/network_security_config"
         android:theme="@style/Theme.VoxSum"
         tools:targetApi="34">
+        <!-- The reader's GPU backend (ML Drift) needs the vendor OpenCL driver; since Android 12 an
+             app sees it only when declared. Optional: without it the GPU test fails, the CPU reads. -->
+        <uses-native-library android:name="libOpenCL.so" android:required="false" />
 
         <activity
             android:name=".MainActivity"

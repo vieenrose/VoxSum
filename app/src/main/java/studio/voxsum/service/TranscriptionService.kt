@@ -1799,10 +1799,16 @@ class TranscriptionService : LifecycleService() {
         // the XNNPACK weight cache built on the first load next to the weights.
         val main = File(dir, spec.mainFile)
         // CPU unless the user picked a GPU / NPU whose benchmark passed; a failed load there falls
-        // back to the CPU rather than losing the reading.
+        // back to the CPU rather than losing the reading. The GPU runs its own graph (the XNNPACK
+        // weight cache is the CPU graph's): a model without one, or not downloaded, reads on the CPU.
         var backend = studio.voxsum.core.hw.HwInfo.backend(this)
+        val gpuMain = models.llmGpuFile(spec)
+        if (backend == studio.voxsum.core.hw.Backend.GPU && gpuMain == null) backend = studio.voxsum.core.hw.Backend.CPU
         val engine = try {
-            studio.voxsum.core.llm.MfaEngine.load(
+            if (backend == studio.voxsum.core.hw.Backend.GPU) studio.voxsum.core.llm.MfaEngine.load(
+                main.parentFile!!.path, ctx = spec.maxCtx, threads = asrThreads(),
+                weightCache = "", backend = backend.id, main = gpuMain!!.path,
+            ) else studio.voxsum.core.llm.MfaEngine.load(
                 main.parentFile!!.path, ctx = spec.maxCtx, threads = asrThreads(),
                 weightCache = File(dir, WEIGHT_CACHE).path, backend = backend.id,
             )

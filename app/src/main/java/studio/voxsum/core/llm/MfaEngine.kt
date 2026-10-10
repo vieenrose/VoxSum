@@ -47,6 +47,16 @@ class MfaEngine private constructor(@Volatile private var handle: Long) : Closea
         }
     }
 
+    /**
+     * Teacher-forced agreement: prefill [ids], feed [forced] token by token and count the steps where
+     * the greedy choice is the next forced token. Against the CPU's greedy reply it tells a backend
+     * that computes right (near [forced].size) from one that only produces tokens (near 0).
+     */
+    fun agree(ids: IntArray, forced: IntArray): Int = lock.readLock().withLock {
+        check(handle != 0L) { "engine closed" }
+        nativeAgree(handle, ids, forced)
+    }
+
     fun cancel() { lock.readLock().withLock { if (handle != 0L) nativeCancel(handle) } }
 
     /** Waits for a running [generate] (cancel it first to make that quick). */
@@ -65,16 +75,19 @@ class MfaEngine private constructor(@Volatile private var handle: Long) : Closea
          * Load the model in [dir] (the `mfa/` folder of the HF repo). [weightCache] is built on the
          * first load (~0.8 GB for E2B, 2.2 GB for E4B) — do that once after the download, before any
          * recording, with nothing else loaded (§13.2). [backend]: 0 CPU, 1 GPU, 2 NPU (see
-         * [studio.voxsum.core.hw.Backend]). Throws IllegalStateException on failure.
+         * [studio.voxsum.core.hw.Backend]). [main]: the prefill/decode graph, the GPU variant's for
+         * the GPU (the embedders of [dir] serve both). Throws IllegalStateException on failure.
          */
-        fun load(dir: String, ctx: Int, threads: Int, weightCache: String, backend: Int = 0): MfaEngine =
-            MfaEngine(nativeLoad(dir, "$dir/prefill_decode_fused.tflite", ctx, threads, weightCache, backend))
+        fun load(dir: String, ctx: Int, threads: Int, weightCache: String, backend: Int = 0,
+                 main: String = "$dir/prefill_decode_fused.tflite"): MfaEngine =
+            MfaEngine(nativeLoad(dir, main, ctx, threads, weightCache, backend))
 
         @JvmStatic private external fun nativeLoad(dir: String, main: String, ctx: Int, threads: Int, cache: String, backend: Int): Long
         @JvmStatic private external fun nativeGenerate(
             h: Long, ids: IntArray, maxNew: Int, temp: Float, topK: Int, topP: Float, seed: Int,
             cb: TokenCallback?, stats: DoubleArray,
         ): IntArray
+        @JvmStatic private external fun nativeAgree(h: Long, ids: IntArray, forced: IntArray): Int
         @JvmStatic private external fun nativeCancel(h: Long)
         @JvmStatic private external fun nativeFree(h: Long)
         @JvmStatic private external fun nativeContext(h: Long): Int

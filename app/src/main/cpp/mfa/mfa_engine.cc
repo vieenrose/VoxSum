@@ -452,6 +452,21 @@ Engine::~Engine() = default;
 
 int Engine::context() const { return (int)impl_->C; }
 
+int Engine::agree(const std::vector<int>& ids, const std::vector<int>& forced) {
+    Impl& m = *impl_;
+    const int n = (int)ids.size();
+    if (n < 1 || n + forced.size() >= m.C) fail("agree: prompt too long");
+    m.fed.clear();
+    m.prefill(ids, 0, n - 1);
+    int tok = ids.back(), pos = n - 1, hit = 0;
+    for (int f : forced) {
+        const float* L = m.step(tok, pos++);
+        if ((int)(std::max_element(L, L + m.vocab) - L) == f) ++hit;
+        tok = f;
+    }
+    return hit;
+}
+
 std::vector<int> Engine::generate(const std::vector<int>& ids, int max_new, float temp, int top_k, float top_p,
                                   unsigned seed, const std::function<bool(int)>& on_token, Stats* stats) {
     pin_upper_cores();

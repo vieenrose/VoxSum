@@ -86,6 +86,18 @@ Java_studio_voxsum_core_llm_MfaEngine_nativeGenerate(JNIEnv* env, jclass, jlong 
     return arr;
 }
 
+JNIEXPORT jint JNICALL
+Java_studio_voxsum_core_llm_MfaEngine_nativeAgree(JNIEnv* env, jclass, jlong h, jintArray jids, jintArray jforced) {
+    if (!h) { throwJava(env, "engine not loaded"); return 0; }
+    auto vec = [&](jintArray a) {
+        std::vector<int> v(env->GetArrayLength(a));
+        env->GetIntArrayRegion(a, 0, (jsize)v.size(), reinterpret_cast<jint*>(v.data()));
+        return v;
+    };
+    try { return engine(h)->agree(vec(jids), vec(jforced)); }
+    catch (const std::exception& ex) { throwJava(env, ex.what()); return 0; }
+}
+
 JNIEXPORT void JNICALL
 Java_studio_voxsum_core_llm_MfaEngine_nativeCancel(JNIEnv*, jclass, jlong h) { if (h) engine(h)->cancel(); }
 

@@ -198,6 +198,19 @@ class ModelManager(context: Context) {
         reclaimRetiredLlm()
     }
 
+    /** The GPU graph of [spec] on disk, or null when it has none or it is not downloaded. */
+    fun llmGpuFile(spec: LlmSpec): File? =
+        spec.gpuGraph?.let { g -> File(llmDir(spec), g.path).takeIf { it.length() == g.bytes } }
+
+    /** Download [spec]'s GPU graph (sha256-checked) next to its CPU files; false when it has none. */
+    suspend fun ensureLlmGpu(spec: LlmSpec, onProgress: (Float) -> Unit): Boolean = withContext(Dispatchers.IO) {
+        val g = spec.gpuGraph ?: return@withContext false
+        if (llmGpuFile(spec) == null)
+            download(g.url, File(llmDir(spec), g.path).apply { parentFile?.mkdirs() }, g.sha256, onProgress)
+        onProgress(1f)
+        llmGpuFile(spec) != null
+    }
+
     /** No-arg convenience over the default model. */
     suspend fun ensureLlmModel(onProgress: (Float) -> Unit) =
         ensureLlmModel(LlmRegistry.byId(LlmRegistry.DEFAULT_ID), onProgress)

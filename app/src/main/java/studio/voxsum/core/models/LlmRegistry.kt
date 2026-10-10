@@ -34,9 +34,14 @@ data class LlmSpec(
     val maxCtx: Int,
     /** The reader's system prompt, shipped next to the weights (they must stay paired). */
     val systemPromptFile: String = "",
+    /** The GPU variant of [mainFile], downloaded only when the GPU is tested; null: CPU only. */
+    val gpuGraph: GpuGraph? = null,
 ) {
     val totalBytes: Long get() = files.values.sumOf { it.first }
 }
+
+/** A GPU (ML Drift) prefill/decode graph: [path] inside the model dir, fetched from [url]. */
+data class GpuGraph(val path: String, val url: String, val bytes: Long, val sha256: String)
 
 /** The reader's sampler (integration note §13.4: top-k 40, top-p 0.95, T 0.2). */
 data class SamplerProfile(val topK: Int, val topP: Float, val temp: Float) {
@@ -76,7 +81,11 @@ object LlmRegistry {
                 1_284_518_392L to "dca1e5553b4159558b17073c94fcc7ff16646e99a56a0614728435ac4b571720",
                 818_394_320L to "6a7555ccc349be490fca4ed63ebf7fdafd8e4a4510012f3ae9c38f8009b5fcae",
             ),
-        ),
+        ).copy(gpuGraph = GpuGraph(
+            "mobile-v1/mfa-gpu/prefill_decode_fused.tflite",
+            "https://huggingface.co/Luigi/gemma-4-E2B-meeting-agent-zh-GGUF/resolve/0b682ba385e1d635cae685a60a07e8f9e6accbac/mobile-v1/mfa-gpu/prefill_decode_fused.tflite",
+            798_240_440L, "a3504d11e97a346ec81b1db4d47aff55d1acf74bb2cd2129fb016e523b36c4ae",
+        )),
         mobile(
             id = E4B_MOBILE_ID, displayName = "Gemma-4-E4B meeting agent (zh)", shortName = "E4B",
             dirName = "gemma4-meeting-agent-e4b-mobile",

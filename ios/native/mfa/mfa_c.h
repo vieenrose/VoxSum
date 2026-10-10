@@ -8,9 +8,10 @@ extern "C" {
 typedef struct mfa_engine mfa_engine;
 typedef struct mfa_tok mfa_tok;
 
-// NULL on failure; the reason is copied into err.
+// NULL on failure; the reason is copied into err. backend: 0 CPU (XNNPACK, weight_cache), 1 GPU
+// (ML Drift Metal; main_graph must be the GPU graph, weight_cache is ignored).
 mfa_engine* mfa_load(const char* dir, const char* main_graph, int ctx, int threads, const char* weight_cache,
-                     char* err, int err_len);
+                     int backend, char* err, int err_len);
 int mfa_context(mfa_engine* e);
 void mfa_cancel(mfa_engine* e);                 // any thread
 void mfa_free(mfa_engine* e);
@@ -22,6 +23,10 @@ int mfa_generate(mfa_engine* e, const int* ids, int n, int max_new, float temp, 
                  unsigned seed, int (*on_token)(int, void*), void* user, int** out, double stats[5],
                  char* err, int err_len);
 void mfa_ids_free(int* ids);
+
+// Teacher-forced agreement: prefill ids, feed forced token by token and count the steps whose greedy
+// choice is the next forced token (a backend that computes wrong scores near 0). -1 on failure.
+int mfa_agree(mfa_engine* e, const int* ids, int n, const int* forced, int nf, char* err, int err_len);
 
 mfa_tok* mfa_tok_load(const char* path, char* err, int err_len);
 int mfa_tok_encode(mfa_tok* t, const char* text, int** out);          // count; free with mfa_ids_free

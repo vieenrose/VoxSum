@@ -320,3 +320,22 @@
 "status_starting" = "Starting…";
 "session_save_failed" = "Couldn't save session";
 "rec_interrupted" = "Recording stopped by another app (call or alarm) — what was recorded is saved and queued.";
+
+/* Reader backend (CPU / GPU) */
+"settings_backend_title" = "Run the reader on";
+"backend_cpu" = "CPU";
+"backend_gpu" = "GPU";
+"backend_ok" = "Works · writes %.1f tokens/s, reads %d tokens/s%@";
+"backend_vs_cpu" = " · %.1f× the CPU";
+"backend_fail" = "Not usable: %@";
+"backend_why_runtime" = "this build has no runtime for it";
+"backend_why_crashed" = "it crashed the engine, so it stays off";
+"backend_why_output" = "it produced no text";
+"backend_why_unsupported" = "this chip cannot run the reader's operations";
+"backend_why_wrong" = "its answers differ from the CPU's (it computes wrong on this chip)";
+"backend_why_model" = "this reader model has no GPU version (only Gemma 4 E2B does)";
+"backend_downloading" = "Downloading the GPU version of the reader… %d%%";
+"backend_untested" = "Not tested yet";
+"backend_testing" = "Testing %@…";
+"backend_need_model" = "Download the reader model (summarize one recording) to also test the GPU.";
+"backend_hint" = "The CPU is the default and the safest. Testing the GPU downloads its version of the reader (about 800 MB, Gemma 4 E2B only) and unlocks it only if its answers match the CPU's; if it fails to load later, the app falls back to the CPU on its own.";

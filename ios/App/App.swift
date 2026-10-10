@@ -523,6 +523,27 @@ struct ContentView: View {
 }
 
 struct SettingsView: View {
+    private var inferenceFooter: String {
+        let capped: String = Prefs.capped ? "\n" + L("settings_inference_capped") : ""
+        return L("threads_note", Prefs.effectiveThreads, Prefs.cores) + capped + "\n" + L("settings_inference_hint") + "\n" + L("backend_hint")
+    }
+    /// A backend's last test (Android Settings backend lines): speeds against the CPU, or why it is off.
+    private func backendLine(_ b: String) -> String {
+        let name = L("backend_" + b.lowercased()), r = backends[b]
+        let line: String
+        if b == "GPU", let f = gpuFetch { line = L("backend_downloading", Int(f * 100)) }
+        else if testing == b { line = L("backend_testing", name) }
+        else if let r, r.passed {
+            let cpu = backends["CPU"].flatMap { $0.passed && $0.decode > 0 ? $0.decode : nil }
+            line = L("backend_ok", r.decode, Int(r.prefill), b != "CPU" && cpu != nil ? L("backend_vs_cpu", r.decode / cpu!) : "")
+        } else if let r {
+            let why = ["no_runtime": "backend_why_runtime", "crashed": "backend_why_crashed", "no_output": "backend_why_output",
+                       "wrong_output": "backend_why_wrong", "no_model": "backend_why_model"][r.note] ?? "backend_why_unsupported"
+            line = L("backend_fail", L(why))
+        } else { line = L("backend_untested") }
+        return "\(name)  \(backends[b]?.passed == true ? "✓" : backends[b] != nil ? "✗" : "·")  \(line)"
+    }
+
     @Binding var language: String
     @Binding var theme: String
     @State private var models = Storage.models()
@@ -530,6 +551,11 @@ struct SettingsView: View {
     @State private var threads = Prefs.threads
     @State private var benching = false
     @State private var benchTick = 0
+    @State private var backend = BackendBench.chosen
+    @State private var backends = BackendBench.results(Prefs.reader)
+    @State private var testing: String?
+    @State private var gpuFetch: Double?   // the GPU graph's download, before its test
+    @State private var needModel = false
     @AppStorage("hwMonitor") private var hwMonitor = true
     @State private var reader = Prefs.readerId
     @State private var delay = Prefs.speakerDelay
@@ -556,7 +582,7 @@ struct SettingsView: View {
                         Text(L("reader_model_e2b") + " · 2.2 GB").tag("E2B")
                         if Prefs.e4bAllowed { Text(L("reader_model_e4b") + " · 3.3 GB").tag("E4B") }
                     }.pickerStyle(.inline).labelsHidden()
-                    .onChange(of: reader) { Prefs.readerId = reader }
+                    .onChange(of: reader) { Prefs.readerId = reader; backends = BackendBench.results(Prefs.reader) }
                 } header: { Text(L("settings_reader_model")) } footer: {
                     Text(L("reader_model_hint", 2200, 3300) + (Prefs.e4bAllowed ? "" : "\n" + L("reader_model_e4b_ram")))
                 }
@@ -566,11 +592,30 @@ struct SettingsView: View {
                     if threads > 0 {
                         Stepper(L("threads_n", threads), value: Binding(get: { threads }, set: { threads = $0; Prefs.threads = $0 }), in: 2...max(2, Prefs.cores))
                     }
+                    // The reader on each backend: the GPU is selectable only once its test passed.
+                    Picker(L("settings_backend_title"), selection: $backend) {
+                        ForEach(BackendBench.all.filter { $0 == "CPU" || backends[$0]?.passed == true }, id: \.self) { Text(L("backend_" + $0.lowercased())).tag($0) }
+                    }.disabled(benching).onChange(of: backend) { BackendBench.chosen = backend }
+                    ForEach(BackendBench.all, id: \.self) { b in Text(backendLine(b)).font(.footnote).foregroundStyle(.secondary) }
+                    if needModel { Text(L("backend_need_model")).font(.footnote).foregroundStyle(.secondary) }
                     Button(L(benching ? "settings_inference_running" : "settings_inference_run")) {
-                        benching = true; threads = 0; Prefs.threads = 0
-                        Task { _ = await Prefs.runBench(); benching = false; benchTick += 1 }
+                        benching = true; threads = 0; Prefs.threads = 0; needModel = false
+                        Task {
+                            _ = await Prefs.runBench(); benchTick += 1
+                            let rm = Prefs.reader, store = ModelStore()
+                            if Storage.ready(rm) {
+                                // The GPU graph (~800 MB) is fetched only here, when the user asks to test the GPU.
+                                if rm.gpu != nil { gpuFetch = 0; _ = try? await store.downloadGpu(rm) { d, t in Task { @MainActor in gpuFetch = Double(d) / Double(max(t, 1)) } }; gpuFetch = nil }
+                                let dir = await store.dir(rm).path, gpu = await store.gpuGraph(rm)
+                                backends = await Task.detached(priority: .userInitiated) {
+                                    BackendBench.run(rm, dir: dir, gpu: gpu, threads: Prefs.effectiveThreads) { b in Task { @MainActor in testing = b } }
+                                }.value
+                                testing = nil; backend = BackendBench.chosen
+                            } else { needModel = true }
+                            benching = false
+                        }
                     }.disabled(benching)
-                } header: { Text(L("settings_inference")) } footer: { Text(L("threads_note", Prefs.effectiveThreads, Prefs.cores) + (Prefs.capped ? "\n" + L("settings_inference_capped") : "") + "\n" + L("settings_inference_hint")).id(benchTick) }
+                } header: { Text(L("settings_inference")) } footer: { Text(inferenceFooter).id(benchTick) }
                 Section {
                     Toggle(L("settings_show_actions"), isOn: $showActions)
                 } header: { Text(L("settings_experimental")) } footer: { Text(L("settings_show_actions_hint")) }

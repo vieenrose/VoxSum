@@ -36,16 +36,30 @@ final class MfaEngine {
     private var h: OpaquePointer?
     static let bos = 2
 
-    /// `dir` = the folder with the three `.tflite` files; `weightCache` is built on first load.
-    init(dir: String, ctx: Int, threads: Int, weightCache: String) throws {
+    /// `dir` = the folder with the three `.tflite` files; `weightCache` is built on first load (CPU).
+    /// `gpuGraph`: run on the GPU (ML Drift Metal) with this prefill/decode graph instead.
+    init(dir: String, ctx: Int, threads: Int, weightCache: String, gpuGraph: String? = nil) throws {
         var err = [CChar](repeating: 0, count: 1024)
-        guard let p = mfa_load(dir, dir + "/prefill_decode_fused.tflite", Int32(ctx), Int32(threads), weightCache, &err, 1024)
+        guard let p = mfa_load(dir, gpuGraph ?? dir + "/prefill_decode_fused.tflite", Int32(ctx), Int32(threads),
+                               gpuGraph == nil ? weightCache : "", gpuGraph == nil ? 0 : 1, &err, 1024)
         else { throw ReaderError(description: "mobile reader load failed: " + String(cString: err)) }
         h = p
     }
     deinit { mfa_free(h) }
 
     var context: Int { h.map { Int(mfa_context($0)) } ?? 0 }
+    /// The last `generate`: prefilled, reused, generated, prefill_s, decode_s.
+    private(set) var lastStats = [Double](repeating: 0, count: 5)
+
+    /// Teacher-forced agreement with `forced` (another backend's greedy reply to `ids`): how many
+    /// steps pick the next forced token. Near `forced.count` computes right, near 0 does not.
+    func agree(_ ids: [Int], forced: [Int]) throws -> Int {
+        guard let h else { throw ReaderError(description: "engine closed") }
+        var err = [CChar](repeating: 0, count: 512)
+        let r = mfa_agree(h, ids.map { Int32($0) }, Int32(ids.count), forced.map { Int32($0) }, Int32(forced.count), &err, 512)
+        if r < 0 { throw ReaderError(description: String(cString: err)) }
+        return Int(r)
+    }
     func cancel() { if let h { mfa_cancel(h) } }
 
     /// Prefill `ids` (starting with `<bos>`) and generate up to `maxNew` tokens (0 = prefill only);
@@ -67,6 +81,7 @@ final class MfaEngine {
             }
         }
         guard n >= 0 else { throw ReaderError(description: String(cString: err)) }
+        lastStats = stats
         if stats[3] + stats[4] > 5 {   // prefilled, reused, generated, prefill_s, decode_s: compute-bound or paging?
             StatusLog.add("trace mfa prefilled \(Int(stats[0])) (reused \(Int(stats[1]))) in \(Int(stats[3])) s = \(Int(stats[0] / max(stats[3], 0.1))) tok/s; generated \(Int(stats[2])) in \(Int(stats[4])) s; \(os_proc_available_memory() / 1_048_576) MB free")
         }

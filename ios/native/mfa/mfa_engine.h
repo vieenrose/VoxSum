@@ -27,7 +27,7 @@ public:
     // prefill/decode graph. weight_cache: XNNPACK weight-cache file, built on first load.
     // Throws std::runtime_error on any failure.
     Engine(const std::string& dir, const std::string& main, int ctx, int threads,
-           const std::string& weight_cache);
+           const std::string& weight_cache, int backend = 0);
     ~Engine();
 
     int context() const;
@@ -37,6 +37,12 @@ public:
     std::vector<int> generate(const std::vector<int>& ids, int max_new, float temp, int top_k,
                               float top_p, unsigned seed, const std::function<bool(int)>& on_token,
                               Stats* stats);
+
+    // Teacher-forced agreement: prefill [ids], then feed [forced] one token at a time and count the
+    // steps where the greedy choice is the next forced token. A backend that computes wrong (a
+    // corrupted KV cache gets the first token right, then garbage) scores near 0 against the CPU's
+    // greedy reply; a correct one near forced.size().
+    int agree(const std::vector<int>& ids, const std::vector<int>& forced);
 
     // Callable from any thread: the running generate() stops after its current step.
     void cancel() { cancel_ = true; }

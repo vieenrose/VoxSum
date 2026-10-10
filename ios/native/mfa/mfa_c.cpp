@@ -20,9 +20,10 @@ struct mfa_tok { sentencepiece::SentencePieceProcessor sp; };
 
 extern "C" {
 
-mfa_engine* mfa_load(const char* dir, const char* main_graph, int ctx, int threads, const char* cache, char* err, int err_len) {
+mfa_engine* mfa_load(const char* dir, const char* main_graph, int ctx, int threads, const char* cache, int backend,
+                     char* err, int err_len) {
     try {
-        return new mfa_engine{new mfa::Engine(dir, main_graph, ctx, threads, cache)};
+        return new mfa_engine{new mfa::Engine(dir, main_graph, ctx, threads, cache, backend)};
     } catch (const std::exception& ex) {
         set_err(err, err_len, ex.what());
         return nullptr;
@@ -51,6 +52,16 @@ int mfa_generate(mfa_engine* h, const int* ids, int n, int max_new, float temp, 
 }
 
 void mfa_ids_free(int* ids) { std::free(ids); }
+
+int mfa_agree(mfa_engine* h, const int* ids, int n, const int* forced, int nf, char* err, int err_len) {
+    if (!h) { set_err(err, err_len, "engine not loaded"); return -1; }
+    try {
+        return h->e->agree(std::vector<int>(ids, ids + n), std::vector<int>(forced, forced + nf));
+    } catch (const std::exception& ex) {
+        set_err(err, err_len, ex.what());
+        return -1;
+    }
+}
 
 mfa_tok* mfa_tok_load(const char* path, char* err, int err_len) {
     auto* t = new mfa_tok;

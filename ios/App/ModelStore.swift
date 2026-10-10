@@ -8,6 +8,8 @@ struct ModelFile { let name: String, remote: String, size: Int64, sha256: String
 struct ReaderModel {
     let id: String, repo: String, rev: String
     let files: [ModelFile]
+    /// The GPU's prefill/decode graph (ML Drift), fetched only when the user tests the GPU; E2B only.
+    var gpu: ModelFile? = nil
     func url(_ f: ModelFile) -> URL { URL(string: f.remote.hasPrefix("https://") ? f.remote : "https://huggingface.co/\(repo)/resolve/\(rev)/\(f.remote)")! }
 
     /// Speech engine (ASR + diarization), the two pins of Android `ModelManager.NEMO_FILES`; CPU only.
@@ -32,11 +34,17 @@ struct ReaderModel {
             ModelFile(name: "system_prompt.txt", remote: prompt, size: 1_686, sha256: promptSha),
         ])
     }
-    static let e2b = make("E2B", "Luigi/gemma-4-E2B-meeting-agent-zh-GGUF", "f47086170552f9b8e8719e9884af9fb9b56156d1",
-        dir: "mobile-v1/mfa", prompt: "mobile-v1/system_prompt.txt", [
-        (103_811_720, "280327ee5720663acd2268c2e5d42caad33f70ba7931eef8c8b3018b4e2a4980"),
-        (1_284_518_392, "dca1e5553b4159558b17073c94fcc7ff16646e99a56a0614728435ac4b571720"),
-        (818_394_320, "6a7555ccc349be490fca4ed63ebf7fdafd8e4a4510012f3ae9c38f8009b5fcae")])
+    static let e2b: ReaderModel = {
+        var m = make("E2B", "Luigi/gemma-4-E2B-meeting-agent-zh-GGUF", "f47086170552f9b8e8719e9884af9fb9b56156d1",
+            dir: "mobile-v1/mfa", prompt: "mobile-v1/system_prompt.txt", [
+            (103_811_720, "280327ee5720663acd2268c2e5d42caad33f70ba7931eef8c8b3018b4e2a4980"),
+            (1_284_518_392, "dca1e5553b4159558b17073c94fcc7ff16646e99a56a0614728435ac4b571720"),
+            (818_394_320, "6a7555ccc349be490fca4ed63ebf7fdafd8e4a4510012f3ae9c38f8009b5fcae")])
+        m.gpu = ModelFile(name: "prefill_decode_fused.gpu.tflite",
+            remote: "https://huggingface.co/Luigi/gemma-4-E2B-meeting-agent-zh-GGUF/resolve/0b682ba385e1d635cae685a60a07e8f9e6accbac/mobile-v1/mfa-gpu/prefill_decode_fused.tflite",
+            size: 798_240_440, sha256: "a3504d11e97a346ec81b1db4d47aff55d1acf74bb2cd2129fb016e523b36c4ae")
+        return m
+    }()
     static let e4b = make("E4B", "Luigi/gemma-4-E4B-meeting-agent-zh-LiteRT", "70e095dc5db8d4edac901578a6e0f04d994ad95e",
         dir: "mfa", prompt: "system_prompt.txt", [
         (170_920_584, "94cf45ffd3d0dd7040d27b22e70845cf1054db90613bf31d8ffc1623d23d4a40"),
@@ -61,19 +69,39 @@ actor ModelStore {
         try FileManager.default.createDirectory(at: dir(m), withIntermediateDirectories: true)
         let total = m.files.reduce(0) { $0 + $1.size }; var done: Int64 = 0
         for f in m.files {
-            let dest = dir(m).appendingPathComponent(f.name), part = dest.appendingPathExtension("part")
-            if let s = try? FileManager.default.attributesOfItem(atPath: dest.path)[.size] as? Int64, s == f.size { done += f.size; progress(done, total); continue }
-            let have = (try? FileManager.default.attributesOfItem(atPath: part.path)[.size] as? Int64) ?? 0
-            var req = URLRequest(url: m.url(f))
-            if have > 0 { req.setValue("bytes=\(have)-", forHTTPHeaderField: "Range") }
             let base = done
-            try await Chunked.fetch(req, to: part, resumeFrom: have) { got in progress(base + got, total) }
-            guard (try FileManager.default.attributesOfItem(atPath: part.path)[.size] as? Int64) == f.size else { throw ModelStoreError.size(f.name) }
-            if let want = f.sha256, try Self.sha256(part) != want { try? FileManager.default.removeItem(at: part); throw ModelStoreError.hash(f.name) }
-            try? FileManager.default.removeItem(at: dest)
-            try FileManager.default.moveItem(at: part, to: dest)
+            try await fetch(m, f) { got in progress(base + got, total) }
             done += f.size; progress(done, total)
         }
+    }
+
+    /// The GPU graph's path when it is fully there.
+    func gpuGraph(_ m: ReaderModel) -> String? {
+        guard let g = m.gpu else { return nil }
+        let p = dir(m).appendingPathComponent(g.name).path
+        return (try? FileManager.default.attributesOfItem(atPath: p)[.size] as? Int64) == g.size ? p : nil
+    }
+
+    /// Downloads the GPU graph (sha256-checked) next to the CPU files; nil when the model has none.
+    func downloadGpu(_ m: ReaderModel, progress: @escaping @Sendable (Int64, Int64) -> Void) async throws -> String? {
+        guard let g = m.gpu else { return nil }
+        try FileManager.default.createDirectory(at: dir(m), withIntermediateDirectories: true)
+        try await fetch(m, g) { progress($0, g.size) }
+        return gpuGraph(m)
+    }
+
+    /// One file, resumed from its `.part`, checked, then moved into place; `progress` gets its bytes so far.
+    private func fetch(_ m: ReaderModel, _ f: ModelFile, progress: @escaping @Sendable (Int64) -> Void) async throws {
+        let dest = dir(m).appendingPathComponent(f.name), part = dest.appendingPathExtension("part")
+        if let s = try? FileManager.default.attributesOfItem(atPath: dest.path)[.size] as? Int64, s == f.size { return }
+        let have = (try? FileManager.default.attributesOfItem(atPath: part.path)[.size] as? Int64) ?? 0
+        var req = URLRequest(url: m.url(f))
+        if have > 0 { req.setValue("bytes=\(have)-", forHTTPHeaderField: "Range") }
+        try await Chunked.fetch(req, to: part, resumeFrom: have, onProgress: progress)
+        guard (try FileManager.default.attributesOfItem(atPath: part.path)[.size] as? Int64) == f.size else { throw ModelStoreError.size(f.name) }
+        if let want = f.sha256, try Self.sha256(part) != want { try? FileManager.default.removeItem(at: part); throw ModelStoreError.hash(f.name) }
+        try? FileManager.default.removeItem(at: dest)
+        try FileManager.default.moveItem(at: part, to: dest)
     }
 
     static func sha256(_ url: URL) throws -> String {

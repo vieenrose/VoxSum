@@ -84,11 +84,26 @@ namespace {
 // accumulation over a 4k-column P.V^T flips near-tied argmaxes of the next layers (measured on
 // E4B: greedy output differs from the unfused graph at token 44; chunked: identical).
 static constexpr int KC = 64;
-static inline void dot_tile(const float* A, size_t lda, int mu, const float* B, size_t ldb, int nv,
-                            int k, float out[4][4]) {
+// B is either float, or int8 with zero point bz, converted in registers ((float)b - bz, the
+// exact value the float path would have stored): decode reads the cache once, without the
+// per-call conversion pass into Kf / Vf.
+static inline float ld1(const float* p, float) { return *p; }
+static inline float ld1(const int8_t* p, float z) { return (float)*p - z; }
+#if defined(__aarch64__)
+static inline float32x4_t ld4(const float* p, float32x4_t) { return vld1q_f32(p); }
+static inline float32x4_t ld4(const int8_t* p, float32x4_t z) {
+  int32_t w; memcpy(&w, p, 4);
+  const int16x4_t h = vget_low_s16(vmovl_s8(vreinterpret_s8_s32(vdup_n_s32(w))));
+  return vsubq_f32(vcvtq_f32_s32(vmovl_s16(h)), z);
+}
+#endif
+template <class BT>
+static inline void dot_tile(const float* A, size_t lda, int mu, const BT* B, size_t ldb, int nv,
+                            int k, float bz, float out[4][4]) {
   double acc[4][4] = {};
 #if defined(__aarch64__)
   if (mu == 4 && nv == 4 && (k & 3) == 0) {
+    const float32x4_t z = vdupq_n_f32(bz);
     for (int x0 = 0; x0 < k; x0 += KC) {
       const int x1 = std::min(k, x0 + KC);
       float32x4_t c[4][4];
@@ -96,7 +111,7 @@ static inline void dot_tile(const float* A, size_t lda, int mu, const float* B, 
       for (int x = x0; x < x1; x += 4) {
         float32x4_t a[4], b[4];
         for (int u = 0; u < 4; ++u) a[u] = vld1q_f32(A + u * lda + x);
-        for (int v = 0; v < 4; ++v) b[v] = vld1q_f32(B + v * ldb + x);
+        for (int v = 0; v < 4; ++v) b[v] = ld4(B + v * ldb + x, z);
         for (int u = 0; u < 4; ++u)
           for (int v = 0; v < 4; ++v) c[u][v] = vfmaq_f32(c[u][v], a[u], b[v]);
       }
@@ -109,12 +124,12 @@ static inline void dot_tile(const float* A, size_t lda, int mu, const float* B, 
   for (int u = 0; u < mu; ++u)
     for (int v = 0; v < nv; ++v) {
       const float* a = A + u * lda;
-      const float* b = B + v * ldb;
+      const BT* b = B + v * ldb;
       for (int x0 = 0; x0 < k; x0 += KC) {
         const int x1 = std::min(k, x0 + KC);
         float part = 0.f;
 #pragma omp simd reduction(+ : part)
-        for (int x = x0; x < x1; ++x) part += a[x] * b[x];
+        for (int x = x0; x < x1; ++x) part += a[x] * ld1(b + x, bz);
         acc[u][v] += part;
       }
       out[u][v] = (float)acc[u][v];
@@ -212,18 +227,20 @@ LiteRtStatus Run(void* user_data, size_t num_inputs, const LiteRtTensorBuffer* i
     int jlo = C, jhi = 0;
     for (int t = 0; t < T; ++t) if (lo[t] < hi[t]) { jlo = std::min(jlo, lo[t]); jhi = std::max(jhi, hi[t]); }
     if (jhi < jlo) jhi = jlo;
+    // Decode (few rows) reads the int8 cache directly; prefill rows share each converted column
+    // many times over, so it still pays the conversion once.
+    const bool direct = rows <= 32;
     static std::vector<float> kbuf, vbuf;
-    kbuf.resize((size_t)KV * C * d);
-    vbuf.resize((size_t)KV * d * C);
+    if (!direct) { kbuf.resize((size_t)KV * C * d); vbuf.resize((size_t)KV * d * C); }
     float* const Kf = kbuf.data();
     float* const Vf = vbuf.data();
-    par_static(nth, KV * (jhi - jlo), [&](int hj) {
+    par_static(nth, direct ? 0 : KV * (jhi - jlo), [&](int hj) {
       const int h = hj / (jhi - jlo), j = jlo + hj % (jhi - jlo);
       const int8_t* kr = K + ((size_t)h * C + j) * d;
       float* kf = Kf + ((size_t)h * C + j) * d;
       for (int x = 0; x < d; ++x) kf[x] = (float)kr[x] - kz;
     });
-    par_static(nth, KV * d, [&](int hx) {
+    par_static(nth, direct ? 0 : KV * d, [&](int hx) {
       const int8_t* vr = V + (size_t)hx * C;
       float* vf = Vf + (size_t)hx * C;
       for (int j = jlo; j < jhi; ++j) vf[j] = (float)vr[j] - vz;
@@ -239,7 +256,8 @@ LiteRtStatus Run(void* user_data, size_t num_inputs, const LiteRtTensorBuffer* i
       for (int j = j0; j < j1; j += 4) {
         const int nj = std::min(4, j1 - j);
         float tile[4][4];
-        dot_tile(qb, d, nr, Kf + ((size_t)h * C + j) * d, d, nj, d, tile);
+        if (direct) dot_tile(qb, d, nr, K + ((size_t)h * C + j) * d, d, nj, d, kz, tile);
+        else dot_tile(qb, d, nr, Kf + ((size_t)h * C + j) * d, d, nj, d, 0.f, tile);
         for (int u = 0; u < nr; ++u) {
           float* Sr = S + ((size_t)h * R + r0 + u) * C + j;
           for (int v = 0; v < nj; ++v) Sr[v] = beta * ks * tile[u][v];
@@ -276,8 +294,9 @@ LiteRtStatus Run(void* user_data, size_t num_inputs, const LiteRtTensorBuffer* i
       for (int x = xb * XB; x < std::min(d, xb * XB + XB); x += 4) {
         const int nx = std::min(4, std::min(d, xb * XB + XB) - x);
         float tile[4][4];
-        dot_tile(S + ((size_t)h * R + r0) * C + k0, C, nr, Vf + ((size_t)h * d + x) * C + k0, C, nx,
-                 k1 - k0, tile);
+        const float* Pb = S + ((size_t)h * R + r0) * C + k0;
+        if (direct) dot_tile(Pb, C, nr, V + ((size_t)h * d + x) * C + k0, C, nx, k1 - k0, vz, tile);
+        else dot_tile(Pb, C, nr, Vf + ((size_t)h * d + x) * C + k0, C, nx, k1 - k0, 0.f, tile);
         for (int u = 0; u < nr; ++u) {
           const int i = h * R + r0 + u;
           for (int v = 0; v < nx; ++v)

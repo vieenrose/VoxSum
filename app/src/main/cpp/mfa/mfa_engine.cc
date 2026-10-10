@@ -17,6 +17,7 @@
 #include <unistd.h>
 #ifdef __ANDROID__
 #include <sched.h>
+#include <sys/system_properties.h>
 #endif
 
 #include <algorithm>
@@ -53,7 +54,7 @@ namespace {
 // MFA_NO_PIN=1 disables it. Android only (no affinity API on iOS).
 void pin_upper_cores() {
 #ifdef __ANDROID__
-    if (getenv("MFA_NO_PIN")) return;
+    { char v[8] = {0}; __system_property_get("debug.voxsum.nopin", v); if (getenv("MFA_NO_PIN") || v[0] == '1') return; }
     long f[64]; int n = 0; long lo = 0;
     for (; n < 64; ++n) {
         char path[96]; snprintf(path, sizeof path, "/sys/devices/system/cpu/cpu%d/cpufreq/cpuinfo_max_freq", n);
@@ -100,15 +101,33 @@ struct Mapping {
 };
 
 // backend: 0 CPU (XNNPACK, the default and the only one the weight cache serves), 1 GPU, 2 NPU.
-// GPU / NPU keep the CPU as the fallback for ops they cannot take (the fused int8 attention is a
-// CPU kernel), so a compiled model may be partly delegated; the benchmark measures what that buys.
+// NPU keeps the CPU as the fallback for ops it cannot take. GPU runs the GPU variant of the reader
+// (no fused int8 attention op) wholly on ML Drift, with LiteRT-LM's options: the KV caches and the
+// param tensor are external tensors kept in GPU storage buffers, fp32 activations (fp16 drifts to
+// English on short prompts), and the constant tensors shared between prefill and decode (7.7 ->
+// 1.7 GB peak on a Note10+).
+const char* kGpuOptions =
+    "precision = 2\n"
+    "enable_infinite_float_capping = true\n"
+    "external_tensors_mode = false\n"
+    "external_tensor_patterns = [\"kv_cache_\", \"param_tensor\"]\n"
+    "buffer_storage_tensor_patterns = [\"kv_cache_c_\", \"kv_cache_\", \"param_tensor\"]\n"
+    "hint_fully_delegated_to_single_delegate = true\n"
+    "enable_constant_tensors_sharing = true\n"
+    "madvise_original_shared_tensors = true\n";
+
 LiteRtOptions make_options(int threads, const std::string& cache, bool fused, int attn_threads, int backend = 0) {
     LiteRtOptions opts;
     ENSURE(LiteRtCreateOptions(&opts));
     int hw = kLiteRtHwAcceleratorCpu;
-    if (backend == 1) hw |= kLiteRtHwAcceleratorGpu;
+    if (backend == 1) hw = kLiteRtHwAcceleratorGpu;
     if (backend == 2) hw |= kLiteRtHwAcceleratorNpu;
     ENSURE(LiteRtSetOptionsHardwareAccelerators(opts, static_cast<LiteRtHwAccelerators>(hw)));
+    if (backend == 1) {
+        LiteRtOpaqueOptions go = nullptr;
+        ENSURE(LiteRtCreateOpaqueOptions("gpu_options", strdup(kGpuOptions), [](void* p) { free(p); }, &go));
+        ENSURE(LiteRtAddOpaqueOptions(opts, go));
+    }
     if (LiteRtOpaqueOptions oo = cpu_options(threads, cache)) ENSURE(LiteRtAddOpaqueOptions(opts, oo));
     if (fused) {
         LiteRtCustomOpKernel k; void* ud = nullptr;
@@ -141,11 +160,12 @@ struct Model {
     std::map<std::string, Sig> sigs;
     std::map<std::string, LiteRtTensorBuffer>* shared;   // the KV caches, by name
     std::vector<LiteRtTensorBuffer> owned;
+    bool gpu;
 
     Model(LiteRtEnvironment e, const std::string& path, int threads, const std::string& cache,
           bool fused, std::map<std::string, LiteRtTensorBuffer>* kv, const std::vector<std::string>& only,
           int backend = 0)
-        : env(e), map(new Mapping(path)), shared(kv) {
+        : env(e), map(new Mapping(path)), shared(kv), gpu(backend == 1) {
         ENSURE(LiteRtCreateModelFromBuffer(env, map->p, map->n, &model));
         opts = make_options(threads, cache, fused, 0, backend);
         ENSURE(LiteRtCreateCompiledModel(env, model, opts, &cm));
@@ -181,6 +201,9 @@ struct Model {
 
     LiteRtTensorBuffer buffer(LiteRtSignature sig, LiteRtParamIndex si, LiteRtParamIndex ti, bool in, const char* name) {
         const bool is_kv = shared && !strncmp(name, "kv_cache_", 9);
+        // GPU: one cache per layer, made from the output requirements (only they offer a GPU
+        // buffer type) and left unbound as an input; a host-memory cache round trip corrupts it.
+        if (is_kv && gpu && in) return nullptr;
         if (is_kv) {
             auto it = shared->find(name);
             if (it != shared->end()) return it->second;
@@ -192,8 +215,12 @@ struct Model {
         ENSURE(in ? LiteRtGetCompiledModelInputBufferRequirements(cm, si, ti, &req)
                   : LiteRtGetCompiledModelOutputBufferRequirements(cm, si, ti, &req));
         size_t bytes = 0; ENSURE(LiteRtGetTensorBufferRequirementsBufferSize(req, &bytes));
+        LiteRtTensorBufferType bt = kLiteRtTensorBufferTypeHostMemory;
+        int nt = 0;
+        if (gpu && LiteRtGetNumTensorBufferRequirementsSupportedBufferTypes(req, &nt) == kLiteRtStatusOk && nt > 0)
+            ENSURE(LiteRtGetTensorBufferRequirementsSupportedTensorBufferType(req, 0, &bt));
         LiteRtTensorBuffer b;
-        ENSURE(LiteRtCreateManagedTensorBuffer(env, kLiteRtTensorBufferTypeHostMemory, &tt, bytes, &b));
+        ENSURE(LiteRtCreateManagedTensorBuffer(env, bt, &tt, bytes, &b));
         void* p; ENSURE(LiteRtLockTensorBuffer(b, &p, kLiteRtTensorBufferLockModeWrite));
         memset(p, 0, bytes); LiteRtUnlockTensorBuffer(b);
         owned.push_back(b);
@@ -288,7 +315,7 @@ struct Engine::Impl {
     Sig *es = nullptr, *ps = nullptr, *pf = nullptr, *dc = nullptr;
     int iE, iP, iPos, iM, iPar, dE, dP, dPos, dM, dPar, dL;
     size_t hid = 0, ple_n = 0, C = 0, vocab = 0;
-    std::vector<float> e, pl;
+    std::vector<float> e, pl, logits;
     std::vector<int> fed;   // tokens whose keys and values are in the cache, by position
     std::vector<std::pair<float, int>> cand;
     std::vector<Range> tables;   // the embedder tables' clean pages, dropped every 8 lookups
@@ -346,8 +373,10 @@ struct Engine::Impl {
         lm->run(*dc);
         fed.resize(pos); fed.push_back(tok);
         const float* L = (const float*)lockr(dc->out[dL]);
-        unlock(dc->out[dL]);   // host memory: the pointer stays valid until the next run
-        return L;
+        if (logits.empty()) { unlock(dc->out[dL]); return L; }   // host memory: valid until the next run
+        memcpy(logits.data(), L, vocab * 4);   // GPU buffer: the mapping ends at unlock
+        unlock(dc->out[dL]);
+        return logits.data();
     }
 
     int sample(const float* L, float temp, int top_k, float top_p, std::mt19937& rng) {
@@ -416,6 +445,7 @@ Engine::Engine(const std::string& dir, const std::string& main, int ctx, int thr
     if (m.dE < 0 || m.dP < 0 || m.dPos < 0 || m.dM < 0 || m.dPar < 0 || m.dL < 0) fail("decode signature names not found");
     m.vocab = bytes_of(m.dc->out[m.dL]) / 4;
     m.e.resize(m.hid); m.pl.resize(m.ple_n);
+    if (backend == 1) m.logits.resize(m.vocab);
 }
 
 Engine::~Engine() = default;

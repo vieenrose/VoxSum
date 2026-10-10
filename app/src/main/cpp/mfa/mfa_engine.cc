@@ -15,6 +15,9 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <unistd.h>
+#ifdef __ANDROID__
+#include <sched.h>
+#endif
 
 #include <algorithm>
 #include <map>
@@ -43,6 +46,27 @@ namespace {
         LiteRtStatus s_ = (x);                                                                 \
         if (s_ != kLiteRtStatusOk) fail(std::string(#x) + " -> " + std::to_string((int)s_)); \
     } while (0)
+
+// Pins the calling thread to the upper-tier cores (max frequency above the lowest tier). The
+// XNNPACK pool and the OpenMP team are created from this thread and inherit the mask; left to the
+// scheduler, a 4-thread decode lands partly on the little cores (Note10+: 3.2 vs 12.5 tok/s).
+// MFA_NO_PIN=1 disables it. Android only (no affinity API on iOS).
+void pin_upper_cores() {
+#ifdef __ANDROID__
+    if (getenv("MFA_NO_PIN")) return;
+    long f[64]; int n = 0; long lo = 0;
+    for (; n < 64; ++n) {
+        char path[96]; snprintf(path, sizeof path, "/sys/devices/system/cpu/cpu%d/cpufreq/cpuinfo_max_freq", n);
+        FILE* fp = fopen(path, "r"); if (!fp) break;
+        if (fscanf(fp, "%ld", &f[n]) != 1) f[n] = 0;
+        fclose(fp);
+        if (n == 0 || f[n] < lo) lo = f[n];
+    }
+    cpu_set_t cs; CPU_ZERO(&cs); int k = 0;
+    for (int c = 0; c < n; ++c) if (f[c] > lo) { CPU_SET(c, &cs); ++k; }
+    if (k > 0) sched_setaffinity(0, sizeof cs, &cs);
+#endif
+}
 
 double now_s() { timeval tv; gettimeofday(&tv, nullptr); return tv.tv_sec + tv.tv_usec * 1e-6; }
 
@@ -350,6 +374,7 @@ Engine::Engine(const std::string& dir, const std::string& main, int ctx, int thr
     // on the same cores (Reno7: prefill 80 -> 130 tok/s). Set before the OpenMP runtime starts.
     setenv("KMP_BLOCKTIME", "0", 0);
     setenv("OMP_WAIT_POLICY", "PASSIVE", 0);
+    pin_upper_cores();
     Impl& m = *impl_;
     m.magic.resize(sizeof(LiteRtMagicNumberConfigs) + sizeof(LiteRtMagicNumberConfig));
     auto* cfg = reinterpret_cast<LiteRtMagicNumberConfigs*>(m.magic.data());
@@ -399,6 +424,7 @@ int Engine::context() const { return (int)impl_->C; }
 
 std::vector<int> Engine::generate(const std::vector<int>& ids, int max_new, float temp, int top_k, float top_p,
                                   unsigned seed, const std::function<bool(int)>& on_token, Stats* stats) {
+    pin_upper_cores();
     Impl& m = *impl_;
     cancel_ = false;
     const int n = (int)ids.size();
